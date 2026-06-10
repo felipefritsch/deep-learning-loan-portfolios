@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-# macOS
-.DS_Store
-.AppleDouble
 # macOS
 .DS_Store
 .AppleDouble
@@ -52,6 +48,9 @@ MANIFEST
 
 # Raw/local datasets
 data/
+
+# Disposable internal-disk artifacts (DuckDB catalog, sort spill, cached samples)
+reports/
 
 # LaTeX intermediate/build artifacts
 *.aux

@@ -40,6 +40,13 @@ DUCKDB_MEMORY_LIMIT = "6GB"   # SET memory_limit on every DuckDB connection
 CHUNK_ROWS = 1_000_000        # row-group size / streaming batch size
 ZSTD_LEVEL = 9                # Parquet zstd compression level
 
+# Stage 4 sharding (01_SCHEMA.md §6.2): a deterministic, loan-keyed bucket in
+# [0, N_SHARDS) for minibatch randomization and leakage-safe splits. SHARD_SEED
+# is pinned so shards are reproducible; changing either value reshuffles all
+# shards (a one-time decision).
+N_SHARDS = 256
+SHARD_SEED = 1234567
+
 
 def require_drive() -> None:
     """Fail fast if the external SSD is not mounted (or not accessible).

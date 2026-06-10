@@ -260,6 +260,58 @@ assert not _missing, f"KEEP_COLS not in COLUMNS: {_missing}"
 
 
 # ---------------------------------------------------------------------------
+# 6.4. Feature roles (01_SCHEMA.md §6.4) — over the CLEAN/PANEL column names.
+#   Source of truth for Stage 5 (train-only scalers) and Stage 6 (scale stats).
+#   The lake is never standardised; these only classify how each column is used.
+# ---------------------------------------------------------------------------
+FEATURE_SPEC: dict[str, list[str]] = {
+    # standardize at train time (train-slice stats only); LOG_TRANSFORM first
+    "continuous_standardize": [
+        "Original Interest Rate", "Current Interest Rate",
+        "Original UPB", "Current Actual UPB",
+        "Original Loan Term", "Loan Age", "Remaining Months to Maturity",
+        "Original Loan-to-Value (LTV)", "Original Combined LTV (CLTV)",
+        "Debt-to-Income (DTI)", "fico_orig", "fico_co",
+        "Mortgage Insurance Percentage",
+        "Number of Borrowers", "Number of Units",
+    ],
+    # Present in the layout but EMPTY in SF Loan Performance (100% null per Stage 6
+    # QA — it is a CAS/CIRT-only field). Kept in the lake for faithfulness, but
+    # excluded from the model feature set.
+    "excluded": ["Unscheduled Principal Current"],
+    "categorical": [  # embed / one-hot
+        "Channel", "Loan Purpose", "Property Type", "Occupancy Status",
+        "Property State", "Metropolitan Statistical Area (MSA)", "Zip Code Short",
+        "Amortization Type",
+    ],
+    "binary": [  # 0/1 (incl. missingness indicators)
+        "First-Time Home Buyer Indicator", "Interest-Only Loan Indicator",
+        "Modification Flag", "fico_orig_missing", "fico_co_missing",
+        "dti_missing", "cltv_missing", "mi_pct_missing",
+    ],
+    "time": [  # masking / cyclical encoding
+        "period", "period_ym", "orig_date", "orig_ym",
+        "First Payment Date", "Zero Balance Effective Date",
+    ],
+    "target": ["state", "state_next", "censored"],
+    "split": ["shard"],
+    "identifier": ["Loan Identifier"],
+    # raw target drivers kept for derivation/audit; redundant with `state` as
+    # features, so excluded from the model feature set.
+    "target_driver": ["Current Loan Delinquency Status", "Zero Balance Code"],
+}
+
+# Heavily right-skewed dollar columns → apply log1p before standardizing.
+LOG_TRANSFORM: list[str] = [
+    "Original UPB", "Current Actual UPB",
+]
+
+# Self-consistency: no column appears in two roles.
+_all_roles = [c for cols in FEATURE_SPEC.values() for c in cols]
+assert len(_all_roles) == len(set(_all_roles)), "FEATURE_SPEC: a column is in two roles"
+
+
+# ---------------------------------------------------------------------------
 # 3. Type-casting & sentinel helpers (01_SCHEMA.md §3)
 #    All return Polars expressions so they compose inside lazy scans.
 # ---------------------------------------------------------------------------
