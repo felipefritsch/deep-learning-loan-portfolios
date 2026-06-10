@@ -1,0 +1,8 @@
+# Analysis/modelling phase deps (Phases 1–3), on top of dev/pipeline/requirements.txt.
+# Pinned: the venv runs Python 3.9, whose support ends at these lines (pandas 3.0
+# and matplotlib 3.10 both require >=3.10), so floating would break on a 3.9 env.
+# pandas: RAM-sized EDA slices, the M3 memo, and the optional df.to_latex() path
+#         (the table writer in eda_common.py stays dependency-free regardless).
+# matplotlib: M2+ figures via eda_common.save_figure().
+pandas==2.3.3
+matplotlib==3.9.4
