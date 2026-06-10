@@ -1,7 +1,16 @@
+<<<<<<< HEAD
+# macOS
+.DS_Store
+.AppleDouble
 # macOS
 .DS_Store
 .AppleDouble
 .LSOverride
+
+# IDE/editor settings
+.vscode/
+.idea/
+.claude/
 
 # Python bytecode and caches
 __pycache__/
@@ -12,6 +21,11 @@ __pycache__/
 .ruff_cache/
 .hypothesis/
 .ipynb_checkpoints/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
 
 # Python virtual environments
 .venv/
@@ -24,15 +38,12 @@ build/
 dist/
 *.egg-info/
 .eggs/
+*.egg
+MANIFEST
 
 # Logs and local runtime files
 *.log
 *.pid
-
-# IDE/editor settings
-.vscode/
-.idea/
-.claude/
 
 # Local configuration/secrets
 .env
@@ -50,7 +61,6 @@ data/
 *.fdb_latexmk
 *.fls
 *.lof
-*.log
 *.lot
 *.nav
 *.out
