@@ -305,8 +305,8 @@ def main() -> None:
              "(`shard = hash(loan_id) % N_SHARDS` is a pure function of the loan)")
     L.append(f"- `period_ym` range: {sc['period_min']}–{sc['period_max']}; "
              f"`orig_ym` range: {sc['orig_min']}–{sc['orig_max']}")
-    L.append(f"- Rows with `orig_ym > period_ym` (impossible): **{sc['orig_after_period']:,}** "
-             f"({'PASS ✓' if sc['orig_after_period'] == 0 else 'FAIL ✗'})")
+    L.append(f"- Rows with `orig_ym > period_ym` (loan reported before origination — "
+             f"source dirt, see Data-quality findings): **{sc['orig_after_period']:,}**")
     L.append(f"- Derived right-censoring cut-off (max `period_ym`): **{sc['period_max']}**\n")
 
     L.append("## Feature scale stats (continuous)\n")
