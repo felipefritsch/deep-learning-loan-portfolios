@@ -1,6 +1,7 @@
 # 03 — Claude Code Build Order (sequenced tasks)
 
 > Copy-paste these prompts into Claude Code **one at a time, in order**. Each has acceptance criteria — do not advance until they pass. All code goes in `dev/pipeline/`. Read `00_OVERVIEW.md`, `01_SCHEMA.md`, `02_PIPELINE_STAGES.md` first.
+> Execute every task per the Karpathy guidelines in `../pipeline/CLAUDE.md` (think before coding, simplicity first, surgical changes, verify against each task's **Accept** criteria).
 
 ---
 
@@ -54,9 +55,9 @@
 ---
 
 ### Task 7 — Stage 5 sampling & training helpers
-> "Implement `s5_sample.py`: DuckDB view over the panel lake, `sample_by_state()`, `slice_quarter()`, `transition_matrix()`, and a stratified sampler that keeps all foreclosure/REO transitions and downsamples `current→current`. Add the §6 training helpers: `iter_shards()` (cheap per-shard reads via `WHERE shard=k`), `training_mask(cutoff_ym)` (leakage-safe `period_ym < cutoff_ym`), and `fit_scaler()/apply_scaler()` (train-only stats per `feature_spec`, persisted to `models/scaler_<cutoff>.json` — never standardize the lake). Demonstrate a 5M-row balanced sample built in under a minute within the memory limit."
+> "Implement `s5_sample.py`: DuckDB view over the panel lake, `sample_by_state()`, `slice_quarter()`, `transition_matrix()`, and a stratified sampler that keeps all foreclosure/REO transitions and downsamples `current→current`. Add the §6 training helpers: `iter_shards()` (cheap per-shard reads via `WHERE shard=k`), `training_mask(cutoff_ym)` (leakage-safe `period_ym < cutoff_ym`), and `fit_scaler()/apply_scaler()` (train-only stats per `feature_spec`, persisted to `models/scaler_<cutoff>.json` — never standardize the lake). Also add the OPTIONAL `sample_vintages(spec=VINTAGE_SAMPLING)` helper per `02 §Stage 5` — loan-level keep-fractions per vintage range, defaulting to 1.0 everywhere (a no-op); enforce in its docstring that it's train-slice-only, never thins the crisis cohorts, and that base rates must be reported on the unsampled panel. Demonstrate a 5M-row balanced sample built in under a minute within the memory limit."
 
-**Accept:** balanced sample builds fast, preserves minority transitions, returns a Polars/pandas frame ready for modelling; `iter_shards` reads one shard without scanning the whole panel; `training_mask` excludes any example whose labelled month is ≥ cutoff; a fitted scaler is reproducible and saved under `models/`.
+**Accept:** balanced sample builds fast, preserves minority transitions, returns a Polars/pandas frame ready for modelling; `iter_shards` reads one shard without scanning the whole panel; `training_mask` excludes any example whose labelled month is ≥ cutoff; a fitted scaler is reproducible and saved under `models/`; `sample_vintages` with the default spec is a verified no-op and at a reduced fraction samples whole loans only.
 
 ---
 
