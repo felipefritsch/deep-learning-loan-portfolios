@@ -1,0 +1,392 @@
+% ============================================================
+%  Chapter 3 — Data
+%  Drop this file into your dissertation root and add
+%      \include{chapter3}
+%  to main.tex (after chapter2, before conclusions).
+%
+%  Required packages (add to the preamble of main.tex):
+%      \usepackage{booktabs}
+%      \usepackage{tabularx}
+%      \usepackage{multirow}
+%      \usepackage[numbers]{natbib}   % or your preferred bib style
+% ============================================================
+
+\chapter{Data}
+\label{chap:data}
+
+% ────────────────────────────────────────────────────────────
+\section{Data Source}
+\label{sec:data-source}
+
+This study employs the Fannie Mae Single-Family Loan Performance
+(SFLP) dataset, a publicly available research dataset maintained by
+the Federal National Mortgage Association (Fannie Mae) and updated on
+a quarterly basis.  The dataset was originally released in April 2013
+and contains origination and monthly performance records for a subset
+of single-family conventional mortgage loans acquired by Fannie Mae
+since January 2000.  New loan acquisitions and performance data are
+added with an approximate four-month lag following the end of each
+calendar quarter \citep{fanniemae2024}.
+
+The data are organised as a \emph{loan-month panel}: each observation
+corresponds to a single mortgage loan in a single monthly reporting
+period, beginning at the month of acquisition and continuing until the
+loan terminates through full prepayment, foreclosure, Real Estate
+Owned (REO) disposition, or contractual maturity, or until the data
+cut-off date.  This longitudinal structure is well-suited to the
+competing-risks framing of \citet{sirignano2021}, which the present
+study adapts to the Fannie Mae data.
+
+Raw files are distributed as pipe-delimited CSV without a header row,
+organised by acquisition quarter and identified by the convention
+\texttt{YYYYQn.csv}.  Column identities are positional, fully
+specified in the Fannie Mae Single-Family Loan Performance Data File
+Layout and Glossary.  Each row contains 113 fields encoding static
+origination attributes, dynamic monthly performance measures, and
+post-termination expense and proceeds data.  The estimation sample
+employed in this study draws on acquisition cohorts from 2013Q4
+through 2022Q2, providing approximately nine years of origination
+vintages with performance histories spanning multiple
+interest-rate and housing-market cycles.  Several earlier quarterly
+files were identified as incomplete during the data inventory stage
+and are excluded from the estimation sample.
+
+% ────────────────────────────────────────────────────────────
+\section{Population and Eligibility}
+\label{sec:data-population}
+
+The primary dataset is not a census of all loans in Fannie Mae's
+guarantee book; it is a curated research sample subject to documented
+eligibility and exclusion criteria \citep{fanniemae2024}.  The
+population is restricted to fixed-rate, fully amortising,
+full-documentation single-family conventional mortgage loans with
+original terms of at least five years and less than 35 years,
+originated on or after 1 January 1999 and acquired by Fannie Mae on
+or after 1 January 2000.
+
+A number of product types are explicitly excluded.  Adjustable-rate
+mortgages, interest-only loans, balloon-amortisation mortgages, and
+loans carrying prepayment penalties are absent from the dataset.
+Also excluded are loans with original loan-to-value (LTV) ratios
+exceeding 97 per cent, Alt-A and other reduced-documentation
+products, government-insured loans (FHA and VA), loans subject to
+long-term standby commitments or third-party risk-sharing
+arrangements other than primary mortgage insurance, and loans
+acquired on a negotiated bulk basis.  Loans with non-standard payment
+due dates and loans that liquidated in the same month as acquisition
+are similarly excluded.  Fannie Mae's Home Affordable Refinance
+Program (HARP) loans are likewise absent from the primary dataset;
+when a loan in the primary dataset was subsequently refinanced through
+HARP, its termination is recorded as a standard prepayment, and its
+post-refinance performance is not tracked here.  This is discussed
+further in Section~\ref{sec:data-outcome}.
+
+These restrictions yield a sample of conventionally underwritten
+fixed-rate mortgages broadly representative of the agency conventional
+loan market under post-crisis underwriting standards.  The exclusion
+of adjustable-rate and interest-only products limits the range of
+prepayment incentive dynamics captured relative to the full-spectrum
+dataset used by \citet{sirignano2021}; this is discussed in
+Section~\ref{sec:data-comparison}.  Table~\ref{tab:eligibility}
+summarises the principal eligibility criteria and exclusions.
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{@{} l X @{}}
+    \toprule
+    \textbf{Criterion} & \textbf{Requirement / Exclusion} \\
+    \midrule
+    Origination date      & On or after 1 January 1999 \\[2pt]
+    Acquisition date      & On or after 1 January 2000 \\[2pt]
+    Product type          & Fixed-rate, fully amortising only \\[2pt]
+    Loan term             & $5 \leq \mathrm{term} < 35$ years at origination \\[2pt]
+    Documentation         & Full documentation only \\[2pt]
+    LTV at origination    & $\leq 97\%$ \\[4pt]
+    \emph{Excluded: product}      & ARM, interest-only, balloon,
+                                    prepayment-penalty loans \\[2pt]
+    \emph{Excluded: credit class} & Alt-A, reduced-documentation,
+                                    streamlined processing \\[2pt]
+    \emph{Excluded: guarantee}    & Government-insured (FHA, VA) loans \\[2pt]
+    \emph{Excluded: structure}    & Long-term standby commitments;
+                                    bulk acquisitions; lender-recourse
+                                    loans (except primary MI) \\[2pt]
+    \emph{Excluded: programme}    & HARP and Refi Plus loans \\[2pt]
+    \emph{Excluded: payment}      & Bi-weekly and non-first-of-month
+                                    due dates \\[2pt]
+    \emph{Excluded: timing}       & Loans liquidated in month of
+                                    acquisition \\
+    \bottomrule
+  \end{tabularx}
+  \caption[Eligibility criteria for the Fannie Mae SFLP primary dataset]%
+  {\textit{Eligibility criteria for the Fannie Mae SFLP primary
+  dataset.}  Source: Fannie Mae Single-Family Loan Performance
+  Dataset FAQs \citep{fanniemae2024}.}
+  \label{tab:eligibility}
+\end{table}
+
+% ────────────────────────────────────────────────────────────
+\section{Variables}
+\label{sec:data-variables}
+
+The 113 fields in each monthly observation can be organised into three
+functional groups: static origination attributes, dynamic monthly
+performance attributes, and post-termination resolution data.  The
+model uses a subset of these fields as covariates.  Two fields --- the
+Current Loan Delinquency Status and the Zero Balance Code --- serve as
+the primary inputs from which the outcome variable is constructed.
+
+% ────────────────────────────────
+\subsection{Origination Attributes}
+\label{subsec:data-origination}
+
+Static origination attributes are recorded at loan delivery and do
+not change over the life of the loan absent a modification.  The
+borrower's FICO credit score at origination is available for both the
+primary borrower and, where applicable, a co-borrower; prior to the
+January 2015 dataset release only the lower of the two scores was
+disclosed, and a missingness indicator is constructed accordingly.
+Continuous origination covariates include the original
+debt-to-income (DTI) ratio, original LTV ratio, original combined LTV
+(CLTV, which incorporates subordinate liens), original unpaid
+principal balance (UPB), original interest rate, and original loan
+term in months.  Categorical origination attributes include the
+acquisition channel (retail, broker, or correspondent), loan purpose
+(purchase, rate-term refinance, or cash-out refinance), property type,
+occupancy status (primary residence, second home, or investment
+property), property state, Metropolitan Statistical Area (MSA), and
+three-digit truncated zip code.  The truncation of the zip code
+reflects borrower privacy considerations; full zip codes are not
+disclosed in the dataset \citep{fanniemae2024}.
+
+% ────────────────────────────────
+\subsection{Dynamic Performance Attributes}
+\label{subsec:data-performance}
+
+Dynamic performance attributes are updated in each monthly reporting
+period.  The current actual unpaid principal balance reflects the
+outstanding loan balance at each point in time.  Loan age, measured
+in months from the first payment date, and the remaining months to
+legal maturity are derived from the contractual amortisation schedule.
+The current interest rate reflects the applicable note rate, updated
+when a modification changes the loan terms.
+
+Two dynamic fields jointly determine the outcome variable.  The
+\textbf{Current Loan Delinquency Status} reports the number of missed
+monthly payments as a two-character code: \texttt{00} denotes a
+current loan; \texttt{01}, \texttt{02}, and codes \texttt{03} and
+above denote 30-, 60-, and 90-or-more-day delinquencies respectively;
+and \texttt{XX} denotes an unavailable status.  The \textbf{Zero
+Balance Code} is populated exclusively in the terminal monthly
+observation and classifies the manner of loan termination into nine
+categories, distinguishing between voluntary prepayments, third-party
+foreclosure sales, short sales, repurchases, REO dispositions, note
+sales, and non-credit removals.  The 24-month loan payment history
+string provides an additional source of behavioural information used
+to construct delinquency-recurrence and burnout features.
+
+% ────────────────────────────────
+\subsection{Externally Sourced Covariates}
+\label{subsec:data-external}
+
+Two external series are appended to the loan-level panel to construct
+key time-varying covariates.  The Freddie Mac Primary Mortgage Market
+Survey (PMMS) weekly fixed-rate series is used to compute the
+\emph{rate incentive} for each loan-month observation, defined as the
+difference between the loan's current interest rate and the prevailing
+market mortgage rate at the reporting period.  This measure captures
+the refinancing option value and is the primary driver of prepayment
+behaviour in the empirical mortgage literature
+\citep{schwartz1989,sirignano2021}.  The Federal Housing Finance Agency
+(FHFA) House Price Index (HPI) at the MSA level is used to estimate
+the current LTV ratio by applying the index appreciation since
+origination to the original appraised value.  Current LTV is the
+principal determinant of the default option value
+\citep{deng2000}.
+
+% ────────────────────────────────────────────────────────────
+\section{Outcome Variable}
+\label{sec:data-outcome}
+
+Following \citet{sirignano2021}, the outcome variable is a categorical
+measure of mortgage state in month $t+1$, conditional on the loan's
+state and covariate vector in month $t$.  Seven mutually exclusive
+states are defined: \emph{Current}, \emph{30 Days Past Due}
+(30\,DPD), \emph{60 Days Past Due} (60\,DPD), \emph{90+ Days Past
+Due} (90+\,DPD), \emph{Foreclosure}, \emph{Real Estate Owned} (REO),
+and \emph{Prepaid}.
+
+State assignment for each loan-month observation follows a
+deterministic hierarchy.  When the Zero Balance Code is present ---
+indicating the terminal observation for the loan --- the termination
+type is mapped to the Foreclosure, REO, or Prepaid absorbing state as
+shown in Table~\ref{tab:state-mapping}.  When the Zero Balance Code is
+absent, the delinquency status field governs: codes \texttt{00}
+through \texttt{03} and above map to Current, 30\,DPD, 60\,DPD, and
+90+\,DPD respectively, while \texttt{XX} is treated as missing.  The
+state in month $t+1$ is obtained by a window lead over the reporting
+period dimension, partitioned by loan identifier.  Loans whose final
+observation falls at or before the data cut-off without a recorded
+termination event receive a censored indicator and are excluded from
+the labelled target.
+
+Regarding HARP loans: as noted in Section~\ref{sec:data-population},
+any loan in the primary dataset that was refinanced through the
+HARP programme terminates with a Zero Balance Code of \texttt{01}
+(prepaid) at the moment of refinancing and is therefore treated as a
+standard prepayment in the outcome variable.  This approximation is
+defensible given that the loan is extinguished from Fannie Mae's
+credit exposure in either case, though it may marginally overstate
+the rate-incentive sensitivity of the prepayment hazard during the
+period of peak HARP activity (approximately 2009--2013).
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{@{} l l l X @{}}
+    \toprule
+    \textbf{State} & \textbf{Source field} & \textbf{Condition}
+      & \textbf{Economic interpretation} \\
+    \midrule
+    Current
+      & Delinquency Status & \texttt{= 00}
+      & Borrower is contractually current on all payments. \\[3pt]
+    30\,DPD
+      & Delinquency Status & \texttt{= 01}
+      & One missed monthly payment. \\[3pt]
+    60\,DPD
+      & Delinquency Status & \texttt{= 02}
+      & Two consecutive missed monthly payments. \\[3pt]
+    90+\,DPD
+      & Delinquency Status & \texttt{$\geq$ 03}
+      & Three or more missed payments; serious delinquency. \\[3pt]
+    Foreclosure
+      & Zero Balance Code  & \texttt{02, 03, 15,}
+      & Credit-loss termination: third-party sale, short sale, \\
+      &                    & \texttt{97, 98}
+      & note sale, or credit-event repurchase. \\[3pt]
+    REO
+      & Zero Balance Code  & \texttt{= 09}
+      & Fannie Mae acquires ownership of the property. \\[3pt]
+    Prepaid
+      & Zero Balance Code  & \texttt{01, 06, 16,}
+      & Full payoff, contractual maturity, repurchase, \\
+      &                    & \texttt{96}
+      & or non-credit removal (including HARP exits). \\
+    \bottomrule
+  \end{tabularx}
+  \caption[Mapping of Fannie Mae data fields to the seven-state
+  outcome variable]%
+  {\textit{Mapping of Fannie Mae data fields to the seven-state
+  outcome variable.}  The Zero Balance Code is populated only in the
+  terminal monthly observation; the Delinquency Status governs state
+  assignment in all non-terminal periods.}
+  \label{tab:state-mapping}
+\end{table}
+
+The empirical monthly transition matrix derived from the estimation
+sample serves as a natural in-sample benchmark against which the deep
+learning model is evaluated, mirroring the role of the empirical
+matrix in \citet{sirignano2021}.  As those authors document,
+transitions between non-adjacent delinquency states are non-trivial
+in practice: a meaningful fraction of seriously delinquent loans cure
+to current, and a small but non-zero share of loans in formal
+foreclosure eventually return to performing status.  The seven-state
+formulation captures this richness in a way that a binary
+default-versus-prepayment classification would obscure.
+
+% ────────────────────────────────────────────────────────────
+\section{Comparison to Sirignano et al.\ (2021)}
+\label{sec:data-comparison}
+
+The dataset employed in the present study differs in several important
+respects from the proprietary CoreLogic dataset used by
+\citet{sirignano2021}, and these differences bear on the
+interpretation of the results.
+
+\citet{sirignano2021} draw on records for approximately 120 million
+mortgages --- both prime and subprime --- originated across the United
+States between January 1995 and June 2014, yielding approximately 3.5
+billion loan-month observations.  The CoreLogic data encompass the
+full spectrum of mortgage products, including fixed-rate,
+adjustable-rate, hybrid, balloon, and interest-only loans, as well as
+government-insured instruments.  Macro-economic covariates ---
+zip-code-level house price indices from Zillow, county-level
+unemployment rates from the Bureau of Labor Statistics, and the
+Freddie Mac PMMS series --- are merged at the loan-month level within
+the CoreLogic database.  The dataset is proprietary and cannot be
+reproduced by independent researchers.
+
+The Fannie Mae primary dataset, by contrast, is limited to
+conventional fixed-rate fully-amortising loans and excludes both
+subprime and government-insured products.  Macro-economic covariates
+must be sourced and joined externally, as described in
+Section~\ref{subsec:data-external}.  These differences have two
+principal consequences.  First, the estimation sample is more
+homogeneous in product mix; the nonlinear prepayment dynamics
+associated with adjustable-rate burnout and subprime option exercise
+--- prominent in \citeauthor{sirignano2021} --- are absent.  Second,
+the absence of a subprime segment limits the range of credit-risk
+outcomes observed; \citet{sirignano2021} report a median FICO score
+of 630 for their subprime sub-sample against 730 for the prime
+sub-sample, whereas the Fannie Mae population is concentrated at the
+higher end of this credit-quality spectrum.
+
+These limitations notwithstanding, the Fannie Mae dataset provides a
+fully reproducible basis for the analysis.  The core methodological
+contribution of \citet{sirignano2021} --- applying deep learning to a
+multinomial competing-risks model of monthly loan-state transitions
+--- transfers completely to the Fannie Mae panel.  The architecture,
+estimation procedure, and evaluation framework described in subsequent
+chapters are direct adaptations of that approach.  Table~\ref{tab:data-comparison}
+summarises the key differences.
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{@{} l X X @{}}
+    \toprule
+    \textbf{Dimension}
+      & \textbf{Sirignano et al.\ (2021)}
+      & \textbf{Present study} \\
+    \midrule
+    Data source
+      & CoreLogic (proprietary)
+      & Fannie Mae SFLP (public) \\[3pt]
+    Total loans
+      & ${\sim}120$ million
+      & Tens of millions \\[3pt]
+    Loan-month observations
+      & ${\sim}3.5$ billion
+      & ${\sim}1.5$--$2$ billion (estimation sample) \\[3pt]
+    Origination window
+      & 1995--2014
+      & 1999--present; est.\ sample 2013--2022 \\[3pt]
+    Products covered
+      & Fixed, ARM, hybrid, balloon, IO
+      & Fixed-rate, fully amortising only \\[3pt]
+    Credit segments
+      & Prime and subprime
+      & Conventional (predominantly prime) \\[3pt]
+    Macro covariates
+      & Embedded (Zillow, BLS, PMMS)
+      & External join required (FHFA HPI, PMMS) \\[3pt]
+    Geographic detail
+      & Full 5-digit zip code
+      & 3-digit truncated zip; MSA \\[3pt]
+    States modelled
+      & Seven
+      & Seven (identical mapping) \\[3pt]
+    Reproducibility
+      & Not publicly reproducible
+      & Fully reproducible \\
+    \bottomrule
+  \end{tabularx}
+  \caption[Comparison of the Fannie Mae SFLP dataset and the
+  CoreLogic dataset used by Sirignano et al.\ (2021)]%
+  {\textit{Comparison of the Fannie Mae SFLP primary dataset and the
+  CoreLogic dataset used by \citet{sirignano2021}.}  Loan counts and
+  observation counts are approximate.  Estimation sample coverage for
+  the present study reflects available acquisition quarters.}
+  \label{tab:data-comparison}
+\end{table}
