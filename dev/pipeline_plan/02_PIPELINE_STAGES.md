@@ -227,7 +227,20 @@ Provide helper functions: `sample_by_state(frac_per_state)`, `slice_quarter(q)`,
 - `training_mask(cutoff_ym)` — returns the leakage-safe filter `period_ym < cutoff_ym` (strict, because `state_next` is one month ahead — `01_SCHEMA.md §6.1`). Use for rolling backtests: `panel WHERE period_ym < cutoff_ym AND state IS NOT NULL`.
 - `fit_scaler(train_frame, feature_spec)` — compute mean/std (robust median/IQR for skewed/`log`-flagged columns) over the **training slice only**, persist to `models/scaler_<cutoff_ym>.json`; `apply_scaler()` for train/val/inference. Never standardize the lake itself.
 
-**Acceptance:** can produce a balanced training sample (e.g. 5M rows) in <1 min without exceeding the memory limit; sample preserves all foreclosure/REO transitions; `iter_shards` reads a single shard without scanning the whole panel; `training_mask(cutoff)` excludes any example whose labelled month is ≥ cutoff; a fitted scaler is reproducible and stored under `models/`.
+**Optional — vintage subsampling (OFF by default).** A dormant efficiency lever for when training throughput/IO bites: thin the bulky-but-low-signal modern vintages while keeping the crisis cohorts whole. It is a *compute* tool, not a class-balance tool (state stratification above handles imbalance), and must be used carefully:
+
+```python
+# Default is a no-op: every vintage at fraction 1.0. Turn on only when needed.
+VINTAGE_SAMPLING = {
+    ("2000Q1", "2012Q4"): 1.00,   # keep crisis-era cohorts in full (the signal)
+    ("2013Q1", "2019Q4"): 1.00,
+    ("2020Q1", "2025Q4"): 1.00,   # e.g. lower to 0.20 to thin the refi-boom volume
+}
+```
+
+`sample_vintages(frame_or_view, spec=VINTAGE_SAMPLING)` applies each range's keep-fraction **at the loan level** (`WHERE hash(Loan Identifier) % 1000 < frac*1000` — sample whole loans, never individual months, so no loan's history is fractured). Rules baked into the helper/docstring: apply **only after** the `training_mask` temporal split (train slice only — never val/inference); **never thin the crisis cohorts**; and any base rate reported for the dissertation must be computed on the **unsampled** panel (or inverse-probability reweighted), since the switch deliberately distorts the vintage mix. Default `1.0` everywhere changes nothing.
+
+**Acceptance:** can produce a balanced training sample (e.g. 5M rows) in <1 min without exceeding the memory limit; sample preserves all foreclosure/REO transitions; `iter_shards` reads a single shard without scanning the whole panel; `training_mask(cutoff)` excludes any example whose labelled month is ≥ cutoff; a fitted scaler is reproducible and stored under `models/`; `sample_vintages` with the default spec is a verified no-op (identical row count), and at a reduced fraction samples whole loans (no loan appears partially).
 
 ---
 
