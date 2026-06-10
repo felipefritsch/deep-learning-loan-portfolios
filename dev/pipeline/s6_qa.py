@@ -172,23 +172,33 @@ def shard_calendar(con: duckdb.DuckDBPyConnection) -> dict:
 
 
 def feature_stats(con: duckdb.DuckDBPyConnection) -> list[dict]:
-    """Scale stats for every continuous feature in ONE pass (all aggregates in a
-    single SELECT so the panel is scanned once, not once per column)."""
+    """Scale stats for every continuous feature.
+
+    Exact mean/std/min/max in one pass (cheap). Quantiles are diagnostic only, so
+    they're estimated on a 2% sample — 45 simultaneous ``approx_quantile``
+    t-digests over the full 3.31 B rows thrash the CPU and stall; on a sample they
+    are fast and plenty accurate for picking transforms.
+    """
     cols = schema.FEATURE_SPEC["continuous_standardize"]
+
+    # Pass 1 — exact basics (no t-digests).
     parts = ["count(*) AS n"]
-    aggs = [("nn", "count({q})"), ("mean", "avg({q}::DOUBLE)"),
-            ("std", "stddev_samp({q}::DOUBLE)"), ("min", "min({q})"), ("max", "max({q})"),
-            ("p01", "approx_quantile({q}::DOUBLE,0.01)"),
-            ("p25", "approx_quantile({q}::DOUBLE,0.25)"),
-            ("p50", "approx_quantile({q}::DOUBLE,0.50)"),
-            ("p75", "approx_quantile({q}::DOUBLE,0.75)"),
-            ("p99", "approx_quantile({q}::DOUBLE,0.99)")]
     for i, c in enumerate(cols):
         q = _qcol(c)
-        for name, expr in aggs:
-            parts.append(f"{expr.format(q=q)} AS {name}_{i}")
-    row = con.execute(f"SELECT {', '.join(parts)} FROM panel").fetchone()
-    d = dict(zip([x[0] for x in con.description], row))
+        parts += [f"count({q}) AS nn_{i}", f"avg({q}::DOUBLE) AS mean_{i}",
+                  f"stddev_samp({q}::DOUBLE) AS std_{i}",
+                  f"min({q}) AS min_{i}", f"max({q}) AS max_{i}"]
+    res = con.execute(f"SELECT {', '.join(parts)} FROM panel")
+    d = dict(zip([x[0] for x in res.description], res.fetchone()))
+
+    # Pass 2 — quantiles on a 2% sample.
+    qparts = []
+    for i, c in enumerate(cols):
+        q = _qcol(c)
+        for p in (1, 25, 50, 75, 99):
+            qparts.append(f"approx_quantile({q}::DOUBLE,{p/100}) AS p{p:02d}_{i}")
+    res2 = con.execute(f"SELECT {', '.join(qparts)} FROM panel USING SAMPLE 2% (system)")
+    qd = dict(zip([x[0] for x in res2.description], res2.fetchone()))
 
     n = d["n"]
     stats = []
@@ -199,8 +209,8 @@ def feature_stats(con: duckdb.DuckDBPyConnection) -> list[dict]:
             "null_rate": round(1 - nn / n, 6) if n else None,
             "mean": d[f"mean_{i}"], "std": d[f"std_{i}"],
             "min": d[f"min_{i}"], "max": d[f"max_{i}"],
-            "p01": d[f"p01_{i}"], "p25": d[f"p25_{i}"], "median": d[f"p50_{i}"],
-            "p75": d[f"p75_{i}"], "p99": d[f"p99_{i}"],
+            "p01": qd[f"p01_{i}"], "p25": qd[f"p25_{i}"], "median": qd[f"p50_{i}"],
+            "p75": qd[f"p75_{i}"], "p99": qd[f"p99_{i}"],
         })
     return stats
 
