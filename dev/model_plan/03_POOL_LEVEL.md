@@ -27,7 +27,7 @@ For each loan i:
   for h = 1..12:
       build features x_{t0+h-1}(i): static fields frozen at t0;
       loan age += h−1; remaining months −= h−1; seasonality follows calendar;
-      incentive held at its t0 value (no rate forecasting — document this);
+      macro block (incentive, unemployment, HPI-derived features) frozen at t0 (no macro forecasting — document this);
       P_h ← model's 7×7 matrix for loan i at month h               # rows for terminal states = identity
       p ← p · P_h
   P(prepaid within 12m | i) = p[prepaid];  P(60+ dpd within 12m | i) = absorbed mass (see below)
@@ -35,7 +35,7 @@ For each loan i:
 
 - **Deterministic composition, not simulation, is the default:** since terminal states are absorbing and we track the full 7-vector, the product of monthly matrices gives exact horizon probabilities under the model — no Monte Carlo error. (The paper's MC machinery exists for path-dependent covariates/correlated macro scenarios, which are out of scope here.)
 - For "ever reaches 60+ dpd within 12m", make `dpd_60` temporarily absorbing in the composed chain (standard first-passage trick) — otherwise cures leak the event.
-- **Covariate evolution assumption** (state explicitly in the writeup): only deterministic features (age, remaining term, calendar seasonality) evolve; current UPB and incentive frozen at t0. This is the conservative, assumption-light choice consistent with excluding macro models.
+- **Covariate evolution assumption** (state explicitly in the writeup): only deterministic features (age, remaining term, calendar seasonality) evolve; current UPB and the entire macro block frozen at t0. Predictions are therefore *conditional on the t0 macro environment* — the conservative, assumption-light choice (macro scenario paths are a future-work hook, not in scope).
 - Implementation: vectorize — batch-score all alive loans once per horizon step per origin state (12 × few forward passes over ~ millions of rows; GPU or chunked CPU both fine).
 
 ## 4. Pool predictions & evaluation

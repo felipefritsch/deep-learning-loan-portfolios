@@ -12,13 +12,17 @@ Create `dev/analysis/` with a shared helper (DuckDB connection to the panel view
 T2.1 pooled empirical matrix; F2.2 transition-rate time series; F2.3 COVID delinquency-code check; F2.4 roll-rate areas.
 **Accept:** 4×7 matrix rows sum to 1; F2.2 visibly shows the 2003/2020 refi waves and 2008–11 default wave (sanity that the target derivation is right); COVID handling decision documented in the script header and memo.
 
-### M3 — Nonlinearity figures + incentive proxy + memo 1
-`mkt_rate.parquet` built and validated (F4.1); hazard curves F3.1–F3.3; interaction heatmaps F3.4–F3.5; vintage F3.6; shard checks F5.1–F5.2; write `writeup/memos/01_eda.md`.
-**Accept:** incentive proxy tracks the known 30-yr rate path; F3.1 shows the seasoning hump and F3.4 a visible FICO×LTV interaction; memo committed. **Phase-1 gate.**
+### M2b — Macro data download + tables
+Execute `05_MACRO_DATA.md` (standalone spec): fetch the series snapshot, build `processed/macro/{macro_national,macro_state}.parquet`, run its QA checks, produce F4.2/F4.3.
+**Accept:** the acceptance block of `05_MACRO_DATA.md §6` passes in full.
+
+### M3 — Nonlinearity figures + incentive variable + memo 1
+`mkt_rate.parquet` (proxy) built; F4.1 proxy-vs-PMMS validation; hazard curves F3.1–F3.3 (F3.2 on the PMMS-based incentive); interaction heatmaps F3.4–F3.5; vintage F3.6; shard checks F5.1–F5.2; write `writeup/memos/01_eda.md`.
+**Accept:** proxy-vs-PMMS tracking error reported; F3.1 shows the seasoning hump and F3.4 a visible FICO×LTV interaction; memo committed. **Phase-1 gate.**
 
 ### M4 — `dev/model/` scaffolding + export
 `config.py` (the 11 rolling windows k = 2015…2025 with train/val/test label-month masks, `p_keep`, eval shard block, paths), `export.py` per `02 §3`: one shared **train pool** (thinned, weighted, all years) + **eval pool** (unthinned, fixed shard block, label years ≥ 2014). Dev-scale variant first (~5–10 M train-pool rows).
-**Accept:** `manifest.json` row counts per label year reconcile with direct DuckDB counts; eval pool is loan-disjoint-by-shard and contains zero thinned rows; window masks from `config.py` slice both pools correctly (spot-check k=2015 and k=2025); export re-runs idempotently.
+**Accept:** `manifest.json` row counts per label year reconcile with direct DuckDB counts; eval pool is loan-disjoint-by-shard and contains zero thinned rows; window masks from `config.py` slice both pools correctly (spot-check k=2015 and k=2025); macro columns joined with correct per-variable lags (spot-check one loan-month against the source tables) and `unrate_fallback` indicator present; export re-runs idempotently.
 
 ### M5 — Empirical matrix benchmark (all windows)
 `benchmarks.py`: per-window 4×7 matrix (window train mask via DuckDB on the unthinned panel, Laplace α=0.5), NLL on each window's frozen test slice; bucketed-matrix variant.
@@ -26,7 +30,7 @@ T2.1 pooled empirical matrix; F2.2 transition-rate time series; F2.3 COVID delin
 
 ### M6 — Feature pipeline + loader
 `features.py` (scaler fit/apply, embedding vocab + UNK, one-hot path for logit), `data.py` (shard-streaming loader per `02 §3.4`).
-**Accept:** unit tests — scaler train-only (val stats differ), UNK mapping on a synthetic unseen level, loader yields every row exactly once per epoch with shuffled order, weights present and correct (`1/p_keep`).
+**Accept:** unit tests — scaler train-only (val stats differ), UNK mapping on a synthetic unseen level, `ltv_mtm`/`hpi_chg_12m` formulas on a synthetic loan, loader yields every row exactly once per epoch with shuffled order, weights present and correct (`1/p_keep`).
 
 ### M7 — Logit benchmark (0-layer net, tuning window k=2015)
 PyTorch multinomial logit through the shared loss/eval path; L2 on val; sklearn cross-check on 1 M rows; optional augmented logit.

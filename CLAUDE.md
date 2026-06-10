@@ -7,14 +7,23 @@ building a Sirignano-style seven-state monthly transition model
 
 ## Repo map
 
-- `dev/pipeline/` — the data pipeline code. **Its `CLAUDE.md` is binding for any work
-  there** — read it (and the specs below) before touching pipeline code.
-- `dev/pipeline_plan/` — the pipeline specification: `00_OVERVIEW.md` → `01_SCHEMA.md`
-  → `02_PIPELINE_STAGES.md` → `03_CLAUDE_CODE_TASKS.md` (sequenced tasks with
-  acceptance criteria); `HOWTO_RUN.md` is the operator guide.
+- `dev/pipeline/` — the data pipeline code (COMPLETE). **Its `CLAUDE.md` is binding for
+  any work there** — read it (and the specs below) before touching pipeline code.
+- `dev/pipeline_plan/` — the pipeline specification (executed): `00_OVERVIEW.md` →
+  `01_SCHEMA.md` → `02_PIPELINE_STAGES.md` → `03_CLAUDE_CODE_TASKS.md`;
+  `HOWTO_RUN.md` is the operator guide.
+- `dev/model_plan/` — **the analysis & modelling specification (CURRENT WORK):**
+  `00_OVERVIEW.md` → `01_EDA.md` → `02_LOAN_LEVEL.md` → `03_POOL_LEVEL.md` →
+  `04_TASKS.md` (sequenced tasks M1–M15 with acceptance criteria);
+  `05_MACRO_DATA.md` is a standalone macro-data spec (tasks MD1–MD4).
+  **Binding for any work in `dev/analysis/` and `dev/model/`.**
+- `dev/analysis/` — Phase 1 EDA scripts (per `model_plan/01_EDA.md`).
+- `dev/model/` — Phases 2–3 modelling code (per `model_plan/02–03`).
+- `dev/tools/` — `backup_ssd.sh`: mirrors the small irreplaceable SSD dirs to
+  `ssd_mirror/` (gitignored). Run after every milestone gate and GPU session.
 - `docs/` — source material: dataset glossary/tutorial PDFs, the Sirignano et al.
   paper, MCF dissertation guidelines, supervisor meeting notes.
-- `writeup/` — the dissertation text.
+- `writeup/` — the dissertation text (`latex/`) and interim result memos (`memos/`).
 - `reports/` — disposable DuckDB catalog (`lake.duckdb`) only.
 - Data lives on the external SSD `SSD Felipe` at `/Volumes/SSD Felipe/dissertation/`
   (`raw/ → interim/ → processed/`, plus `models/ outputs/ logs/`), not in this repo.
