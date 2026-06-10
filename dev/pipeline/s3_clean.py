@@ -1,8 +1,12 @@
 """Stage 3 — Clean & standardise  (s3_clean.py).
 
 Cast the faithful string-typed perf lake into a typed, standardised, projected
-``clean`` lake, lazily and in bounded memory with Polars ``scan_parquet`` →
-``sink_parquet`` (streaming — the full frame is never materialised).
+``clean`` lake in bounded memory. Execution is an EXPLICIT batch loop — PyArrow
+``iter_batches`` reads the perf partition one ~500K-row batch at a time (only the
+KEEP_COLS source columns), the validated Polars expression transform is applied
+per batch, and a PyArrow ``ParquetWriter`` appends each result. (Polars
+``sink_parquet`` materialised 100M+ row quarters to ~86 GB and was killed, so the
+loop is the memory-safe path that honours "never load a full quarter".)
 
 Per ``01_SCHEMA.md`` §3/§5/§6 each quarter partition is transformed to the
 keep-list plus derived training columns:
@@ -90,13 +94,19 @@ def _yn(name: str) -> pl.Expr:
 
 
 def _cat(name: str) -> pl.Expr:
-    """Dictionary-encoded categorical; blank → null; raw codes preserved."""
-    return _blank_null(name).cast(pl.Categorical).alias(name)
+    """Low-cardinality code column; blank → null; raw codes preserved.
+
+    Kept as Utf8 (NOT a Polars ``Categorical``): the Categorical dtype needs a
+    global string cache that forces the whole query in-memory and defeats
+    streaming. Parquet dictionary-encodes these repetitive strings automatically,
+    so storage is unchanged; Stage 4/5 cast to Categorical on small samples.
+    """
+    return _blank_null(name).alias(name)
 
 
 def _catmap(name: str, mapping: dict) -> pl.Expr:
-    """Map codes to readable labels (unmapped pass through), then categorical."""
-    return _blank_null(name).replace(mapping).cast(pl.Categorical).alias(name)
+    """Map codes to readable labels (unmapped pass through); kept as Utf8."""
+    return _blank_null(name).replace(mapping).alias(name)
 
 
 # Stage-1 transforms: typed/derived columns (originals remain until the final
@@ -188,13 +198,33 @@ OUTPUT_COLS: list[str] = [
 ]
 
 
+# Rows transformed per batch. Stage 3 is executed as an EXPLICIT batch loop
+# (PyArrow ``iter_batches`` → per-batch Polars transform → ``ParquetWriter``)
+# rather than ``LazyFrame.sink_parquet``: on 100M+ row quarters Polars' sink
+# (even with engine="streaming") materialised the whole frame, spiking memory to
+# ~86 GB and getting the process killed. An explicit batch loop bounds memory to
+# one batch regardless of quarter size, satisfying the "never load a full
+# quarter" rule. Only the ~34 source columns (KEEP_COLS) are read per batch.
+BATCH_ROWS = 500_000
+
+
+def _transform_batch(df: pl.DataFrame) -> pl.DataFrame:
+    """Apply the full Stage-3 transform to one (bounded) batch."""
+    return (
+        df.lazy()
+        .with_columns(_stage1_exprs())
+        .with_columns(_stage2_exprs())
+        .select(OUTPUT_COLS)
+        .collect()
+    )
+
+
 def _parquet_rows(path: Path) -> int:
     return pq.ParquetFile(str(path)).metadata.num_rows
 
 
 def clean_quarter(quarter: str, force: bool = False) -> dict:
     """Clean one quarter's perf partition → clean partition. Idempotent/atomic."""
-    perf_glob = f"{config.PERF_DIR}/acq_quarter={quarter}/*.parquet"
     perf_file = config.PERF_DIR / f"acq_quarter={quarter}" / "part.parquet"
     if not perf_file.exists():
         raise SystemExit(f"Perf partition not found for {quarter}: {perf_file}")
@@ -216,21 +246,26 @@ def clean_quarter(quarter: str, force: bool = False) -> dict:
         tmp.unlink()
 
     t0 = time.time()
-    lf = (
-        pl.scan_parquet(perf_glob)
-        .with_columns(_stage1_exprs())
-        .with_columns(_stage2_exprs())
-        .select(OUTPUT_COLS)
-    )
-    lf.sink_parquet(
-        str(tmp),
-        compression="zstd",
-        compression_level=config.ZSTD_LEVEL,
-        row_group_size=config.CHUNK_ROWS,
-    )
+    pf = pq.ParquetFile(str(perf_file))
+    writer = None
+    written = 0
+    try:
+        for batch in pf.iter_batches(batch_size=BATCH_ROWS, columns=schema.KEEP_COLS):
+            out = _transform_batch(pl.from_arrow(batch))   # one bounded batch
+            tbl = out.to_arrow()
+            if writer is None:
+                writer = pq.ParquetWriter(
+                    str(tmp), tbl.schema,
+                    compression="zstd", compression_level=config.ZSTD_LEVEL,
+                )
+            writer.write_table(tbl)
+            written += out.height
+    finally:
+        if writer is not None:
+            writer.close()
     secs = time.time() - t0
 
-    got = _parquet_rows(tmp)
+    got = _parquet_rows(tmp) if writer is not None else 0
     if got != expected:
         raise SystemExit(
             f"{quarter}: row MISMATCH — clean {got:,} vs perf {expected:,}. "
