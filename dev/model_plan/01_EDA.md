@@ -32,18 +32,14 @@ Empirical hazard curves — bucket a covariate, plot the empirical one-month tra
 
 Implementation note: each figure is a single DuckDB aggregation (`GROUP BY` bucket) over the panel — seconds to minutes, no sampling needed. Use equal-population buckets (deciles/ventiles), not equal-width.
 
-## 4. Derived feature: market-rate index & incentive proxy
+## 4. Macro tables, incentive variable & mkt-rate proxy
 
-Build once here (it is also a Phase-2 feature):
+The macro set (PMMS, unemployment nat+state, FMHPI nat+state, 10y Treasury) is downloaded and built per **`05_MACRO_DATA.md`** into `processed/macro/{macro_national,macro_state}.parquet` — tiny time-keyed tables joined at export time (Phase 2); the panel is never rewritten. EDA additions:
 
-```
-mkt_rate(t) = avg(Original Interest Rate) over loans with orig_ym = t        -- from the panel itself
-incentive_it = current_rate_it − mkt_rate(t)                                  -- per loan-month
-```
-
-- Materialize `mkt_rate` as a tiny one-row-per-month table (`processed/macro/mkt_rate.parquet`), built by a `dev/analysis/` script; join at export time (Phase 2), don't rewrite the panel.
-- **F4.1 Validation figure:** plot `mkt_rate(t)` against the Freddie Mac PMMS 30-yr survey rate (public series, manual download into `docs/` — citation only; if licensing/effort says no, validate against its well-known shape). If the proxy tracks, say so in the memo; the incentive variable is then defensible.
-- Months with thin origination counts (early panel edges) → forward-fill and flag.
+- **Panel-derived proxy (kept as robustness):** `mkt_rate(t) = avg(Original Interest Rate) over loans with orig_ym = t`, materialized as `processed/macro/mkt_rate.parquet`. Months with thin origination counts (panel edges) → forward-fill and flag.
+- **F4.1 Validation figure:** `mkt_rate(t)` overlaid on the actual PMMS 30-yr series (now downloaded, not eyeballed). Report the tracking error in the memo; the headline incentive variable is `current_rate − pmms30(t)`, with the proxy version as a robustness check in Phase 2.
+- **F4.2 Macro panel figure:** small-multiples of pmms30, national unemployment + interquartile range across states, national FMHPI + state dispersion, 10y Treasury, 2000–2025. Doubles as the writeup's macro-context exhibit.
+- **F4.3 State-dispersion check:** unemployment and HPI-drawdown ranges across states in 2009 vs 2019 — motivates *state-level* (vs national-only) joins.
 
 ## 5. Sampling sanity checks (carry-over from the May 8 notes)
 
