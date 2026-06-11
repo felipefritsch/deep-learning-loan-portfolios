@@ -129,3 +129,27 @@ VARIANTS: dict[str, dict] = {
     "dev":  {"dev_shard_lt": 6},     # shards 0–5 ⇒ train ≈ 7 M, eval ≈ 45 M (label ≥ 2014)
     "full": {"dev_shard_lt": None},  # all 256 shards (train ~hundreds of M) — M10
 }
+
+# ---------------------------------------------------------------------------
+# M9 frozen NN config (02_LOAN_LEVEL §6) — the depth/dropout/L2 selection
+# ---------------------------------------------------------------------------
+# The pruned grid (grid.py: depth×dropout plane at L2=0 + an L2 sweep at the anchor,
+# 14 cells) ran once on the tuning window k=2015 (dev export). The config below is the
+# argmin of that window's VAL NLL; backtest.py (M10) freezes it and loops it over all 11
+# windows (per-window early stopping / scalers / vocab — never re-tuned on a test slice,
+# §6 protocol). The optimization hyperparameters (lr, batch, patience, schedule) were not
+# searched — they stay at the paper-anchored M8 values in train.py.
+#
+# Evidence: models/nn/dev/grid_summary.json (the 14-cell val/test ranking),
+# models/nn/dev/ensemble_summary.json (8-net ensemble + size curve), and
+# outputs/tables/loan_level/table_a.* (paper-Table-11 analogue).
+#
+# Dev-scale deviation from the paper (noted, per the M9 Accept clause): Sirignano et al.
+# selected 5 hidden layers on billions of loan-months; on the ~3 M-row dev train slice the
+# val optimum is shallower (depth 3) and a small L2 only *rescues* the depth-5 net back to
+# the depth-3 level — capacity that helps at population scale overfits here. The grid is
+# regenerable, so M10 re-confirms (or revises) this selection at full scale before the loop.
+# The ensemble (paper Fig 7) is 8 nets at this SAME config, so the ensemble-vs-single delta
+# is an architecture-held-constant comparison.
+NN_SELECTED = {"depth": 3, "dropout": 0.2, "weight_decay": 0.0}   # k=2015 val argmin
+NN_ENSEMBLE_MEMBERS = 8                                           # paper Fig 7
