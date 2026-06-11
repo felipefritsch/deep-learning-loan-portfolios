@@ -6,3 +6,10 @@
 # matplotlib: M2+ figures via eda_common.save_figure().
 pandas==2.3.3
 matplotlib==3.9.4
+# torch: the Phase-2 models (M7 logit onward) — the shared loss/eval path and every net
+#        run through torch (torch_common.py). CPU/MPS on the mac dev box; the cloud-GPU
+#        loop (M8+) installs the CUDA build separately.
+# scikit-learn: M7 logit numerical cross-check (LogisticRegression vs the torch logit);
+#        pulls scipy as a transitive dep.
+torch==2.8.0
+scikit-learn==1.6.1
