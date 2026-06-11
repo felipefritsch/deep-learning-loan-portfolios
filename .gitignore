@@ -71,3 +71,7 @@ reports/
 
 # Local SSD backup mirror (small irreplaceable artifacts; not for git)
 ssd_mirror/
+
+# Miscellaneous
+misc/
+

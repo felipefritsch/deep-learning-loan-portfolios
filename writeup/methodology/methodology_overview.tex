@@ -97,7 +97,7 @@ In this dataset the terminal states exist \emph{only} as zero-balance codes in a
 
 Some transitions are structurally (near-)impossible --- delinquency deepens at most one bucket per month, so $\state{current}\to\state{dpd\_60}$ cannot occur, while cures can jump down arbitrarily. Rather than hard-coding a mask, the models are left to learn these zeros, and the evaluation suite \emph{asserts} that predicted mass on impossible cells is negligible --- a useful internal consistency check on the whole pipeline.
 
-The class structure is extremely imbalanced: $\state{current}\!\to\!\state{current}$ accounts for the overwhelming majority of the $\sim$billion usable transitions, while $\state{dpd\_90plus}\!\to\!\state{REO}$ events are vanishingly rare \artifact{T1.3, T2.1}. Section~\ref{sec:thinning} explains how training exploits this without biasing the estimated probabilities.
+The class structure is extremely imbalanced: $\state{current}\!\to\!\state{current}$ accounts for the overwhelming majority of the $\sim$3.3 billion loan-months, while $\state{dpd\_90plus}\!\to\!\state{REO}$ events are vanishingly rare \artifact{T1.3, T2.1}; measured shares in Table~\ref{tab:stateshares}. Section~\ref{sec:thinning} explains how training exploits this without biasing the estimated probabilities.
 
 % =====================================================================
 \section{Model-free evidence: the EDA programme}\label{sec:eda}
@@ -109,6 +109,45 @@ Before any model is fitted, Phase 1 builds the empirical case that nonlinear mod
 \item \textbf{Delinquency vs.\ FICO$\times$LTV} \artifact{F3.4}: a two-dimensional rate heatmap. If the FICO gradient steepens as LTV rises --- and it does --- the effects \emph{interact}, and no additive-linear model is correctly specified regardless of how its single-variable terms are transformed. This single figure is the most persuasive motivation exhibit in the dissertation.
 \end{itemize}
 Supporting exhibits map the terrain: transition rates over calendar time \artifact{F2.2} display the 2003 and 2020--21 refinancing waves, the 2008--11 default wave and the 2022--23 prepayment collapse (and double as a sanity check that the state derivation of Section~\ref{sec:states} is correct); vintage-cohort hazards \artifact{F3.6} isolate the notorious 2006--07 originations; and a COVID-era audit of delinquency codes \artifact{F2.3} documents how forbearance distorts 2020--21 records before models ever see them. Because each figure is a single out-of-core \code{GROUP BY} over the columnar panel, the entire programme runs in minutes --- a payoff of the engineering layer of Section~\ref{sec:data}.
+
+\subsection{Phase 1 results (executed; memo \code{writeup/memos/01\_eda.md})}\label{sec:edaresults}
+
+Phase 1 is complete; this subsection records what the programme found. All empirical rates carry Wilson 95\% intervals and every number regenerates from \code{dev/analysis/}.
+
+\paragraph{Scope.} The assembled panel is the complete release: \textbf{3{,}312{,}456{,}883 loan-months across 57{,}562{,}668 loans}, reporting months 2000-01 through 2025-12, in 104 acquisition-vintage partitions \artifact{T1.1}.
+
+\paragraph{Class imbalance.} The state distribution \artifact{T1.3} confirms --- and sharpens --- the design assumptions of Section~\ref{sec:thinning}:
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lr@{\qquad\qquad}lr}
+\toprule
+State & Share & State & Share \\
+\midrule
+\state{current}    & 96.28\,\% & \state{dpd\_60}      & 0.31\,\% \\
+\state{prepaid}    & 1.25\,\%  & \state{REO}          & 0.014\,\% \\
+\state{dpd\_30}    & 1.15\,\%  & \state{foreclosure}  & 0.0067\,\% \\
+\state{dpd\_90plus}& 0.98\,\%  & & \\
+\bottomrule
+\end{tabular}
+\caption{Loan-month shares by state \artifact{T1.3}. The 96\% \state{current} mass motivates the thinning-with-importance-weights scheme of \eqref{eq:weightednll}; credit-event terminals at $\sim$1-in-10{,}000 motivate the Laplace smoothing of \eqref{eq:empirical}.}
+\label{tab:stateshares}
+\end{table}
+
+Pooled over time \artifact{T2.1}, the monthly rates out of \state{current} are $1.27\%$ to \state{prepaid} and $0.64\%$ to \state{dpd\_30} --- but the pooling hides the point: the monthly series \artifact{F2.2} shows the 2003 and 2020--21 refinancing waves, the 2008--11 default wave, and the sharp 2022--23 prepayment collapse. These regime shifts, not any single structural break, are the empirical justification for the rolling backtest of Section~\ref{sec:design}.
+
+\paragraph{Nonlinearity (single covariates).} The three hazard curves deliver the predicted shapes, now with magnitudes:
+\begin{itemize}[itemsep=1pt]
+\item \artifact{F3.1} \emph{seasoning hump}: $\state{current}\to\state{prepaid}$ rises from $0.27\%$/mo at origination to $1.56\%$/mo at $\approx$17 months, then burns out to $1.11\%$/mo by $\approx$52 months (with a secondary late-life rise to $\sim$1.65\%/mo among 15-year+ survivors) --- strongly non-monotone;
+\item \artifact{F3.2} \emph{refinancing S-curve}: with $\code{incentive}=r^{\mathrm{cur}}-\code{pmms30}(t)$, prepayment is flat at $0.4$--$0.6\%$/mo out-of-the-money, turns sharply through zero, peaks at $2.71\%$/mo near $+1.5$\,pp and burns out to $2.16\%$/mo by $+2.7$\,pp --- a $\sim$7$\times$ range with both an inflection and a turning point, reproducing the paper's flagship nonlinearity on this cleaner credit box;
+\item \artifact{F3.3} \emph{convex FICO decay}: $\state{current}\to\state{dpd\_30}$ falls $\sim$24$\times$, from $3.06\%$/mo at FICO $\approx$623 to $0.13\%$/mo at FICO $\approx$815, with the low-FICO half $\sim$3.7$\times$ steeper than the high-FICO half.
+\end{itemize}
+
+\paragraph{Interactions (the case against additivity).} The headline exhibit \artifact{F3.4} puts numbers on the misspecification argument: on a FICO$\times$LTV grid the $\state{current}\to\state{dpd\_30plus}$ rate spans $0.11\%$--$2.69\%$/mo, and the \emph{additive FICO gradient} (worst-minus-best FICO rate) grows from $1.73$\,pp at low LTV to $2.48$\,pp at high LTV ($+43\%$) --- equivalently, the LTV effect is $\sim$8.5$\times$ larger for low-FICO than high-FICO loans. An additive model forces this gradient to be constant; the violation sits exactly in the low-FICO/high-LTV corner that drives credit losses. In the prepayment channel, \artifact{F3.5} shows the in-the-money refinancing response \emph{rising} with credit quality ($2.36\%$/mo in the low-FICO tercile vs.\ $3.01\%$/mo in the high) --- credit-constrained borrowers cannot exercise the option, so the incentive \emph{slope} itself depends on FICO. Finally \artifact{F3.6}, holding loan age fixed at 12--36 months, isolates a clean cohort effect: the 2007 vintage's delinquency hazard of $1.68\%$/mo is $\times$3.6 the calm-cohort level of $0.47\%$/mo --- vintage is a feature in its own right.
+
+\paragraph{Validation and sanity checks.} The panel-derived market-rate proxy tracks the downloaded PMMS series with correlation $0.991$, RMSE $0.198$\,pp and MAE $0.147$\,pp \artifact{F4.1} --- so the PMMS-based incentive is sound and the proxy is a credible robustness alternative. The shard checks of Section~\ref{sec:shards} pass with room to spare: rows and exact distinct loans per shard are uniform to coefficients of variation $0.26\%$ and $0.21\%$ respectively \artifact{F5.1}, and per-shard vintage composition matches the panel marginal (CV $\le 2.3\%$ for every vintage above $0.5\%$ of the book) \artifact{F5.2} --- the shards are not vintage-clustered, closing out the failure mode this design exists to prevent.\footnote{A methodological footnote worth keeping: \code{approx\_count\_distinct} grouped over the 256 shards reported a spurious $\sim$30\% spread that the exact \code{count(DISTINCT)} flatly contradicts; F5.1 therefore uses exact counts. Approximate aggregates should not be trusted for uniformity checks.}
+
+\paragraph{The hypothesis carried into Phase 2.} Transition risk depends on covariates nonlinearly (F3.1--F3.3) and interactively (F3.4--F3.6). A linear-additive multinomial logit should therefore underfit, most severely on \emph{prepayment} --- the channel combining the sharpest single-variable nonlinearity (the S-curve) with a first-order interaction with credit quality. Phase 2 tests precisely this, and the prepayment-conditional NLL of \artifact{Table B} is the designated place to look for the deep model's largest edge.
 
 % =====================================================================
 \section{Randomisation at scale: shards}\label{sec:shards}
@@ -222,7 +261,7 @@ so the first window trains through 2013, early-stops on 2014, and predicts 2015;
 
 \subsection{Class thinning with importance weights}\label{sec:thinning}
 
-Training on every $\state{current}\!\to\!\state{current}$ row is wasteful: they are $\sim$95\% of rows and individually nearly uninformative. The export therefore keeps every row whose origin or destination is \emph{not} \state{current}, but retains $\state{current}\!\to\!\state{current}$ rows only with probability $p$ (e.g.\ $p = 0.05$--$0.10$), attaching the weight $w_i = 1/p$ to kept rows (and $w_i=1$ otherwise). The training objective is the weighted negative log-likelihood
+Training on every $\state{current}\!\to\!\state{current}$ row is wasteful: \state{current} is $96.3\%$ of loan-months (Table~\ref{tab:stateshares}) and such rows are individually nearly uninformative. The export therefore keeps every row whose origin or destination is \emph{not} \state{current}, but retains $\state{current}\!\to\!\state{current}$ rows only with probability $p$ (e.g.\ $p = 0.05$--$0.10$), attaching the weight $w_i = 1/p$ to kept rows (and $w_i=1$ otherwise). The training objective is the weighted negative log-likelihood
 \begin{equation}
 \label{eq:weightednll}
 \widehat{\mathcal{L}}(\theta) \;=\; \frac{1}{\sum_i w_i}\sum_{i \in \text{kept}} w_i\,
