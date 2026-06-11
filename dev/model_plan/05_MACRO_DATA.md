@@ -41,7 +41,7 @@ Built by `dev/model/build_macro.py` (idempotent; reads the newest snapshot under
 
 | col | def |
 |---|---|
-| `month_ym` (i32, key) | observation month `YYYYMM` |
+| `month_ym` (i32, key) | observation month `YYYYMM`, from **1998-01** (panel starts 2000-01, but lagged joins + the 12-month HPI lookback + origination-month HPI lookups reach back to 1998-11 — starting 1998-01 keeps M4's zero-null check satisfiable) |
 | `pmms30`, `dgs10`, `slope_10y2y`, `unrate_nat` (f32) | per §1 |
 
 **`processed/macro/macro_state.parquet`** — one row per (state, month):
@@ -75,11 +75,11 @@ Rules: store values **by observation month** (lags are applied at join time, not
 
 ### MD2 — `build_macro.py` → the two Parquet tables
 Per §3. Defensive parsing; FMHPI schema asserted on load (expect Year/Month, GEO_Type ∈ {US, State, CBSA}, GEO_Name, SA index column — names may drift, resolve by inspection not assumption).
-**Accept:** `macro_national` has one gap-free row per month 2000-01→snapshot end; `macro_state` covers 50 states + DC + `US` rows with both series, gap-free per state; spot-check 3 known values against the sources (e.g. UNRATE 2009-10 = 10.0, PMMS ~2.65–2.7 around 2021-01, NV HPI drawdown ≈ −50%+ peak-to-trough 2006→2012).
+**Accept:** `macro_national` has one gap-free row per month 1998-01→snapshot end; `macro_state` covers 50 states + DC + `US` rows with both series, gap-free per state (from each series' start, no later than 1998-11); spot-check 3 known values against the sources (e.g. UNRATE 2009-10 = 10.0, PMMS ~2.65–2.7 around 2021-01, NV HPI drawdown ≈ −50%+ peak-to-trough 2006→2012).
 
-### MD3 — Wire into export + features
-Implement §4 in `export.py` / `features.py` / `feature_spec`, including fallback indicators and derived features, with unit tests (synthetic loan: known UPBs/LTV/HPI path → exact `ltv_mtm`; lag correctness: a loan-month at `period_ym = 202001` gets `unrate` of 2019-12 and `hpi` of 2019-11).
-**Accept:** unit tests pass; a 100k-row dev export has zero null macro columns (fallbacks engaged where needed) and join-rate stats logged.
+### MD3 — Macro join/features module (standalone; export wiring lands in M4/M6)
+Implement §4 as a self-contained **`dev/model/macro_features.py`**: the single-source lag-config dict, the national/state join logic with fallback indicators, and the derived features (`incentive`, `ltv_mtm`, `hpi_chg_12m`) plus the `feature_spec` additions — with unit tests (synthetic loan: known UPBs/LTV/HPI path → exact `ltv_mtm`; lag correctness: a loan-month at `period_ym = 202001` gets `unrate` of 2019-12 and `hpi` of 2019-11). `export.py` (M4) and `features.py` (M6) import this module rather than reimplementing it.
+**Accept:** unit tests pass. *(The end-to-end check — a 100k-row dev export with zero null **joined** macro columns (pmms30/unemployment/HPI; the derived `incentive` may inherit `current_rate` missingness from the panel, handled by the existing missingness indicators) and join-rate stats logged — is deferred to M4, whose Accept criteria already include the macro-join spot-check.)*
 
 ### MD4 — EDA validation figures
 F4.2 macro small-multiples and F4.3 state-dispersion (`01_EDA §4`), saved to `outputs/figures/eda/`.
