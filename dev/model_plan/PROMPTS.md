@@ -62,15 +62,19 @@ Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks throu
 Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M6 are complete and committed. Execute task M7 only. State assumptions and a short plan first. Verify every Accept criterion for M7 with evidence (including the sklearn cross-check numbers), then commit M7. Do not start M8. The SSD is mounted.
 ```
 
-### M8 — first GPU task
-
-*(Before this prompt: choose the GPU provider, get the box running, upload the M4 dev export. Develop/debug locally with `--smoke` first; only then spend GPU time.)*
+### M8a — build + CPU smoke test (no GPU needed)
 
 ```
-Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M7 are complete and committed. Execute task M8 only. Build and verify everything locally via the --smoke CPU path first; tell me when the code is ready for the cloud-GPU run and what exact commands to run on the GPU box. Verify every Accept criterion for M8 with evidence, then commit M8. Do not start M9. The SSD is mounted.
+Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M7 are complete and committed. Execute the BUILD portion of task M8 only — I do not have the GPU yet, so everything today is CPU-only. Build net.py and train.py per the spec (5-layer net, dropout 0.2, early stopping, checkpointing, run folders) and verify via the --smoke CPU path (<=100k rows): training runs end-to-end without error, loss decreases, a checkpoint + metrics.json + scaler + manifest hash + window id land in the run folder, and training resumes correctly from a checkpoint (kill and restart mid-run to prove it). Defer to the GPU session ONLY the dev-export fit and its Accept criteria (val NLL improves on logit; no OOM at scale) — list these explicitly as deferred at the end. Also prepare and show me the exact commands I will run on the GPU box tomorrow (env setup, data path assumptions, the training command). Commit as "M8a: NN training pipeline + CPU smoke test". Do not start M9. The SSD is mounted.
 ```
 
-**→ You: after the GPU session, sync checkpoints back to `models/`, run `backup_ssd.sh`, note the per-epoch throughput (it sets the M10 full-export size).**
+### M8b — the GPU run (after the box is set up and the dev export uploaded)
+
+```
+Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. M8a (build + CPU smoke test) is complete and committed — do NOT rebuild or rerun the smoke test. The GPU box is running and the M4 dev export is uploaded; this environment IS the GPU box [adjust if running Claude Code locally instead: "I will run commands on the box and paste outputs"]. Execute the deferred GPU portion of M8 only: fit the 5-layer net on the dev export (tuning window k=2015, early stopping on its val slice). Verify the remaining M8 Accept criteria with evidence: no OOM, val NLL improves on the M7 logit (paste both numbers), complete run folder, resumable from checkpoint. Record per-epoch wall-clock throughput (rows/sec and min/epoch) — it sets the M10 full-export size. Commit as "M8b: dev-scale GPU fit". Do not start M9.
+```
+
+**→ You: after the GPU session, sync checkpoints back to `models/`, run `backup_ssd.sh`, note the per-epoch throughput.**
 
 ### M9
 
