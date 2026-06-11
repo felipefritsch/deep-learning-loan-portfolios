@@ -38,25 +38,25 @@ Read dev/model_plan/04_TASKS.md and dev/model_plan/01_EDA.md. Tasks M1, M2, and 
 
 ## Phase 2 — Loan-level models
 
-### M4 ✅
+### M4 - `dev/model/ scaffolding + export✅
 
 ```
 Read dev/model_plan/00_OVERVIEW.md, 02_LOAN_LEVEL.md, and 04_TASKS.md. Phase 1 (M1–M3) is complete and committed. Execute task M4 only. Before coding, state your assumptions and a short plan. Verify every Accept criterion for M4 with evidence (commands + outputs), then commit M4. Do not start M5. The SSD is mounted.
 ```
 
-### M5
+### M5 — Empirical matrix benchmark (all windows)  ✅
 
 ```
 Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M4 are complete and committed. Execute task M5 only. State assumptions and a short plan first. Verify every Accept criterion for M5 with evidence, then commit M5. Do not start M6. The SSD is mounted.
 ```
 
-### M6
+### M6 - Feature pipeline + loader ✅
 
 ```
 Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M5 are complete and committed. Execute task M6 only. State assumptions and a short plan first. Verify every Accept criterion for M6 with evidence (run the unit tests and paste results), then commit M6. Do not start M7. The SSD is mounted.
 ```
 
-### M7
+### M7 - Logit ✅
 
 ```
 Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M6 are complete and committed. Execute task M7 only. State assumptions and a short plan first. Verify every Accept criterion for M7 with evidence (including the sklearn cross-check numbers), then commit M7. Do not start M8. The SSD is mounted.
