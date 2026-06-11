@@ -32,13 +32,13 @@ Read dev/model_plan/05_MACRO_DATA.md and execute its tasks MD1–MD4 in order, o
 Read dev/model_plan/04_TASKS.md and dev/model_plan/01_EDA.md. Tasks M1, M2, and M2b are complete and committed. Execute task M3 only. Before coding, state your assumptions and a short plan. Verify every Accept criterion for M3 with evidence (commands + outputs), then commit M3. The SSD is mounted.
 ```
 
-**→ You: run `dev/tools/backup_ssd.sh`, then `git push`.** ✅
+**→ You: run `dev/tools/backup_ssd.sh`, then `git push`.**
 
 ---
 
 ## Phase 2 — Loan-level models
 
-### M4
+### M4 ✅
 
 ```
 Read dev/model_plan/00_OVERVIEW.md, 02_LOAN_LEVEL.md, and 04_TASKS.md. Phase 1 (M1–M3) is complete and committed. Execute task M4 only. Before coding, state your assumptions and a short plan. Verify every Accept criterion for M4 with evidence (commands + outputs), then commit M4. Do not start M5. The SSD is mounted.
