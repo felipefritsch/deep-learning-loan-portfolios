@@ -35,6 +35,7 @@ import datetime
 import json
 import os
 import subprocess
+import time
 from pathlib import Path
 
 import numpy as np
@@ -74,6 +75,25 @@ def _git_commit() -> str | None:
         return r.stdout.strip() or None
     except Exception:
         return None
+
+
+def _environment(device: torch.device) -> dict:
+    """Hardware/software provenance for the run record (the box is a rented GPU: torch
+    comes from the template image via a --system-site-packages venv, so the exact build is
+    not pinned in this repo and must be captured per-run). Records the torch/CUDA/cuDNN
+    build and, on cuda, the GPU model + compute capability."""
+    env = {
+        "torch_version": torch.__version__,
+        "cuda_version": torch.version.cuda,
+        "cudnn_version": torch.backends.cudnn.version(),
+        "device_type": device.type,
+    }
+    if device.type == "cuda" and torch.cuda.is_available():
+        idx = device.index or 0
+        env["gpu_name"] = torch.cuda.get_device_name(idx)
+        env["gpu_capability"] = list(torch.cuda.get_device_capability(idx))
+        env["gpu_count"] = torch.cuda.device_count()
+    return env
 
 
 def run_id(args) -> str:
@@ -131,10 +151,17 @@ def _rng_state(device: torch.device) -> dict:
 
 
 def _restore_rng(state: dict, device: torch.device) -> None:
-    torch.set_rng_state(state["torch"])
+    # The checkpoint is loaded with map_location=device (so model/optimizer tensors land on
+    # the GPU), which also moves these CPU RNG-state tensors onto cuda. ``set_rng_state`` and
+    # ``set_rng_state_all`` require CPU ByteTensors, so coerce back before restoring — without
+    # this the resume path raises "RNG state must be a torch.ByteTensor" on cuda (it is a
+    # no-op on cpu, where map_location never moved them: the M8a CPU proof).
+    def _cpu_byte(t):
+        return t.cpu().to(torch.uint8) if torch.is_tensor(t) else t
+    torch.set_rng_state(_cpu_byte(state["torch"]))
     np.random.set_state(state["numpy"])
     if device.type == "cuda" and state.get("cuda") is not None:
-        torch.cuda.set_rng_state_all(state["cuda"])
+        torch.cuda.set_rng_state_all([_cpu_byte(t) for t in state["cuda"]])
 
 
 def save_checkpoint(path: Path, *, epoch: int, model, opt, sched, amp_scaler,
@@ -254,10 +281,18 @@ def train(args) -> Path:
           f"val={enc_val['y'].shape[0]:,}")
 
     # --- training loop: early stopping on val NLL, atomic checkpoint each epoch ----------
+    n_train = int(enc_train["y"].shape[0])
     for epoch in range(start_epoch, max_epochs):
+        # Per-epoch wall-clock (M8b throughput, sizes the M10 full export). train_sec times
+        # the GPU pass over the train slice (cuda-synced so async kernels are accounted);
+        # epoch_sec adds the val eval + atomic checkpoint write.
+        t0 = time.perf_counter()
         train_nll = train_one_epoch(model, enc_train, predict, opt, amp_scaler,
                                     device=device, epoch=epoch, seed=args.seed,
                                     batch_size=args.batch_size, use_amp=use_amp)
+        if device.type == "cuda":
+            torch.cuda.synchronize()
+        train_sec = time.perf_counter() - t0
         val = tc.evaluate_nll(model, eval_batches(enc_val, EVAL_BATCH), predict, device)
         sched.step(val["weighted_nll"])
         lr_now = opt.param_groups[0]["lr"]
@@ -268,13 +303,18 @@ def train(args) -> Path:
             bad = 0
         else:
             bad += 1
+        epoch_sec = time.perf_counter() - t0
+        rows_per_sec = n_train / train_sec if train_sec > 0 else float("nan")
         history.append({"epoch": epoch, "train_nll": train_nll,
-                        "val_nll": val["weighted_nll"], "lr": lr_now, "bad": bad})
+                        "val_nll": val["weighted_nll"], "lr": lr_now, "bad": bad,
+                        "train_sec": train_sec, "epoch_sec": epoch_sec,
+                        "rows_per_sec": rows_per_sec})
         save_checkpoint(ckpt_path, epoch=epoch, model=model, opt=opt, sched=sched,
                         amp_scaler=amp_scaler, best=best, bad=bad, history=history,
                         arch=arch, cfg=cfg, device=device)
         print(f"  epoch {epoch:>2}: train_nll={train_nll:.6f}  val_nll={val['weighted_nll']:.6f}"
               f"  lr={lr_now:.2e}  (best@{best['epoch']}, bad={bad})"
+              f"  [{train_sec:.1f}s train, {epoch_sec:.1f}s epoch, {rows_per_sec:,.0f} rows/s]"
               f"{'  *' if improved else ''}")
 
         if bad >= args.patience:
@@ -299,12 +339,14 @@ def train(args) -> Path:
     logit_cmp = _logit_comparison(args.variant, args.k, val_best["weighted_nll"],
                                   test["unweighted_nll"])
     val0 = history[0]["val_nll"] if history else float("nan")
+    throughput = _throughput_summary(history, n_train=int(enc_train["y"].shape[0]))
     metrics = {
         "created_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "model": "nn_mlp", "variant": args.variant, "window_k": args.k,
         "tuning_window": (args.k == config.TUNING_YEAR), "smoke": args.smoke,
         "device": str(device), "use_amp": use_amp, "seed": args.seed,
         "git_commit": _git_commit(),
+        "environment": _environment(device),
         "source": {
             "train_pool_content_hash": manifest["train_pool"]["content_hash"],
             "eval_pool_content_hash": manifest["eval_pool"]["content_hash"],
@@ -328,6 +370,7 @@ def train(args) -> Path:
                  "test_nll": test["unweighted_nll"],
                  "test_nll_weighted": test["weighted_nll"],
                  "test_n_rows": test["n_rows"], "test_sum_w": test["sum_w"]},
+        "throughput": throughput,
         "logit_comparison": logit_cmp,
     }
     (run / "metrics.json").write_text(json.dumps(metrics, indent=2))
@@ -339,8 +382,47 @@ def train(args) -> Path:
               f"NN test margin {logit_cmp['test_margin']:+.6f} "
               f"({'beats' if logit_cmp['beats_logit_test'] else 'does not beat'}"
               f"{' — informational on smoke' if args.smoke else ''})")
+    if throughput.get("measured_epochs"):
+        print(f"throughput: {throughput['median_rows_per_sec']:,.0f} train rows/s  "
+              f"({throughput['median_train_sec']:.1f}s train / {throughput['min_per_epoch']:.2f} "
+              f"min per epoch, median over {throughput['measured_epochs']} steady-state epochs"
+              f"{'; epoch0 warmup excluded' if throughput.get('excluded_warmup_epoch0') else ''})")
     print(f"wrote {run / 'metrics.json'}")
     return run
+
+
+def _median(xs: list[float]) -> float:
+    s = sorted(xs)
+    n = len(s)
+    if n == 0:
+        return float("nan")
+    m = n // 2
+    return s[m] if n % 2 else 0.5 * (s[m - 1] + s[m])
+
+
+def _throughput_summary(history: list, n_train: int) -> dict:
+    """Per-epoch wall-clock throughput for sizing the M10 full export (`02 §3`: dev
+    ≈5–10 M train rows → full ≈50–100 M). Reported on the **steady-state** epochs (epoch 0
+    excluded — it pays CUDA context + cuDNN autotune init), median to shrug off scheduler
+    jitter. ``rows_per_sec`` is over the train slice (what scales with export size);
+    ``min_per_epoch`` is the full epoch incl. val eval + checkpoint."""
+    steady = [h for h in history if h["epoch"] > 0 and "train_sec" in h] or \
+             [h for h in history if "train_sec" in h]
+    if not steady:
+        return {"n_train_rows": n_train, "measured_epochs": 0}
+    train_secs = [h["train_sec"] for h in steady]
+    epoch_secs = [h["epoch_sec"] for h in steady]
+    med_train = _median(train_secs)
+    return {
+        "n_train_rows": n_train,
+        "measured_epochs": len(steady),
+        "excluded_warmup_epoch0": any(h["epoch"] == 0 for h in history),
+        "median_train_sec": med_train,
+        "median_epoch_sec": _median(epoch_secs),
+        "median_rows_per_sec": n_train / med_train if med_train > 0 else float("nan"),
+        "min_per_epoch": _median(epoch_secs) / 60.0,
+        "epoch0_train_sec": next((h["train_sec"] for h in history if h["epoch"] == 0), None),
+    }
 
 
 def _logit_comparison(variant: str, k: int, nn_val_nll: float,
@@ -403,9 +485,25 @@ def verify(args) -> None:
     check("checkpoint RNG state captured (torch + numpy)",
           "torch" in ckpt.get("rng", {}) and "numpy" in ckpt.get("rng", {}))
 
-    print(f"\n[note] 'val NLL improves on logit' + 'no OOM at scale' are the GPU dev-fit "
-          f"Accept criteria — deferred (smoke is capped/unconverged).")
-    print(f"\n{'ALL CPU-CHECKABLE ACCEPT CRITERIA PASS' if ok else 'SOME CHECKS FAILED'} "
+    if metrics.get("smoke"):
+        print(f"\n[note] 'val NLL improves on logit' + 'no OOM at scale' are the GPU dev-fit "
+              f"Accept criteria — deferred (smoke is capped/unconverged).")
+    else:
+        print(f"\n[5] GPU dev-fit Accept criteria (val NLL beats logit; throughput recorded)")
+        cmp = metrics.get("logit_comparison")
+        check("logit_comparison present (M7 run found)", cmp is not None)
+        if cmp is not None:
+            check(f"val NLL {cmp['nn_val_nll']:.6f} < logit val NLL {cmp['logit_val_nll']:.6f}",
+                  cmp["beats_logit_val"], f"Δ={cmp['val_margin']:+.6f}")
+            # Informational (not gated): test-slice margin — the headline §1 metric.
+            print(f"  [info] test NLL {cmp['nn_test_nll']:.6f} vs logit {cmp['logit_test_nll']:.6f}"
+                  f"  (Δ={cmp['test_margin']:+.6f}, {'beats' if cmp['beats_logit_test'] else 'does not beat'})")
+        thr = metrics.get("throughput", {})
+        check("per-epoch throughput recorded (rows/sec + min/epoch)",
+              bool(thr.get("measured_epochs")),
+              f"{thr.get('median_rows_per_sec', float('nan')):,.0f} rows/s, "
+              f"{thr.get('min_per_epoch', float('nan')):.2f} min/epoch" if thr.get("measured_epochs") else "")
+    print(f"\n{'ALL ACCEPT CRITERIA PASS' if ok else 'SOME CHECKS FAILED'} "
           f"(variant={args.variant}, run={run_id(args)})")
     if not ok:
         raise SystemExit(1)
