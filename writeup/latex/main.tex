@@ -6,6 +6,7 @@
 \usepackage{amssymb}
 \usepackage{booktabs}   % toprule / midrule / bottomrule
 \usepackage{tabularx}   % flexible-width table columns
+\usepackage[numbers]{natbib} % enables \citet, \citep, \citeauthor used in chapter3
 
 %input macros (i.e. write your own macros file called mymacros.tex 
 %and uncomment the next line)
@@ -58,7 +59,7 @@
 \addcontentsline{toc}{chapter}{Bibliography}
 %uncomment next line to change bibliography name to references
 %\renewcommand{\bibname}{References}
-\bibliography{refs}        %use a bibtex bibliography file refs.bib
-\bibliographystyle{plain}  %use the plain bibliography style
+\bibliographystyle{plainnat}  % natbib-compatible bibliography style
+\bibliography{refs}           % use bibtex bibliography file refs.bib
 
 \end{document}
