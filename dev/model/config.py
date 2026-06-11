@@ -18,15 +18,22 @@ What lives here
 
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
 
-# The pipeline package owns ROOT and the lake layout — import it as the base.
+# The pipeline package owns ROOT and the lake layout. This module is itself named
+# ``config``, so a plain ``import config`` would resolve to *this* file — load the
+# pipeline config from its path under a distinct name to avoid the collision. Also
+# put the pipeline dir on sys.path so siblings can ``import schema`` (the pipeline
+# feature spec), which does not import config and so is collision-free.
 _PIPELINE = Path(__file__).resolve().parents[1] / "pipeline"
 if str(_PIPELINE) not in sys.path:
     sys.path.insert(0, str(_PIPELINE))
 
-import config as pipeline_config  # noqa: E402
+_spec = importlib.util.spec_from_file_location("pipeline_config", _PIPELINE / "config.py")
+pipeline_config = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(pipeline_config)
 
 # Re-exported pipeline single-source-of-truth handles.
 ROOT = pipeline_config.ROOT
