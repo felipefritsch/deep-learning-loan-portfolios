@@ -76,9 +76,9 @@ Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks throu
 Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. M8a (build + CPU smoke test) is complete and committed — do NOT rebuild or rerun the smoke test. The GPU box is running and the M4 dev export is uploaded; this environment IS the GPU box [adjust if running Claude Code locally instead: "I will run commands on the box and paste outputs"]. Execute the deferred GPU portion of M8 only: fit the 5-layer net on the dev export (tuning window k=2015, early stopping on its val slice). Verify the remaining M8 Accept criteria with evidence: no OOM, val NLL improves on the M7 logit (paste both numbers), complete run folder, resumable from checkpoint. Record per-epoch wall-clock throughput (rows/sec and min/epoch) — it sets the M10 full-export size. Commit as "M8b: dev-scale GPU fit". Do not start M9.
 ```
 
-**→ You: after the GPU session, sync checkpoints back to `models/`, run `backup_ssd.sh`, note the per-epoch throughput.**
+**→ You: after the GPU session, sync checkpoints back to `models/`, run `backup_ssd.sh`, note the per-epoch throughput.** ✅
 
-### M9
+### M9 - Depth/regularization grid (tuning window) + Table A ✅
 
 ```
 Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M8 are complete and committed; the dev-scale GPU pipeline works. Execute task M9 only (depth/regularization grid on the tuning window + Table A; prune the grid sensibly). State the pruned grid you propose before running. Verify every Accept criterion for M9 with evidence, freeze the winning config in config.py, then commit M9. Do not start M10. The SSD is mounted.
@@ -87,7 +87,7 @@ Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks throu
 ### M10
 
 ```
-Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M9 are complete and committed; the frozen config is in config.py. Execute task M10 only: full-scale export, then the rolling loop via backtest.py — logit + best NN on all 11 windows, ensemble of 8 on the 5 key windows (2015/2019/2020/2023/2025). Propose the full-export size from the M8 throughput numbers before running. Verify every Accept criterion for M10 with evidence, then commit M10. Do not start M11. The SSD is mounted.
+Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M9 are complete and committed; the frozen config is in config.py. Execute task M10 only: full-scale export, then the rolling loop via backtest.py — logit + best NN on all 11 windows, ensemble of 8 on the 5 key windows (2015/2019/2020/2023/2025). Two preliminaries before the loop: (1) the M9 config was selected on the 3M-row dev slice and flagged depth-3-vs-5 as scale-sensitive — re-fit depth-3 and depth-5 (dropout 0.2; add the L2 1e-5 variant if cheap) on the full-scale tuning window k=2015, pick the val-NLL winner, update the frozen config with rationale, and use it for the loop; (2) this box may not be the M8b RTX 4090 — re-measure throughput on the first full-scale fit and use that (not the M8b numbers) to sanity-check the export size you propose before running. Verify every Accept criterion for M10 with evidence, then commit M10. Do not start M11. The SSD is mounted.
 ```
 
 ### M11
