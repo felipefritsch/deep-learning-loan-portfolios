@@ -62,7 +62,7 @@ Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks throu
 Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M6 are complete and committed. Execute task M7 only. State assumptions and a short plan first. Verify every Accept criterion for M7 with evidence (including the sklearn cross-check numbers), then commit M7. Do not start M8. The SSD is mounted.
 ```
 
-### M8a — build + CPU smoke test (no GPU needed)
+### M8a — build + CPU smoke test (no GPU needed) ✅
 
 ```
 Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M7 are complete and committed. Execute the BUILD portion of task M8 only — I do not have the GPU yet, so everything today is CPU-only. Build net.py and train.py per the spec (5-layer net, dropout 0.2, early stopping, checkpointing, run folders) and verify via the --smoke CPU path (<=100k rows): training runs end-to-end without error, loss decreases, a checkpoint + metrics.json + scaler + manifest hash + window id land in the run folder, and training resumes correctly from a checkpoint (kill and restart mid-run to prove it). Defer to the GPU session ONLY the dev-export fit and its Accept criteria (val NLL improves on logit; no OOM at scale) — list these explicitly as deferred at the end. Also prepare and show me the exact commands I will run on the GPU box tomorrow (env setup, data path assumptions, the training command). Commit as "M8a: NN training pipeline + CPU smoke test". Do not start M9. The SSD is mounted.
