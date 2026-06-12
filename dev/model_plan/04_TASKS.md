@@ -45,7 +45,7 @@ Grid `{1,3,5,7} × dropout {0,0.2,0.5} × L2 {0,1e-5,1e-4}` on the tuning window
 **Accept:** Table A (paper-Table-11 analogue, incl. ensemble) complete for k=2015; selected config documented with rationale and frozen in `config.py`; replicates qualitatively the paper's dropout-depth interaction or the deviation is noted.
 
 ### M10 — Full-scale export + rolling loop (`backtest.py`)
-Full export (~50–100 M train-pool rows, revisit after M8 throughput); `backtest.py` loops the frozen config over all 11 windows: per-window logit + best single NN everywhere; **ensemble of 8 on the 5 key windows only (2015/2019/2020/2023/2025, per `02 §6`)**; per-window scalers/vocab/incentive re-derived from that window's train slice.
+Full export (~50–100 M train-pool rows, revisit after M8 throughput); **first, a full-scale depth check** (M9 selected depth 3 on the 3M-row dev slice and flagged it as scale-sensitive: re-fit depth 3 vs 5 on the full-scale tuning window, take the val-NLL winner, update the frozen config with rationale); then `backtest.py` loops the frozen config over all 11 windows: per-window logit + best single NN everywhere; **ensemble of 8 on the 5 key windows only (2015/2019/2020/2023/2025, per `02 §6`)**; per-window scalers/vocab/incentive re-derived from that window's train slice.
 **Accept:** 11 × {logit, NN} + 5 × ensemble run folders exist; per-window early stopping used that window's val only; spot-check one window for scaler/vocab locality (no leakage); ensemble ≥ best single net on its key windows; base-rate QA passes (`02 §7` assertions).
 
 ### M11 — Evaluation suite + memo 2a/2b

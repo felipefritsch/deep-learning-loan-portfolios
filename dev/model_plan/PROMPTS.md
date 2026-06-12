@@ -84,10 +84,18 @@ Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. M8a (build 
 Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M8 are complete and committed; the dev-scale GPU pipeline works. Execute task M9 only (depth/regularization grid on the tuning window + Table A; prune the grid sensibly). State the pruned grid you propose before running. Verify every Accept criterion for M9 with evidence, freeze the winning config in config.py, then commit M9. Do not start M10. The SSD is mounted.
 ```
 
-### M10
+### M10a — full-scale export (runs on the MAC — needs the panel lake on the SSD)
 
 ```
-Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M9 are complete and committed; the frozen config is in config.py. Execute task M10 only: full-scale export, then the rolling loop via backtest.py — logit + best NN on all 11 windows, ensemble of 8 on the 5 key windows (2015/2019/2020/2023/2025). Two preliminaries before the loop: (1) the M9 config was selected on the 3M-row dev slice and flagged depth-3-vs-5 as scale-sensitive — re-fit depth-3 and depth-5 (dropout 0.2; add the L2 1e-5 variant if cheap) on the full-scale tuning window k=2015, pick the val-NLL winner, update the frozen config with rationale, and use it for the loop; (2) this box may not be the M8b RTX 4090 — re-measure throughput on the first full-scale fit and use that (not the M8b numbers) to sanity-check the export size you propose before running. Verify every Accept criterion for M10 with evidence, then commit M10. Do not start M11. The SSD is mounted.
+Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M9 are complete and committed. This is the Mac-side half of task M10: the FULL-SCALE EXPORT ONLY (the GPU box cannot see the panel lake; the rolling loop runs there next session). Propose the full-export size (~50–100M train-pool rows) using the M8b throughput numbers, state assumptions, then build it with export.py into processed/training/full/ with its manifest. Verify the M4-style Accept criteria on this export (row counts reconcile per label year, eval pool unthinned + loan-disjoint, window masks correct, macro joins + fallback indicators present, idempotent re-run). Report the resulting directory size (it gets rsynced to the GPU box) — if the full eval pool makes upload or scoring intractable, propose a smaller shard block with rationale. Commit as "M10a: full-scale export". Do not run the loop. The SSD is mounted.
+```
+
+**→ You: deploy a pod, update `~/.ssh/config`, re-create the symlink, `git pull` + activate venv on the pod, then rsync `processed/training/full` up (same command as the dev upload with `dev` → `full`).**
+
+### M10b — depth check + rolling loop (runs on the POD)
+
+```
+Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. M10a (full-scale export) is complete and committed, and the export is uploaded to this box at processed/training/full/ (via the ROOT symlink). This is the GPU half of M10. Two preliminaries before the loop: (1) M9 selected depth 3 on the 3M-row dev slice and flagged it as scale-sensitive — re-fit depth 3 vs depth 5 (dropout 0.2; add the L2 1e-5 variant if cheap) on the full-scale tuning window k=2015, take the val-NLL winner, update the frozen config with rationale, and use it for the loop; (2) this card may differ from M8b's RTX 4090 — re-measure throughput on that first full-scale fit and confirm the loop budget is tractable before launching it. Then run backtest.py over all 11 windows: per-window logit + best single NN everywhere, ensemble of 8 on the 5 key windows (2015/2019/2020/2023/2025). Run long fits inside tmux with per-window checkpointing so preemption or disconnects only cost the current epoch. Verify every Accept criterion for M10 with evidence, then commit as "M10b: rolling loop". Do not start M11.
 ```
 
 ### M11
