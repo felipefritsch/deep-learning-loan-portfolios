@@ -52,6 +52,10 @@ Full export (~50–100 M train-pool rows, revisit after M8 throughput); **first,
 `evaluate.py`: Table B (test-year × model NLL + pooled), NLL by origin state, AUC table on pooled predictions, calibration figures (pooled + 2020–21 split), predicted-vs-realized rate overlay 2015–2025. Write memos 2a (benchmarks) and 2b (headline).
 **Accept:** every model evaluated on identical per-window frozen test rows (assert row-count + hash); each test row appears exactly once in the pooled set; figures regenerate; memos committed.
 
+### M11b — Thesis draft sync (Mac, SSD mounted)
+The dissertation draft (`writeup/latex/`) was assembled mid-Phase-2 with framed placeholders and chat-transcribed numbers. Close both gaps: (1) **verify every number quoted in `writeup/latex/chapter4.tex` §4.1** (grid findings, selected-config NLLs, ensemble numbers, depth-check statement) against the authoritative run-folder `metrics.json` / `table_a.*` artifacts and correct any discrepancy; (2) **swap placeholders for real artifacts** — copy the EDA figures (`outputs/figures/eda/F2.2, F3.1–F3.6`), the loan-level artifacts (Table A, Table B, AUC table, calibration figures, ensemble-size curve) and the covariate summary table (T1.2) into `writeup/latex/` (a `figs/` subfolder), replacing each `\figplaceholder`/`\tabplaceholder` in chapters 3–4 with the real `\includegraphics`/`\input`.
+**Accept:** chapter4 §4.1 numbers match run artifacts (state the diff if any was found); no placeholder remains in chapters 3–4 except the Phase-3 ones (`fig:poolscatter`, `tab:poolaccuracy`, `tab:econerrors`, `fig:pricerrorbuckets`); `main.tex` recompiles cleanly with zero undefined references.
+
 ### M12 — Robustness: ablations + stability + seeds
 3-seed variance for the best NN (tuning window); ranking-stability readout from Table B (per-regime ordering); tuning-window sensitivity check (pruned grid on k=2019); **width sweep** at the selected config (half / paper / double the Sirignano layer widths, tuning window, dev scale — completeness check for the appendix: widths were inherited from the paper, not tuned); optional permutation importance.
 **Accept:** seed sd reported and small vs the NN-logit gap; ranking-stability paragraph drafted; k=2019 check documented; width-sweep table written to `outputs/tables/loan_level/` (appendix artifact) with a one-line conclusion. **Phase-2 gate.**
@@ -66,7 +70,7 @@ Characteristic buckets + random pools at the window anchors (all 11 if scoring a
 
 ### M15 — Economic translation (counts → CPR/WAL/price) + pool memo
 Implement `03_POOL_LEVEL §5`: UPB-weighted pool SMM/CPR paths from the roll-forward; the level-pay pass-through cashflow engine (unit-tested against the zero-prepay annuity and constant-SMM closed forms); CPR/WAL/price errors per pool × model × anchor → **T5.1** + **F5.2**. Write `writeup/memos/03_pool.md` including the regime exhibit framing and the closing contributions paragraph. The portfolio decile exercise is deferred (future-work note only).
-**Accept:** engine matches both closed forms to ~1e-8; T5.1/F5.2 exist for ensemble vs logit at ≥3 regime-spanning anchors with the headline |price-error| reduction stated; memo committed with F4.1/T4.2(+by-anchor)/F4.3/T5.1/F5.2, the frozen-macro caveat paragraph, and the contributions paragraph. **Phase-3 gate.**
+**Accept:** engine matches both closed forms to ~1e-8; T5.1/F5.2 exist for ensemble vs logit at ≥3 regime-spanning anchors with the headline |price-error| reduction stated; memo committed with F4.1/T4.2(+by-anchor)/F4.3/T5.1/F5.2, the frozen-macro caveat paragraph, and the contributions paragraph; **the remaining Phase-3 placeholders in `writeup/latex/chapter4.tex` §4.3 are swapped for the real artifacts** (M11b pattern: copy into `writeup/latex/figs/`, replace `\figplaceholder`/`\tabplaceholder`, recompile cleanly). **Phase-3 gate.**
 
 ---
 
