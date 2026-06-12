@@ -1,0 +1,115 @@
+% ============================================================
+%  Chapter 1 — Introduction
+%  Ported from writeup/methodology/methodology_overview.tex §1, §1.1
+%  (June 2026). Update the results-dependent sentences as Phases 2–3
+%  conclude (marked %RESULTS-DEPENDENT).
+% ============================================================
+
+\chapter{Introduction}
+\label{chap:intro}
+
+\section{The modelling object}
+\label{sec:intro-object}
+
+A mortgage is a small dynamical system.  In any month it occupies one
+of a small number of \emph{states} --- it is current on its payments,
+or 30, 60, or 90-plus days past due, or it has terminated through
+prepayment or a credit event --- and between consecutive months it
+moves between these states with probabilities that depend on the
+loan's characteristics and the economic environment.  The cashflows
+of any mortgage portfolio or mortgage-backed security are completely
+determined by these movements: a prepayment returns principal early
+(a risk to the investor when rates have fallen), while the path from
+delinquency through foreclosure destroys value.  Modelling the
+\emph{conditional transition distribution} is therefore the natural
+primitive for both credit and prepayment risk.
+
+Formally, let $S_{i,t}\in\mathcal{S}$ denote the state of loan $i$ in
+month $t$, and let $x_{i,t}\in\mathbb{R}^{d}$ collect everything
+observable about the loan and its environment at $t$.  The object of
+interest is
+\begin{equation}
+\label{eq:object}
+p_\theta\!\left(j \mid x_{i,t}\right) \;\approx\;
+\mathbb{P}\!\left(S_{i,t+1}=j \,\middle|\, x_{i,t}\right),
+\qquad j\in\mathcal{S},
+\end{equation}
+a multinomial classification of next month's state.  Every model in
+this dissertation --- from a frequency-count transition matrix to an
+ensemble of deep neural networks --- is an estimator of
+\eqref{eq:object}; they differ only in how flexibly they allow the
+probabilities to depend on the covariates.
+
+The central empirical claim of \citet{sirignano2021}, which this
+dissertation tests on a different and cleaner dataset, is that the
+dependence of \eqref{eq:object} on $x$ is strongly \emph{nonlinear}
+and features economically meaningful \emph{interactions} between
+covariates.  Linear models misspecify this dependence, and the
+misspecification compounds when loan-level probabilities are
+aggregated to pool-level cashflows --- the level at which
+mortgage-backed securities are priced.
+
+\section{Design of the study}
+\label{sec:intro-design}
+
+The analysis is organised as a horse race between estimators of
+\eqref{eq:object} of increasing flexibility, in three phases.  First,
+an exploratory phase establishes the dataset's scope and produces
+\emph{model-free} evidence of nonlinearity and covariate interactions
+(Chapter~\ref{chap:data}).  Second, loan-level models are estimated
+and compared strictly out of sample under a rolling, expanding-window
+design: an empirical transition matrix, multinomial logistic
+regression, deep neural networks of varying depth, and an ensemble
+(Chapters~\ref{chap:methodology} and~\ref{chap:results}).  Third, the
+fitted monthly models are composed into twelve-month horizon
+predictions and compared at the pool level --- predicted versus
+realised prepayment and delinquency counts, and their translation
+into valuation units (Chapter~\ref{chap:results}).
+
+\section{Contributions}
+\label{sec:intro-contributions}
+
+The dissertation deliberately adopts a replication \emph{design} ---
+the cleanest way to attribute findings to data and regime rather than
+to modelling idiosyncrasies --- but four elements are original.
+
+\begin{enumerate}
+\item \textbf{A prime, conforming testbed.}  The evidence in
+  \citet{sirignano2021} comes from private-label data with a large
+  subprime component, 1995--2014.  This study asks whether the
+  deep-learning advantage survives in the clean GSE credit box, where
+  events are rarer and relationships plausibly tamer.  An early answer
+  is already in hand: the architecture search at full scale selects
+  \emph{three} hidden layers over the five preferred in the paper ---
+  the nonlinearity premium is real but structurally simpler in prime
+  credit. %RESULTS-DEPENDENT: confirm phrasing after M10–M12.
+\item \textbf{Eleven test years the literature has not examined,}
+  2015--2025, including the COVID-era forbearance episode, the
+  2020--21 refinancing wave, and the 2022--23 rate shock --- regimes
+  that post-date the paper's sample entirely.
+\item \textbf{A stricter evaluation protocol whose output is itself a
+  finding.}  Replacing the paper's single temporal split with an
+  eleven-window rolling backtest produces a \emph{time series of the
+  value of nonlinearity}: in which market regimes does the deep
+  model's edge widen, compress, or invert?  The single-split design
+  cannot ask this question.
+\item \textbf{An economic translation for the pool level.}  Predicted
+  and realised pool prepayments are converted into each pool's
+  prepayment-speed path, run through a pass-through cashflow engine,
+  and compared as errors in cashflow timing and price --- restating
+  the model comparison in the units an investor in mortgage pools
+  actually uses, rather than in log-likelihood alone.
+\end{enumerate}
+
+\section{Outline}
+\label{sec:intro-outline}
+
+Chapter~\ref{chap:methodology} develops the methodology: the
+transition model and its estimation at scale, the rolling
+out-of-sample design, the model hierarchy, the evaluation criteria,
+and the pool-level framework including the economic translation.
+Chapter~\ref{chap:data} describes the dataset, the construction of
+the estimation panel, the macroeconomic covariates, and the
+exploratory evidence that motivates nonlinear modelling.
+Chapter~\ref{chap:results} reports the results.
+Chapter~\ref{chap:conclusions} concludes.

@@ -1,0 +1,155 @@
+% ============================================================
+%  Chapter 4 — Results
+%  Status (June 2026): §4.1 carries real numbers from the tuning-window
+%  work (tasks M7–M9) and the full-scale preliminaries of M10b.
+%  §4.2 and §4.3 are structured but PENDING the rolling loop (M10b),
+%  the evaluation suite (M11), and Phase 3 (M13–M15).
+%  Numbers quoted here trace to run folders under models/ on the data
+%  drive; swap in the generated table artifacts where marked.
+% ============================================================
+
+\chapter{Results}
+\label{chap:results}
+
+All results in this chapter are out of sample under the rolling
+design of Section~\ref{sec:meth-design} unless explicitly labelled
+in-sample.  Negative log-likelihood (NLL) is reported as the mean of
+\eqref{eq:nll} over the relevant frozen test rows; lower is better.
+
+\section{Architecture selection and benchmarks on the tuning window}
+\label{sec:results-tuning}
+
+Hyperparameter and architecture selection was carried out once, on
+the $k{=}2015$ tuning window (training on labels through December
+2013, early stopping and selection on validation year 2014), and
+frozen thereafter.  The search covered depth
+$L\in\{1,3,5,7\}$ $\times$ dropout $\{0, 0.2, 0.5\}$ at zero weight
+decay, plus an $\ell_2$ sweep at the leading configuration --- a
+pruned grid of 14 cells anchored at the five-layer geometry of
+\citet{sirignano2021}.
+
+\tabplaceholder{tab:tablea}{Tuning-window comparison (the analogue of
+Table 11 in \citealp{sirignano2021}): in- and out-of-sample NLL for
+the empirical matrix, bucketed matrix, multinomial logit, augmented
+logit, neural networks of depth 1/3/5/7, the selected configuration
+with dropout, and the eight-network ensemble.}{outputs/tables/loan\_level/table\_a.tex}
+
+Three findings from the grid, at dev scale (a stratified
+$\sim$3.15-million-row training slice of the window):
+
+\begin{itemize}
+\item \textbf{Regularisation moves the optimum deeper.}  Without
+  dropout the validation-optimal depth is one hidden layer; with
+  dropout $0.2$ it shifts to three --- qualitatively replicating the
+  dropout--depth interaction documented by \citet{sirignano2021}.  A
+  small $\ell_2$ penalty ($10^{-5}$) partially rescues the five-layer
+  network (validation NLL $0.09767 \to 0.09630$) but does not
+  overturn the ordering.
+\item \textbf{The selected configuration} is depth 3, dropout
+  $0.2$: validation NLL $0.09602$, test NLL $0.10319$ on the tuning
+  window.  In-sample NLL exceeding out-of-sample in parts of the grid
+  is expected here, not inverted overfitting: the expanding training
+  window (2000--2013) contains the crisis years while the 2015 test
+  year is calm.
+\item \textbf{The ensemble helps, with diminishing returns.}  The
+  eight-network ensemble at the selected configuration reaches test
+  NLL $0.10274$, beating both the average single member ($0.10359$)
+  and the best individual member ($0.10307$); the ensemble-size curve
+  flattens by roughly five members
+  (Figure~\ref{fig:ensemblecurve}).
+\end{itemize}
+
+\figplaceholder{fig:ensemblecurve}{Out-of-sample NLL versus number of
+ensemble members, tuning window (the analogue of Figure 7 in
+\citealp{sirignano2021}).}{outputs/figures/loan\_level/ensemble\_size\_curve.png}
+
+The multinomial logit baseline was validated against a standard
+library implementation (agreement in NLL to within $10^{-3}$ across
+the regularisation grid; the loop's embedding-based reimplementation
+subsequently matched it to within $10^{-4}$), so the gaps between
+logit and network rows in Table~\ref{tab:tablea} are attributable to
+architecture alone.
+
+\paragraph{Full-scale depth check.}  Because the grid above was run
+at dev scale, the depth choice was re-examined at full scale
+($\sim$10$^8$ training rows) before the rolling loop was launched:
+depth 3 and depth 5 were re-fitted on the full tuning window (with
+and without the $\ell_2$ rescue).  Depth 3 won robustly, and the
+frozen configuration for the loop is depth 3, dropout $0.2$, weight
+decay $10^{-5}$.  This is a substantive deviation from
+\citet{sirignano2021}, whose optimum at population scale was five
+layers: on the prime conforming credit box, the optimal network is
+\emph{shallower} --- the nonlinearity premium documented in
+Section~\ref{sec:data-eda} is real but structurally simpler than in
+subprime-heavy private-label data.
+%RESULTS-DEPENDENT: revisit wording after M12 (seed variance,
+%tuning-window sensitivity on k=2019) to state robustness precisely.
+
+\section{The rolling backtest, 2015--2025}
+\label{sec:results-rolling}
+
+\pendingnote{This section is populated by the rolling loop and
+evaluation suite (tasks M10b--M11), which at the time of writing are
+running.  Structure below; numbers to follow.}
+
+The headline exhibit is the test-year~$\times$~model NLL matrix ---
+empirical matrix, multinomial logit, the frozen network, and (on the
+five key windows) the ensemble, for each test year 2015 through 2025
+--- together with the pooled all-years NLL, in which every test row
+is predicted exactly once by a model that never saw it.
+
+\tabplaceholder{tab:tableb}{Out-of-sample NLL by test year and model,
+2015--2025, with the pooled all-years comparison; by-origin-state
+breakdown beneath.}{outputs/tables/loan\_level/table\_b.tex}
+
+\figplaceholder{fig:nllbyyear}{Out-of-sample NLL by test year, one
+line per model: the time series of the value of
+nonlinearity.}{outputs/figures/loan\_level/nll\_by\_year.png}
+
+\tabplaceholder{tab:auc}{One-versus-rest AUC by origin and
+destination state, pooled test predictions: logit versus network
+versus ensemble.}{outputs/tables/loan\_level/auc\_table.tex}
+
+\figplaceholder{fig:calibration}{Reliability diagrams for the
+Current$\to$Prepaid and Current$\to$30\,DPD transitions, pooled and
+for the 2020--21 forbearance years separately; predicted versus
+realised aggregate transition rates over
+2015--2025.}{outputs/figures/loan\_level/calibration.png}
+
+Robustness exhibits (task M12): seed variance of the selected network
+against the network--logit gap; stability of the model ranking across
+the eleven test years (notably through 2020--21 and 2022--23);
+re-tuning sensitivity on the $k{=}2019$ window; and the width sweep
+at the selected configuration (Appendix~\ref{app:supplementary}).
+
+\section{Pool-level results and economic translation}
+\label{sec:results-pool}
+
+\pendingnote{This section is populated by Phase 3 (tasks M13--M15)
+once the rolling backtest completes.  Structure below.}
+
+Pool-level accuracy: predicted versus realised twelve-month
+prepayment and serious-delinquency counts for characteristic-bucket
+and random pools at the window anchors, per model
+(Figure~\ref{fig:poolscatter}; Table~\ref{tab:poolaccuracy}), with
+interval coverage against \eqref{eq:poolcount} and the by-anchor
+accuracy series as the regime exhibit.
+
+\figplaceholder{fig:poolscatter}{Predicted versus realised
+twelve-month prepayment counts, random pools, by
+model.}{outputs/figures/pool/F4.1\_scatter.png}
+
+\tabplaceholder{tab:poolaccuracy}{Pool-level $R^2$ and RMSE by model,
+outcome, and anchor; interval coverage.}{outputs/tables/pool/T4.2.tex}
+
+Economic translation (Section~\ref{subsec:meth-econ}): speed, timing,
+and price errors per pool~$\times$~model~$\times$~anchor, with the
+headline being the ensemble-versus-logit reduction in mean absolute
+price error, and the bucket-level price-error map localising the
+linear model's mispricing.
+
+\tabplaceholder{tab:econerrors}{CPR, weighted-average-life, and price
+errors by model and anchor.}{outputs/tables/pool/T5.1.tex}
+
+\figplaceholder{fig:pricerrorbuckets}{Price error by characteristic
+bucket and model: where the linear model misprices.}{outputs/figures/pool/F5.2\_price\_error\_buckets.png}

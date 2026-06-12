@@ -1,65 +1,97 @@
-\documentclass[12pt]{ociamthesis}  % default square logo 
-%\documentclass[12pt,beltcrest]{ociamthesis} % use old belt crest logo
-%\documentclass[12pt,shieldcrest]{ociamthesis} % use older shield crest logo
+% =====================================================================
+% Dissertation main file — Oxford Mathematical Institute MScThesis template
+% (MScThesis.cls, dept. template by J. Dewynne 2002, from ociamthesis v1.8).
+% Migrated from ociamthesis.cls June 2026; structure unchanged.
+% Build: latexmk -pdf main.tex
+% Line spacing: \baselineskip=18pt on 12pt body ≥ the required 1.25 spacing
+% (the template's own default, per the MSc guidelines).
+% =====================================================================
+\documentclass[12pt]{MScThesis}
 
 %load any additional packages
 \usepackage{amssymb}
-\usepackage{booktabs}   % toprule / midrule / bottomrule
-\usepackage{tabularx}   % flexible-width table columns
-\usepackage[numbers]{natbib} % enables \citet, \citep, \citeauthor used in chapter3
+\usepackage{amsmath}
+\usepackage{booktabs}        % toprule / midrule / bottomrule
+\usepackage{tabularx}        % flexible-width table columns
+\usepackage{multirow}        % multi-row table cells (used in the Data chapter)
+\usepackage[numbers]{natbib} % \citet, \citep used in the chapters
+\usepackage{url}             % \url in bibliography entries
+\usepackage{tikz}            % shard-loop diagram in chapter 2
+\usetikzlibrary{positioning, arrows.meta}
 
-%input macros (i.e. write your own macros file called mymacros.tex 
-%and uncomment the next line)
-%\include{mymacros}
+% ---- placeholder macros (draft phase) --------------------------------
+% Framed boxes that compile now and are swapped for the real artifact
+% (figure PNG / generated table) once copied in from outputs/ on the
+% data drive. Usage: \figplaceholder{label}{caption}{source-path}
+\newcommand{\figplaceholder}[3]{%
+\begin{figure}[htbp]\centering
+\fbox{\parbox[c][5cm][c]{0.9\textwidth}{\centering
+\textbf{[Figure placeholder]}\\[1.5ex]\small to insert from: \texttt{#3}}}
+\caption{#2}\label{#1}
+\end{figure}}
+\newcommand{\tabplaceholder}[3]{%
+\begin{table}[htbp]\centering
+\fbox{\parbox[c][3cm][c]{0.9\textwidth}{\centering
+\textbf{[Table placeholder]}\\[1.5ex]\small to insert from: \texttt{#3}}}
+\caption{#2}\label{#1}
+\end{table}}
+\newcommand{\pendingnote}[1]{%
+\noindent\fbox{\parbox{0.97\textwidth}{\textbf{[Pending]} #1}}\medskip}
+% ----------------------------------------------------------------------
 
-\title{Deep Learning Models of\\[1ex]     %your thesis title,
-        Loan Portfolios and Asset-Backed Securities}   %note \\[1ex] is a line break in the title
+% The class's title-page crest points at crest.eps, which the department does
+% not distribute; reuse the Oxford logo already in this folder instead.
+\renewcommand{\crest}{\hbox to\textwidth{\hss\includegraphics[width=35mm]{oxlogo}\hss}}
 
-\author{Felipe Pombal Fritsch}             %your name
-\college{Reuben College}  %your college
+\title{Deep Learning Models of\\[1ex]
+        Loan Portfolios and Asset-Backed Securities}
+
+\author{Felipe Pombal Fritsch}
+\college{Reuben College}
 
 %\renewcommand{\submittedtext}{change the default text here if needed}
-\degree{MSc in Mathematical and Computational Finance}     %the degree
-\degreedate{Trinity 2026}         %the degree date
+% NB: the class prefixes "A thesis submitted in partial fulfillment of the
+% MSc in" — so \degree carries only the programme name.
+\degree{Mathematical and Computational Finance}
+\degreedate{Trinity 2026}
 
 %end the preamble and start the document
 \begin{document}
 
 %this baselineskip gives sufficient line spacing for an examiner to easily
-%markup the thesis with comments
+%markup the thesis with comments (≥ 1.25 spacing per the guidelines)
 \baselineskip=18pt plus1pt
 
-%set the number of sectioning levels that get number and appear in the contents
+%set the number of sectioning levels that get numbered and appear in the contents
 \setcounter{secnumdepth}{3}
 \setcounter{tocdepth}{3}
 
+\maketitle                  % title page from the preamble info
+\include{dedication}
+\include{acknowlegements}
+\include{abstract}
 
-\maketitle                  % create a title page from the preamble info
-\include{dedication}        % include a dedication.tex file
-\include{acknowlegements}   % include an acknowledgements.tex file
-\include{abstract}          % include the abstract
+\begin{romanpages}          % roman page numbering for front matter
+\tableofcontents
+\listoffigures
+\end{romanpages}
 
-\begin{romanpages}          % start roman page numbering
-\tableofcontents            % generate and include a table of contents
-\listoffigures              % generate and include a list of figures
-\end{romanpages}            % end roman page numbering
-
-%now include the files of latex for each of the chapters etc
-\include{chapter1}
-\include{chapter2}
-\include{chapter3}
+%chapters
+\include{chapter1}          % Introduction & contributions
+\include{chapter2}          % Methodology
+\include{chapter3}          % Data & exploratory evidence
+\include{chapter4}          % Results (partial — M10b/M11/Phase 3 pending)
 \include{conclusions}
 
-%now enable appendix numbering format and include any appendices
+%appendices
 \appendix
 \include{appendix1}
 \include{appendix2}
 
-%next line adds the Bibliography to the contents page
+%bibliography
 \addcontentsline{toc}{chapter}{Bibliography}
-%uncomment next line to change bibliography name to references
 %\renewcommand{\bibname}{References}
-\bibliographystyle{plainnat}  % natbib-compatible bibliography style
-\bibliography{refs}           % use bibtex bibliography file refs.bib
+\bibliographystyle{plainnat}
+\bibliography{refs}
 
 \end{document}

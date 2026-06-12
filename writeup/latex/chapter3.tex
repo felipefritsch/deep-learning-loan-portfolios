@@ -44,12 +44,44 @@ specified in the Fannie Mae Single-Family Loan Performance Data File
 Layout and Glossary.  Each row contains 113 fields encoding static
 origination attributes, dynamic monthly performance measures, and
 post-termination expense and proceeds data.  The estimation sample
-employed in this study draws on acquisition cohorts from 2013Q4
-through 2022Q2, providing approximately nine years of origination
-vintages with performance histories spanning multiple
-interest-rate and housing-market cycles.  Several earlier quarterly
-files were identified as incomplete during the data inventory stage
-and are excluded from the estimation sample.
+employed in this study is the \emph{complete} vintage set from a
+single quarterly release: 104 acquisition-quarter files covering
+cohorts from 2000Q1 onwards, with monthly reporting periods from
+January 2000 through December 2025.  The assembled panel comprises
+\textbf{3{,}312{,}456{,}883 loan-month observations across
+57{,}562{,}668 loans} --- performance histories spanning four
+interest-rate cycles, the 2008--11 foreclosure crisis, the COVID-era
+forbearance episode, and the 2022--23 rate shock.
+
+\subsection{From raw files to the estimation panel}
+\label{subsec:data-pipeline}
+
+Three distinct concepts in this dataset are colloquially called a
+``quarter,'' and distinguishing them prevents the most common
+assembly errors.  The \emph{acquisition vintage} identifies a file:
+each \texttt{YYYYQn.csv} contains the loans Fannie Mae acquired in
+that quarter, carrying their entire subsequent monthly history, and a
+loan appears in exactly one file --- so concatenating all files
+assembles the full sample with no duplication.  The \emph{monthly
+reporting period} identifies a row, and this time dimension --- not
+redundancy --- is why the dataset is large.  The \emph{release}
+identifies the download: Fannie Mae republishes the entire dataset
+quarterly with extended histories, so all files must come from one
+release lest vintages carry inconsistent right-censoring dates; an
+ingestion audit verifies a uniform cut-off across all 104 files.
+
+Because no single file fits in memory ($\sim$800\,GB of raw CSV in
+total), a six-stage pipeline converts the files into a compressed,
+columnar store queried out of core: an integrity audit, streaming
+conversion, type and sentinel cleaning, construction of the
+transition panel with the outcome variable of
+Section~\ref{sec:data-outcome}, sampling utilities, and a
+reconciliation step that verifies row counts against the raw files.
+Columnar storage means a query touching six of the 113 fields reads
+roughly five per cent of the bytes, which is what makes the
+full-panel descriptive statistics and exploratory analysis of
+Sections~\ref{sec:data-summary} and~\ref{sec:data-eda}
+computationally cheap.
 
 % ────────────────────────────────────────────────────────────
 \section{Population and Eligibility}
@@ -181,28 +213,76 @@ Balance Code} is populated exclusively in the terminal monthly
 observation and classifies the manner of loan termination into nine
 categories, distinguishing between voluntary prepayments, third-party
 foreclosure sales, short sales, repurchases, REO dispositions, note
-sales, and non-credit removals.  The 24-month loan payment history
-string provides an additional source of behavioural information used
-to construct delinquency-recurrence and burnout features.
+sales, and non-credit removals.  (The dataset also carries a 24-month
+payment-history string; it is not used as a model input here, since
+the current state and loan-level covariates already summarise the
+information the transition model conditions on.)
 
 % ────────────────────────────────
 \subsection{Externally Sourced Covariates}
 \label{subsec:data-external}
 
-Two external series are appended to the loan-level panel to construct
-key time-varying covariates.  The Freddie Mac Primary Mortgage Market
-Survey (PMMS) weekly fixed-rate series is used to compute the
-\emph{rate incentive} for each loan-month observation, defined as the
-difference between the loan's current interest rate and the prevailing
-market mortgage rate at the reporting period.  This measure captures
-the refinancing option value and is the primary driver of prepayment
-behaviour in the empirical mortgage literature
-\citep{schwartz1989,sirignano2021}.  The Federal Housing Finance Agency
-(FHFA) House Price Index (HPI) at the MSA level is used to estimate
-the current LTV ratio by applying the index appreciation since
-origination to the original appraised value.  Current LTV is the
-principal determinant of the default option value
-\citep{deng2000}.
+A small, fixed set of external macroeconomic series is joined to the
+loan-level panel at feature-construction time (the stored panel
+itself is never rewritten); Table~\ref{tab:macrovars} summarises the
+sources.  The Freddie Mac Primary Mortgage Market Survey (PMMS)
+weekly fixed-rate series, aggregated to calendar-month means, supplies
+the prevailing market mortgage rate from which the \emph{rate
+incentive} of Equation~\eqref{eq:incentive} is computed --- the
+refinancing option value, the primary driver of prepayment behaviour
+in the empirical mortgage literature
+\citep{schwartz1989,sirignano2021}.  Unemployment rates enter at both
+national (Bureau of Labor Statistics) and state level, the latter
+because the cross-sectional dispersion in labour-market conditions
+(Nevada versus Texas in 2009) is precisely the variation a national
+series cannot supply.  House prices enter through the Freddie Mac
+House Price Index at national and state level, from which the
+mark-to-market loan-to-value ratio of Equation~\eqref{eq:mtmltv} ---
+the principal determinant of the default option value
+\citep{deng2000} --- and the trailing twelve-month house-price change
+are constructed.  The ten-year Treasury yield completes the set.
+
+Each series is joined with a \emph{publication lag} reflecting when
+the value was actually observable: rates are published in real time
+(no lag), month-$t$ unemployment is released early in month $t{+}1$
+(one-month lag), and the house-price index roughly two months after
+the reference month (two-month lag).  Final-revision series are used
+rather than real-time vintages --- a stated limitation, standard for
+historical studies.  Where a state-level value is unavailable
+(territories; series start dates) the national value substitutes,
+with an indicator flag carried as a model feature.
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{@{} l l l l c @{}}
+    \toprule
+    \textbf{Variable} & \textbf{Source} & \textbf{Geography}
+      & \textbf{Monthly value} & \textbf{Lag} \\
+    \midrule
+    30-yr mortgage rate & Freddie Mac PMMS & national & month mean & 0\,m \\
+    10-yr Treasury yield & FRED \texttt{DGS10} & national & month mean & 0\,m \\
+    Unemployment rate & BLS (via FRED) & national + state & as published & 1\,m \\
+    House-price index & Freddie Mac FMHPI & national + state & as published & 2\,m \\
+    \bottomrule
+  \end{tabularx}
+  \caption[External macroeconomic covariates and join conventions]%
+  {\textit{External macroeconomic covariates and join conventions.}
+  A loan-month at calendar month $t$ is joined to the macro value of
+  month $t-\ell$, where $\ell$ is the publication lag.  Seasonally
+  adjusted versions are used throughout.}
+  \label{tab:macrovars}
+\end{table}
+
+As a check on the incentive variable, a market-rate proxy derived
+from the panel itself --- the average note rate of loans originated
+in each calendar month --- tracks the PMMS series with correlation
+$0.991$, root-mean-square deviation $0.198$ percentage points, and
+mean absolute deviation $0.147$ percentage points, with a mean gap of
+essentially zero.  The PMMS-based incentive is the primary feature;
+the panel-derived proxy is retained as a robustness alternative,
+demonstrating that the incentive variable is not an artefact of one
+data source.
 
 % ────────────────────────────────────────────────────────────
 \section{Outcome Variable}
@@ -284,16 +364,189 @@ period of peak HARP activity (approximately 2009--2013).
   \label{tab:state-mapping}
 \end{table}
 
-The empirical monthly transition matrix derived from the estimation
-sample serves as a natural in-sample benchmark against which the deep
-learning model is evaluated, mirroring the role of the empirical
-matrix in \citet{sirignano2021}.  As those authors document,
-transitions between non-adjacent delinquency states are non-trivial
-in practice: a meaningful fraction of seriously delinquent loans cure
-to current, and a small but non-zero share of loans in formal
-foreclosure eventually return to performing status.  The seven-state
-formulation captures this richness in a way that a binary
-default-versus-prepayment classification would obscure.
+One structural feature of this dataset deserves emphasis: because the
+Foreclosure, REO, and Prepaid states are derived from the Zero
+Balance Code --- populated only in a loan's final observation ---
+these three states are \emph{absorbing}.  There is no ongoing ``in
+foreclosure'' monthly status as in the CoreLogic data of
+\citet{sirignano2021}, where loans in formal foreclosure are observed
+month by month and occasionally return to performing status.  The
+origin set here therefore comprises the four live states (Current
+through 90+\,DPD) while destinations span all seven: the transition
+matrix is $4\times 7$ rather than $7\times 7$
+(Section~\ref{sec:meth-model}).  Within the live states the data are
+rich in both directions --- delinquency deepens at most one bucket
+per month, but cures can jump multiple buckets, and a meaningful
+fraction of seriously delinquent loans return to current.  The
+seven-state formulation captures this in a way that a binary
+default-versus-prepayment classification would obscure, and the
+empirical monthly transition matrix derived from each training window
+serves as the floor benchmark for the model comparison
+(Section~\ref{subsec:meth-empirical}).
+
+% ────────────────────────────────────────────────────────────
+\section{Panel Composition and Summary Statistics}
+\label{sec:data-summary}
+
+The assembled panel comprises 3{,}312{,}456{,}883 loan-month
+observations across 57{,}562{,}668 loans in 104 acquisition-vintage
+partitions, with reporting months from January 2000 through December
+2025.  Table~\ref{tab:stateshares} reports the distribution of
+loan-months across the seven states.  Two features dominate.  First,
+extreme class imbalance: the Current state accounts for $96.28\%$ of
+all loan-months, while the credit-event terminals occur at roughly
+one in ten thousand observations --- the empirical fact behind both
+the importance-weighted thinning of training data
+(Section~\ref{sec:meth-design}) and the Laplace smoothing of the
+empirical benchmark (Section~\ref{subsec:meth-empirical}).  Second,
+the rare states are nonetheless abundantly populated in absolute
+terms (REO alone contributes roughly half a million loan-months),
+which is what permits stable estimation of rare-transition
+probabilities at this scale.
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{l r @{\qquad\qquad} l r}
+    \toprule
+    \textbf{State} & \textbf{Share} & \textbf{State} & \textbf{Share} \\
+    \midrule
+    Current  & 96.28\,\% & 60\,DPD     & 0.31\,\%   \\
+    Prepaid  & 1.25\,\%  & REO         & 0.014\,\%  \\
+    30\,DPD  & 1.15\,\%  & Foreclosure & 0.0067\,\% \\
+    90+\,DPD & 0.98\,\%  &             &            \\
+    \bottomrule
+  \end{tabular}
+  \caption[Distribution of loan-months across the seven states]%
+  {\textit{Distribution of loan-months across the seven states},
+  full panel, 2000--2025 (3.31 billion loan-months).}
+  \label{tab:stateshares}
+\end{table}
+
+Pooled over time, the monthly transition rates out of Current are
+$1.27\%$ to Prepaid and $0.64\%$ to 30\,DPD.  The pooling, however,
+hides the economics: Figure~\ref{fig:transitionrates} plots the
+monthly series over 2000--2025, displaying the 2003 and 2020--21
+refinancing waves in the prepayment rate, the 2008--11 default wave
+in the delinquency rates, and the sharp 2022--23 collapse in
+prepayments as market rates rose.  These regime shifts --- rather
+than any single structural break --- are the empirical justification
+for the rolling backtest design of Section~\ref{sec:meth-design}.
+During 2020--21 the delinquency-status codes additionally reflect
+COVID-era forbearance, which manifests as unusual persistence in
+delinquency states followed by elevated cure rates; no special
+treatment is applied, but results involving those years are read with
+this in mind.
+
+\figplaceholder{fig:transitionrates}{Monthly transition rates out of
+the Current state, 2000--2025: prepayment and entry into 30\,DPD
+(left axis), serious-delinquency terminations (right axis).  Vertical
+shading marks the 2008--11 crisis and the 2020--21 forbearance
+episode.}{outputs/figures/eda/F2.2\_transition\_rates.png}
+
+\tabplaceholder{tab:covariate-summary}{Summary statistics of model
+covariates (mean, standard deviation, 1st/50th/99th percentiles,
+missingness rate) over the full panel.}{outputs/tables/eda/T1.2\_covariate\_summary.tex}
+
+% ────────────────────────────────────────────────────────────
+\section{Exploratory Evidence: Nonlinearity and Interactions}
+\label{sec:data-eda}
+
+Before any model is fitted, the case that nonlinear modelling is
+\emph{needed} can be made by counting alone.  The instrument is the
+empirical hazard curve: bucket a covariate into equal-population
+bins and plot the realised one-month transition rate per bin, with
+Wilson 95\% confidence intervals.  Because each curve is a single
+out-of-core aggregation over the columnar panel, the entire
+programme runs in minutes.
+
+\subsection{Single-covariate nonlinearity}
+\label{subsec:data-eda-single}
+
+Three hazard curves carry the argument.
+\emph{Prepayment versus loan age}
+(Figure~\ref{fig:hazard-age}): the rate rises from $0.27\%$ per month
+at origination to a peak of $1.56\%$ at approximately 17 months of
+age, then decays to $1.11\%$ by month 52 --- the classic
+``seasoning hump,'' strongly non-monotone, with a secondary late-life
+rise among long-surviving loans.  \emph{Prepayment versus the
+refinancing incentive} (Figure~\ref{fig:hazard-incentive}): the rate
+is flat at $0.4$--$0.6\%$ per month while the option is out of the
+money, turns up sharply through zero, peaks at $2.71\%$ near
+$+1.5$ percentage points of incentive, and falls back to $2.16\%$ by
+$+2.7$ --- a roughly sevenfold range containing both an inflection
+and a turning point, reproducing the flagship nonlinearity of
+\citet{sirignano2021} on this cleaner credit box.
+\emph{Delinquency versus credit score}
+(Figure~\ref{fig:hazard-fico}): the entry rate into 30\,DPD falls
+twenty-four-fold, from $3.06\%$ per month at FICO ${\approx}623$ to
+$0.13\%$ at FICO ${\approx}815$, and the decay is convex --- the
+slope in the low-score half is roughly $3.7$ times that in the
+high-score half.  None of the three shapes is representable by a
+linear term.
+
+\figplaceholder{fig:hazard-age}{Empirical prepayment hazard by loan
+age (equal-population buckets, Wilson 95\% intervals): the seasoning
+hump.}{outputs/figures/eda/F3.1\_hazard\_age.png}
+
+\figplaceholder{fig:hazard-incentive}{Empirical prepayment hazard by
+refinancing incentive: the S-curve, with burnout beyond
+$+1.5$\,pp.}{outputs/figures/eda/F3.2\_hazard\_incentive.png}
+
+\figplaceholder{fig:hazard-fico}{Empirical 30\,DPD entry hazard by
+origination credit score: convex decay.}{outputs/figures/eda/F3.3\_hazard\_fico.png}
+
+\subsection{Interactions: the case against additivity}
+\label{subsec:data-eda-interactions}
+
+A linear-\emph{additive} model could in principle be patched with
+transformed single-variable terms; interactions are what it cannot
+absorb.  On a credit-score~$\times$~LTV grid
+(Figure~\ref{fig:interaction-ficoltv}), the monthly rate of entry
+into delinquency ranges from $0.11\%$ (best scores, lowest leverage)
+to $2.69\%$ (worst scores, highest leverage) --- and decisively, the
+\emph{additive} credit-score gradient (worst-minus-best rate) grows
+from $1.73$ percentage points at low LTV to $2.48$ at high LTV, a
+$43\%$ increase; equivalently, the leverage effect is roughly
+$8.5$ times larger for low-score than high-score borrowers.
+Additivity forces this gradient to be constant; the violation sits
+exactly in the low-score/high-leverage corner that drives credit
+losses.  In the prepayment channel
+(Figure~\ref{fig:interaction-incfico}), splitting the incentive
+S-curve by credit-score tercile shows the in-the-money refinancing
+response \emph{rising} with credit quality --- $2.36\%$ per month in
+the lowest tercile against $3.01\%$ in the highest --- because
+credit-constrained borrowers cannot exercise the option: the
+incentive \emph{slope} itself depends on the score.  Finally, holding
+loan age fixed at 12--36 months to strip out seasoning, the
+delinquency hazard by origination cohort isolates a clean vintage
+effect: the 2007 cohort peaks at $1.68\%$ per month against $0.47\%$
+for calm cohorts --- a $3.6$-fold premium
+(Figure~\ref{fig:vintage}) --- so the origination vintage is a
+feature in its own right, not reducible to contemporaneous
+covariates.
+
+\figplaceholder{fig:interaction-ficoltv}{Monthly delinquency-entry
+rate on a credit-score $\times$ LTV grid (equal-population bands):
+the additive credit-score gradient grows with leverage ---
+additivity is misspecified.}{outputs/figures/eda/F3.4\_fico\_ltv.png}
+
+\figplaceholder{fig:interaction-incfico}{The incentive S-curve by
+credit-score tercile: the refinancing response to an in-the-money
+option rises with credit quality.}{outputs/figures/eda/F3.5\_incentive\_fico.png}
+
+\figplaceholder{fig:vintage}{Delinquency hazard by origination
+cohort at fixed loan age (12--36 months): the 2006--08 bubble
+vintages.}{outputs/figures/eda/F3.6\_vintage.png}
+
+Taken together, the evidence points one way: monthly transition risk
+depends on the covariates nonlinearly (the seasoning hump, the
+incentive S-curve, convex credit-score decay) and interactively
+(score$\times$leverage, incentive$\times$score, vintage).  A
+linear-additive model should therefore underfit --- most severely on
+prepayment, the channel combining the sharpest single-variable
+nonlinearity with a first-order interaction --- and
+Chapter~\ref{chap:results} tests precisely this.
 
 % ────────────────────────────────────────────────────────────
 \section{Comparison to Sirignano et al.\ (2021)}
@@ -355,13 +608,13 @@ summarises the key differences.
       & Fannie Mae SFLP (public) \\[3pt]
     Total loans
       & ${\sim}120$ million
-      & Tens of millions \\[3pt]
+      & 57.6 million \\[3pt]
     Loan-month observations
       & ${\sim}3.5$ billion
-      & ${\sim}1.5$--$2$ billion (estimation sample) \\[3pt]
+      & 3.31 billion \\[3pt]
     Origination window
       & 1995--2014
-      & 1999--present; est.\ sample 2013--2022 \\[3pt]
+      & 1999--2025 (full vintage set, reporting to 2025-12) \\[3pt]
     Products covered
       & Fixed, ARM, hybrid, balloon, IO
       & Fixed-rate, fully amortising only \\[3pt]
@@ -385,8 +638,8 @@ summarises the key differences.
   \caption[Comparison of the Fannie Mae SFLP dataset and the
   CoreLogic dataset used by Sirignano et al.\ (2021)]%
   {\textit{Comparison of the Fannie Mae SFLP primary dataset and the
-  CoreLogic dataset used by \citet{sirignano2021}.}  Loan counts and
-  observation counts are approximate.  Estimation sample coverage for
-  the present study reflects available acquisition quarters.}
+  CoreLogic dataset used by \citet{sirignano2021}.}  CoreLogic counts
+  are approximate as reported by the authors; Fannie Mae counts are
+  measured on the assembled panel (Section~\ref{sec:data-summary}).}
   \label{tab:data-comparison}
 \end{table}

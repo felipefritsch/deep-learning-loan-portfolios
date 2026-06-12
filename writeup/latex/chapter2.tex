@@ -1,0 +1,453 @@
+% ============================================================
+%  Chapter 2 — Methodology
+%  Ported from writeup/methodology/methodology_overview.tex §§3–10
+%  (June 2026). Data-facing material (state derivation, macro data
+%  sources, exploratory evidence) lives in Chapter 3 and is
+%  cross-referenced, not duplicated.
+% ============================================================
+
+\chapter{Methodology}
+\label{chap:methodology}
+
+\section{The transition model}
+\label{sec:meth-model}
+
+The supervised object is the one-month transition distribution
+\eqref{eq:object} over the seven states defined in
+Section~\ref{sec:data-outcome}.  In this dataset the terminal states
+(\emph{Prepaid}, \emph{Foreclosure}, \emph{REO}) are absorbing ---
+they are observed only in a loan's final month --- so the origin set
+comprises the four live states and the transition matrix is
+$4 \times 7$ rather than $7 \times 7$ (a documented difference from
+\citealp{sirignano2021}, harmless for the model comparison since every
+competing model conditions on the same origin set).  A single
+multinomial model is fitted with the current state as an input
+feature, rather than four separate per-origin models.  Some
+transitions are structurally impossible --- delinquency deepens at
+most one bucket per month, so \emph{Current} cannot reach 60\,DPD
+directly --- and rather than hard-coding a mask, the models are left
+to learn these near-zeros; the evaluation suite asserts that the
+predicted mass on impossible cells is negligible, a useful internal
+consistency check.
+
+\section{Estimation at scale: sharding and minibatch randomisation}
+\label{sec:meth-shards}
+
+Stochastic gradient descent assumes minibatches are approximately
+random draws from the training distribution.  The panel, however, is
+stored grouped by acquisition vintage: read sequentially, it yields
+batches composed entirely of, say, 2007-vintage loans, whose risk
+profile is wildly atypical, and the resulting gradient bias changes
+within an epoch.  The textbook remedy --- globally shuffling the
+dataset each epoch --- is infeasible for $\sim$$10^9$ rows on external
+storage.
+
+The pipeline instead assigns every row a \emph{shard},
+\begin{equation}
+\label{eq:shard}
+\mathrm{shard}(i) \;=\; h\!\left(\mathrm{LoanID}_i\right) \bmod N,
+\qquad N=256,
+\end{equation}
+where $h$ is a fixed-seed 64-bit hash.  Three properties follow, each
+load-bearing.  First, a good hash behaves like an independent uniform
+draw per loan identifier, so each shard is an unbiased $\tfrac1N$
+sample of \emph{loans}, mixing all vintages and geographies (verified
+empirically: rows and exact distinct loans per shard are uniform to
+coefficients of variation of $0.26\%$ and $0.21\%$, and per-shard
+vintage composition matches the panel marginal).  Second, because the
+hash is keyed on the loan --- not the row --- every monthly
+observation of a loan lands in the same shard, so shard-based subsets
+never split a loan between training and evaluation.  Third, the
+assignment is a pure function of the loan identifier: rebuilding the
+panel reproduces every shard exactly, with no random state to
+persist.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=4mm and 6mm,
+  box/.style={draw, rounded corners=1pt, align=center, font=\small, inner sep=4pt},
+  arr/.style={-{Stealth[length=2mm]}}]
+\node[box] (a) {epoch start:\\ shuffle shard\\ \emph{order}};
+\node[box, right=of a] (b) {load one shard\\ (RAM-sized,\\ all vintages mixed)};
+\node[box, right=of b] (c) {shuffle rows\\ \emph{within}\\ the shard};
+\node[box, right=of c] (d) {yield\\ minibatches,\\ SGD steps};
+\node[box, right=of d] (e) {next shard\\ until epoch\\ ends};
+\draw[arr] (a) -- (b);
+\draw[arr] (b) -- (c);
+\draw[arr] (c) -- (d);
+\draw[arr] (d) -- (e);
+\end{tikzpicture}
+\caption[The two-level shuffle over loan-keyed shards]{\textit{The
+two-level shuffle.}  Random shard order across the epoch, full
+shuffle within each RAM-sized shard.  Every minibatch mixes loans
+from all vintages at streaming cost; a global shuffle of $10^9$ rows
+is never performed.}
+\label{fig:shardloop}
+\end{figure}
+
+Training then follows the two-level shuffle of
+Figure~\ref{fig:shardloop}.  It is not exactly a uniform draw --- rows
+in a batch share a shard --- but because each shard is already an
+unbiased cross-section of loans, the residual within-shard
+correlation is negligible for gradient quality.
+
+\section{Covariates and feature construction}
+\label{sec:meth-features}
+
+Features comprise the loan-level fields and external macroeconomic
+covariates described in Sections~\ref{sec:data-variables}
+and~\ref{subsec:data-external}.  Continuous covariates are
+standardised using moments estimated on each training window only
+(Section~\ref{sec:meth-design}); heavily skewed balances enter in
+logarithms.  High-cardinality categorical fields (property state,
+metropolitan area, three-digit zip code) are mapped to learned dense
+embedding vectors rather than one-hot columns, with categories unseen
+in training routed to a reserved index.  Missingness indicators
+accompany sentinel-scrubbed fields, since the fact of missingness is
+itself predictive in credit data.
+
+Two engineered covariates carry most of the economic content:
+\begin{align}
+\label{eq:incentive}
+\text{(refinancing incentive)} \qquad
+\mathrm{incentive}_{i,t} &= r^{\mathrm{cur}}_{i,t} - m(t),\\[2pt]
+\label{eq:mtmltv}
+\text{(mark-to-market LTV)} \qquad
+\mathrm{ltv}^{\mathrm{mtm}}_{i,t} &=
+\frac{\mathrm{UPB}_{i,t}}{\mathrm{UPB}_{i,0}}\;\cdot\;
+\mathrm{LTV}_{i,0}\;\cdot\;
+\frac{H_{s(i)}\!\left(t_0(i)\right)}{H_{s(i)}(t)},
+\end{align}
+where $m(t)$ is the prevailing 30-year mortgage rate,
+$\mathrm{UPB}$ denotes the unpaid principal balance (so
+$\mathrm{UPB}_t/\mathrm{UPB}_0$ is the fraction of the loan still
+owed), and $H_s(\cdot)$ is the state-$s$ house-price index at the
+indicated month.  Equation~\eqref{eq:incentive} measures how far the
+borrower's refinancing option is in the money --- the dominant
+prepayment driver \citep{schwartz1989} --- and
+\eqref{eq:mtmltv} approximates the borrower's current leverage, the
+key default driver \citep{deng2000}.  Raw calendar time is
+deliberately excluded as a feature: test years are by construction
+unseen, so a model leaning on ``year'' would extrapolate arbitrarily;
+all time variation must flow through observable, recurring channels
+(the macro block, seasonality encoded as month-of-year, and loan
+age).
+
+\section{Rolling out-of-sample design}
+\label{sec:meth-design}
+
+Credit models are used prospectively, so the evaluation is temporal:
+train on the past, predict the future.  One subtlety deserves
+emphasis because it is a one-character bug with real leakage
+consequences: the label of the example built at feature month $t$ is
+the state at $t{+}1$, so ``training on data up to month $T$'' must
+mask on the \emph{label} month --- include the example only if
+$t < T$ strictly, so that its label month $t{+}1 \le T$.
+
+The primary design is a rolling, expanding-window backtest with one
+window per test year $k = 2015,\dots,2025$:
+\[
+\underbrace{\text{train: labels} \le \mathrm{Dec}(k{-}2)}_{\text{expanding, starts 2000}}
+\qquad
+\underbrace{\text{validation: labels in year } k{-}1}_{\text{early stopping only}}
+\qquad
+\underbrace{\text{test: labels in year } k}_{\text{never touched in fitting}}
+\]
+Three rules keep this honest and affordable.  First,
+\emph{tune once, freeze, roll}: architecture and regularisation
+hyperparameters are selected once, on the $k{=}2015$ tuning window,
+then frozen across all windows; per-window validation years serve
+only early stopping.  Re-tuning every window would multiply compute
+by the grid size and constitute a subtle multiple-testing problem.
+Second, \emph{window-local preprocessing}: feature scalers, embedding
+vocabularies, and any statistic estimated from data are re-fitted
+within each window's training slice; standardising with full-sample
+moments would leak future means and variances into the past.  Third,
+\emph{pooled and per-year reporting}: each test row in 2015--2025 is
+predicted exactly once, by a model that never saw it, and metrics are
+reported per test year and pooled over all years.  Regime shifts ---
+COVID in 2020--21, the rate shock of 2022--23 --- thus appear as
+legible test-year effects rather than hinging on a single arbitrary
+cutoff.
+
+\paragraph{Class thinning with importance weights.}
+\emph{Current}-to-\emph{Current} transitions are $96.3\%$ of
+loan-months (Table~\ref{tab:stateshares}) and individually nearly
+uninformative.  The training export therefore retains every row whose
+origin or destination is not \emph{Current}, but keeps
+\emph{Current}$\to$\emph{Current} rows only with probability $p$,
+attaching weight $w_i = 1/p$ to kept rows ($w_i = 1$ otherwise).  The
+training objective is the weighted negative log-likelihood
+\begin{equation}
+\label{eq:weightednll}
+\widehat{\mathcal{L}}(\theta) \;=\;
+\frac{1}{\sum_i w_i}\sum_{i \in \text{kept}} w_i\,
+\bigl[-\log p_\theta\!\left(y_i \mid x_i\right)\bigr],
+\end{equation}
+a Horvitz--Thompson estimator of the full-sample loss
+\citep{ht1952}: each row is kept with known probability and weighted
+by its inverse, so the fitted model still estimates the \emph{true}
+conditional probabilities --- unlike naive downsampling, which would
+silently inflate every rare-event probability.  Validation and test
+slices are never thinned, and a QA step compares ensemble-average
+predicted base rates against unthinned panel frequencies.
+Evaluation uses a fixed, loan-disjoint shard block ($\sim$20\% of
+loans, the same loans in every window and for every model), so that
+likelihood comparisons are exact rather than sampled apart.
+
+\section{The model hierarchy}
+\label{sec:meth-models}
+
+The benchmarks are ordered by how flexibly they let
+\eqref{eq:object} depend on covariates; each strictly nests or
+dominates the previous, which is what makes the comparison
+interpretable.
+
+\subsection{Empirical transition matrix}
+\label{subsec:meth-empirical}
+
+The simplest estimator ignores covariates entirely: conditional only
+on the origin state $u$, the destination distribution is estimated by
+smoothed relative frequencies in the window's training slice,
+\begin{equation}
+\label{eq:empirical}
+\widehat{P}_{uv} \;=\; \frac{N_{uv} + \alpha}{N_{u\cdot} +
+\alpha\,|\mathcal{S}|}, \qquad \alpha = \tfrac12,
+\end{equation}
+where $N_{uv}$ counts $u\to v$ transitions.  The Laplace term
+$\alpha$ guarantees no test transition receives probability zero (a
+single unsmoothed empty cell would make the test log-likelihood
+infinite).  This time-homogeneous Markov chain is the floor of the
+comparison.  A ``bucketed'' variant conditioning additionally on
+credit-score and incentive terciles shows how far cheap,
+nonparametric conditioning goes before any model fitting.
+
+\subsection{Multinomial logistic regression as a zero-layer network}
+\label{subsec:meth-logit}
+
+The workhorse of the empirical mortgage literature posits log-linear
+odds:
+\begin{equation}
+\label{eq:logit}
+p_\theta(j \mid x) \;=\; \operatorname{softmax}_j\!\left(Wx + b\right)
+\;=\; \frac{\exp\!\left(w_j^\top x + b_j\right)}
+{\sum_{j'} \exp\!\left(w_{j'}^\top x + b_{j'}\right)}.
+\end{equation}
+Crucially, \eqref{eq:logit} is exactly a neural network with zero
+hidden layers, and it is implemented as such --- same data loader,
+same loss \eqref{eq:weightednll}, same evaluation code as the deep
+models, with a one-time numerical cross-check against a standard
+library implementation.  This is an experimental-control choice: when
+the deep network beats the logit, the difference is attributable to
+architecture alone, not to differences in preprocessing, optimisation
+or data.  An ``augmented'' logit with hand-crafted nonlinear terms
+(squared loan age, splined incentive) quantifies how much of the gap
+manual feature engineering can close.
+
+\subsection{Deep neural networks}
+\label{subsec:meth-nn}
+
+The deep model composes $L$ hidden layers,
+\begin{equation}
+\label{eq:mlp}
+z^{(0)} = \phi(x), \qquad
+z^{(\ell)} = \sigma\!\left(W^{(\ell)} z^{(\ell-1)} + b^{(\ell)}\right),
+\qquad
+p_\theta(\cdot \mid x) =
+\operatorname{softmax}\!\left(W^{(L+1)} z^{(L)} + b^{(L+1)}\right),
+\end{equation}
+with rectified-linear activations $\sigma(u)=\max(u,0)$ and the
+input map $\phi$ of Section~\ref{sec:meth-features}.  Depth is
+searched over $L\in\{1,3,5,7\}$ anchored at the five-layer geometry
+preferred by \citet{sirignano2021} (200 units, then 140 per layer);
+layer widths are inherited from that paper rather than searched ---
+depth and regularisation are the first-order capacity knobs --- with
+a half/paper/double width sweep at the selected configuration as a
+completeness check (Appendix~\ref{app:supplementary}).  Each hidden
+unit is a learned ``soft feature''; depth lets the network build
+feature hierarchies, which is where interaction effects such as
+incentive$\times$credit-score live --- the model discovers them
+rather than being told.
+
+Three regularisation devices mirror the paper: \emph{dropout}
+\citep{dropout} on hidden layers (rates $\{0, 0.2, 0.5\}$), an
+$\ell_2$ penalty ($\lambda \in \{0, 10^{-5}, 10^{-4}\}$), and
+\emph{early stopping} on the window's validation likelihood --- the
+only use the validation year is put to.  Finally, the headline model
+is an \emph{ensemble}: $K{=}8$ independently initialised networks
+trained on resampled shard subsets, with predicted probabilities
+averaged, $\bar p(j\mid x) = \tfrac1K \sum_k p_{\theta_k}(j \mid x)$.
+Averaging reduces the variance component of error from stochastic
+training and finite data; the marginal value of each additional
+member is traced in an ensemble-size curve.  Because eight fits per
+window is the dominant compute cost, the ensemble runs on five
+regime-spanning key windows ($k\in\{2015, 2019, 2020, 2023, 2025\}$),
+with the single best network everywhere.
+
+\section{Evaluation}
+\label{sec:meth-eval}
+
+The headline criterion is the out-of-sample mean negative
+log-likelihood,
+\begin{equation}
+\label{eq:nll}
+\mathrm{NLL} \;=\; -\frac{1}{N_{\mathrm{test}}}
+\sum_{i\in\mathrm{test}} \log p_\theta\!\left(y_i \mid x_i\right),
+\end{equation}
+on identical, frozen, unthinned test rows for every model.  It is the
+right primary metric for two reasons: it evaluates the full predicted
+distribution over seven destinations rather than a binarised event,
+and it is a strictly proper scoring rule --- uniquely minimised in
+expectation by the true conditional probabilities, so a model cannot
+improve it by distorting its probabilities.  Two complementary lenses
+guard against failure modes a single number hides:
+\emph{discrimination}, measured for each origin--destination pair by
+the one-versus-rest area under the ROC curve (the probability that a
+randomly chosen loan-month that truly makes the transition receives a
+higher predicted probability than one that does not); and
+\emph{calibration}, measured by reliability diagrams comparing
+predicted probabilities to realised frequencies within prediction
+buckets.  A model can rank well yet be systematically over- or
+under-confident; calibration is what the pool-level counting of
+Section~\ref{sec:meth-pool} actually consumes.
+
+\section{From loans to pools}
+\label{sec:meth-pool}
+
+A mortgage pool's cashflow is the sum of its loans' events; a
+mortgage-backed security (MBS) is priced off exactly such sums.
+\citet{sirignano2021} argue the nonlinearity advantage
+\emph{compounds} rather than washes out at the pool level, because
+linear misspecification correlates across loans sharing
+characteristics.
+
+\subsection{Multi-month prediction by matrix composition}
+\label{subsec:meth-rollforward}
+
+The monthly model is rolled forward by composing transition
+matrices.  For loan $i$ alive at anchor month $t_0$ with state
+distribution $\rho_0$ (a one-hot vector), the model supplies for each
+future month $h$ a $7\times 7$ matrix $P^{(i)}_h$ whose four
+non-terminal rows are the model's predictions at the
+deterministically evolved covariates and whose terminal rows are the
+identity (absorbing states).  Then
+\begin{equation}
+\label{eq:rollforward}
+\rho_h \;=\; \rho_0 \prod_{h'=1}^{h} P^{(i)}_{h'},
+\qquad
+\mathbb{P}\!\left(\text{loan } i \text{ prepaid by } t_0{+}H\right)
+= \left[\rho_H\right]_{\mathrm{Prepaid}},
+\end{equation}
+with horizon $H=12$ months.  Because terminal states are absorbing
+and the full state distribution is tracked,
+\eqref{eq:rollforward} is exact under the model --- no Monte Carlo
+simulation is required.  Covariates evolve deterministically (age and
+remaining term advance, seasonality follows the calendar) while
+balances and the macroeconomic block are frozen at $t_0$: predictions
+are explicitly \emph{conditional on the anchor-date environment}.
+For ``ever reaches 60+ days past due within the horizon'' a
+first-passage construction is used: delinquency states can be entered
+and cured out of, so month-$H$ occupancy undercounts loans that
+visited and recovered; making the target set absorbing in a modified
+chain yields the probability of ever hitting it.
+
+\subsection{Pools and pool-level prediction}
+\label{subsec:meth-pools}
+
+Pools are formed two ways at each window anchor: characteristic
+buckets (credit score $\times$ original rate $\times$
+loan-to-value cells, the criteria a securitisation structurer would
+use) and random pools ($B$ pools of $N$ loans), which give a
+bucketing-free comparison.  With per-loan horizon probabilities $q_i$
+from \eqref{eq:rollforward}, the predicted event count in pool
+$\mathcal{P}$ and its approximate distribution are
+\begin{equation}
+\label{eq:poolcount}
+\widehat{C}_{\mathcal{P}} = \sum_{i\in\mathcal{P}} q_i,
+\qquad
+C_{\mathcal{P}} \;\dot\sim\;
+\mathcal{N}\!\Bigl(\textstyle\sum_i q_i,\; \sum_i q_i(1-q_i)\Bigr),
+\end{equation}
+the Gaussian being the standard approximation to the
+Poisson--binomial distribution of a sum of independent non-identical
+Bernoulli variables (conditional independence given covariates is the
+maintained assumption, inherited from the paper).  Models are
+compared on predicted versus realised counts, with interval coverage
+testing the distributional claim in \eqref{eq:poolcount}, not just
+its mean.
+
+\subsection{Economic translation: prepayment speed, cashflow timing, and price}
+\label{subsec:meth-econ}
+
+The final step converts counts into valuation units; each term is
+defined as it first appears.  Averaging the loans' monthly prepayment
+probabilities with each loan weighted by its unpaid principal balance
+gives the pool's \textbf{prepayment-speed path}: the model's
+month-by-month forecast of what fraction of the pool's remaining
+principal prepays --- the units and weighting that pool cashflows
+actually obey, since a large loan returns proportionally more
+principal than a small one.  (Market shorthand, used hereafter: the
+monthly fraction is the \emph{single monthly mortality}, SMM;
+annualised it is the \emph{conditional prepayment rate}, CPR.)  The
+realised path is computed identically from the panel.  A
+deterministic cashflow engine turns any speed path into pool
+cashflows, treating the pool as a \emph{pass-through} (investors
+receive the pool's interest and principal as it is paid): scheduled
+amortisation plus forecast prepayments, month by month, with the
+final month's speed held constant beyond the horizon.  From the
+cashflows follow two valuation summaries: \textbf{weighted-average
+life} --- the average time a dollar of principal remains outstanding,
+i.e.\ the timing of money returned --- and \textbf{price}, the
+discounted value of the cashflows, with every model's cashflows
+discounted at the same fixed rate so that any price difference comes
+from the prepayment forecasts alone.  The comparison metrics are then
+a speed error (percentage points of CPR), a timing error (months of
+weighted-average life), and a price error (per 100 of face value),
+per pool, model, and anchor.  The engine is unit-tested against two
+closed forms (with no prepayment a pool is a textbook annuity; a
+constant speed has a closed-form survival schedule).  With the
+macroeconomic environment frozen at the anchor and a common fixed
+discount rate, the exercise isolates the \emph{prepayment-model
+component} of valuation error --- deliberately simpler than the
+market's full option-adjusted-spread machinery.
+
+\paragraph{Why pricing rather than portfolio sorts.}
+\citet{sirignano2021} demonstrate economic significance with a
+portfolio-sort exercise: rank pools by predicted prepayment risk,
+form best- and worst-decile portfolios, and compare their realised
+outcomes.  This study runs the pricing exercise instead, and the
+choice deserves a plain explanation.  The two designs test different
+properties of the same predictions.  A sort uses only the
+\emph{ordering} of pools --- it is blind to probability levels, so a
+model whose hazards are uniformly twice the truth sorts exactly as
+well as a perfectly calibrated one.  Pricing uses the \emph{levels}:
+weighted-average life and price depend on the actual magnitude of the
+predicted prepayment path.  Ranking-only evidence is the natural
+choice where levels are inherently untrustworthy (the classic
+asset-pricing setting); here, by contrast, the transition
+probabilities are explicitly calibration-checked
+(Section~\ref{sec:meth-eval}), so a ranking-only exercise would
+discard the model's strongest property --- and the practical consumer
+of a pool-level mortgage model (pricing a pool, marking it to market,
+hedging a position in it) consumes levels, not ranks.  Running both
+would add little: each is a deterministic re-presentation of the same
+per-loan probabilities, their respective properties are already
+tested more rigorously upstream (discrimination by the AUC tables,
+calibration by the reliability diagrams), and the bucket-level
+price-error map conveys what a sort would dramatise --- \emph{where}
+the linear model goes wrong --- while also conveying by \emph{how
+much}, in the units the market trades.  The sort exercise is
+therefore noted as future work rather than duplicated.
+
+\section{Reproducibility}
+\label{sec:meth-repro}
+
+Every model fit writes a self-describing run record (configuration,
+code version, data-manifest hash, window identity, metrics), so any
+number reported in Chapter~\ref{chap:results} can be traced to the
+exact code and data slice that produced it.  Correctness-critical
+components carry unit tests: the leakage mask, the importance
+weights, the mark-to-market LTV construction, the roll-forward engine
+against a closed-form chain, and the cashflow engine against the
+annuity closed forms.  Appendix~\ref{app:reproducibility} records the
+computing environment and data snapshot conventions.
