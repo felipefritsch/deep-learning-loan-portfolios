@@ -109,7 +109,7 @@ Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks throu
 ### M12 — Phase-2 gate
 
 ```
-Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M11 are complete and committed. Execute task M12 only (seed variance, ranking stability, tuning-window sensitivity on k=2019, optional permutation importance). Verify every Accept criterion for M12 with evidence, then commit M12. The SSD is mounted.
+Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M11 are complete and committed. Execute task M12 only (seed variance, ranking stability, tuning-window sensitivity on k=2019, the width sweep at the selected config — half/paper/double widths, dev scale, appendix artifact — and optional permutation importance). Verify every Accept criterion for M12 with evidence, then commit M12. The SSD is mounted.
 ```
 
 **→ You: run `dev/tools/backup_ssd.sh`, then `git push`.**
@@ -133,7 +133,7 @@ Read dev/model_plan/04_TASKS.md and dev/model_plan/03_POOL_LEVEL.md. Tasks throu
 ### M15 — Phase-3 gate
 
 ```
-Read dev/model_plan/04_TASKS.md and dev/model_plan/03_POOL_LEVEL.md. Tasks through M14 are complete and committed. Execute task M15 only (pool memo; the portfolio exercise is optional — ask me before doing it). Verify every Accept criterion for M15 with evidence, then commit M15. The SSD is mounted.
+Read dev/model_plan/04_TASKS.md and dev/model_plan/03_POOL_LEVEL.md. Tasks through M14 are complete and committed. Execute task M15 only: the economic-translation exercise of 03_POOL_LEVEL §5 (cashflow engine with closed-form unit tests, CPR/WAL/price errors per pool × model × anchor, T5.1 + F5.2) and the pool memo with the contributions paragraph. The portfolio decile exercise is deferred — future-work note only, do not implement it. Verify every Accept criterion for M15 with evidence, then commit M15. The SSD is mounted.
 ```
 
 **→ You: run `dev/tools/backup_ssd.sh`, then `git push`. Plan complete.**

@@ -53,8 +53,8 @@ Full export (~50–100 M train-pool rows, revisit after M8 throughput); **first,
 **Accept:** every model evaluated on identical per-window frozen test rows (assert row-count + hash); each test row appears exactly once in the pooled set; figures regenerate; memos committed.
 
 ### M12 — Robustness: ablations + stability + seeds
-3-seed variance for the best NN (tuning window); ranking-stability readout from Table B (per-regime ordering); tuning-window sensitivity check (pruned grid on k=2019); optional permutation importance.
-**Accept:** seed sd reported and small vs the NN-logit gap; ranking-stability paragraph drafted; k=2019 check documented. **Phase-2 gate.**
+3-seed variance for the best NN (tuning window); ranking-stability readout from Table B (per-regime ordering); tuning-window sensitivity check (pruned grid on k=2019); **width sweep** at the selected config (half / paper / double the Sirignano layer widths, tuning window, dev scale — completeness check for the appendix: widths were inherited from the paper, not tuned); optional permutation importance.
+**Accept:** seed sd reported and small vs the NN-logit gap; ranking-stability paragraph drafted; k=2019 check documented; width-sweep table written to `outputs/tables/loan_level/` (appendix artifact) with a one-line conclusion. **Phase-2 gate.**
 
 ### M13 — Roll-forward harness
 `pool.py` matrix-composition engine per `03 §3`, with first-passage variant for 60+ dpd.
@@ -64,9 +64,9 @@ Full export (~50–100 M train-pool rows, revisit after M8 throughput); **first,
 Characteristic buckets + random pools at the window anchors (all 11 if scoring allows; minimum 2019-12, 2022-12, 2024-12 — the ensemble-bearing key windows), each scored with its own window's frozen models; predicted counts/intervals; realized counts from the panel.
 **Accept:** pool memberships reproducible (seeded); realized counts reconcile with panel aggregates; predicted-vs-realized scatter + R²/RMSE table for ensemble vs logit vs empirical at every anchor run.
 
-### M15 — Pool memo + (optional) portfolio exercise
-`writeup/memos/03_pool.md`; optional §5 portfolio decile exercise.
-**Accept:** memo committed with F4.1/T4.2/F4.3 and the covariate-freezing assumption stated. **Phase-3 gate.**
+### M15 — Economic translation (counts → CPR/WAL/price) + pool memo
+Implement `03_POOL_LEVEL §5`: UPB-weighted pool SMM/CPR paths from the roll-forward; the level-pay pass-through cashflow engine (unit-tested against the zero-prepay annuity and constant-SMM closed forms); CPR/WAL/price errors per pool × model × anchor → **T5.1** + **F5.2**. Write `writeup/memos/03_pool.md` including the regime exhibit framing and the closing contributions paragraph. The portfolio decile exercise is deferred (future-work note only).
+**Accept:** engine matches both closed forms to ~1e-8; T5.1/F5.2 exist for ensemble vs logit at ≥3 regime-spanning anchors with the headline |price-error| reduction stated; memo committed with F4.1/T4.2(+by-anchor)/F4.3/T5.1/F5.2, the frozen-macro caveat paragraph, and the contributions paragraph. **Phase-3 gate.**
 
 ---
 
