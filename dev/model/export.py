@@ -8,7 +8,7 @@ One DuckDB pass per shard turns the Stage-4 panel into two Parquet pools under
                probability ``P_KEEP_CURRENT`` (deterministic hash of loan+period) and
                attaches ``weight = 1/p_keep`` so the loss is an unbiased estimate of
                the true conditional probabilities (00_OVERVIEW §6.4).
-  eval_pool/   NEVER thinned; a fixed, loan-disjoint shard block (shard < EVAL_SHARD_LT)
+  eval_pool/   NEVER thinned; a fixed, loan-disjoint shard block (shard < eval_shard_lt)
                of every loan-month with label month ≥ EVAL_LABEL_YM_MIN. Each window's
                val/test slice is cut from this pool by period_ym mask, identical across
                all models.
@@ -178,7 +178,7 @@ def _content_hash(con, out_dir: Path) -> str:
     return str(h)
 
 
-def _build_manifest(con, variant: str, dev_lt, eval_lt: int, design_dir: Path) -> dict:
+def _build_manifest(con, variant: str, train_lt: int, eval_lt: int, design_dir: Path) -> dict:
     train_dir, eval_dir = design_dir / "train_pool", design_dir / "eval_pool"
     train_n = con.execute(
         f"SELECT count(*), sum(weight) FROM read_parquet('{_pool_glob(train_dir)}')").fetchone()
@@ -196,9 +196,9 @@ def _build_manifest(con, variant: str, dev_lt, eval_lt: int, design_dir: Path) -
         "macro_dir": str(config.MACRO_DIR),
         "params": {
             "p_keep_current": config.P_KEEP_CURRENT,
+            "train_shard_lt": train_lt,
             "eval_shard_lt": eval_lt,
             "eval_label_ym_min": config.EVAL_LABEL_YM_MIN,
-            "dev_shard_lt": dev_lt,
             "n_shards": config.N_SHARDS,
             "test_years": config.TEST_YEARS,
         },
@@ -223,20 +223,23 @@ def _build_manifest(con, variant: str, dev_lt, eval_lt: int, design_dir: Path) -
 # Build
 # ---------------------------------------------------------------------------
 def build(variant: str) -> Path:
-    dev_lt = config.VARIANTS[variant]["dev_shard_lt"]
-    train_shards = range(config.N_SHARDS) if dev_lt is None else range(dev_lt)
-    eval_lt = config.EVAL_SHARD_LT if dev_lt is None else min(config.EVAL_SHARD_LT, dev_lt)
+    v = config.VARIANTS[variant]
+    train_lt, eval_lt = v["train_shard_lt"], v["eval_shard_lt"]
+    assert eval_lt <= train_lt, (
+        "eval block must be ⊆ the train block (eval loans live in the train pool, "
+        "separated only by the period_ym mask)")
+    train_shards = range(train_lt)
     design_dir = config.TRAINING_DIR / variant
 
     print(f"=== export variant={variant}  design_dir={design_dir} ===")
-    print(f"train shards: {train_shards.start}..{train_shards.stop - 1}  "
+    print(f"train shards: 0..{train_lt - 1}  "
           f"eval shards: 0..{eval_lt - 1}  p_keep={config.P_KEEP_CURRENT}")
     nat, state, mkt = _load_macro()
     con = connect()
     _write_pool(con, nat, state, mkt, "train", train_shards, design_dir / "train_pool")
     _write_pool(con, nat, state, mkt, "eval", range(eval_lt), design_dir / "eval_pool")
 
-    manifest = _build_manifest(con, variant, dev_lt, eval_lt, design_dir)
+    manifest = _build_manifest(con, variant, train_lt, eval_lt, design_dir)
     (design_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
     con.close()
     print(f"\nwrote {design_dir / 'manifest.json'}")
@@ -252,8 +255,11 @@ def build(variant: str) -> Path:
 def verify(variant: str) -> None:
     design_dir = config.TRAINING_DIR / variant
     manifest = json.loads((design_dir / "manifest.json").read_text())
-    dev_lt = manifest["params"]["dev_shard_lt"]
-    eval_lt = manifest["params"]["eval_shard_lt"]
+    params = manifest["params"]
+    # `train_shard_lt` is the current key; fall back to the legacy `dev_shard_lt`
+    # (None ⇒ full population) so an older manifest still verifies.
+    train_lt = params.get("train_shard_lt", params.get("dev_shard_lt"))
+    eval_lt = params["eval_shard_lt"]
     train_glob = _pool_glob(design_dir / "train_pool")
     eval_glob = _pool_glob(design_dir / "eval_pool")
     con = connect()
@@ -266,7 +272,7 @@ def verify(variant: str) -> None:
 
     # --- Accept 1: per-label-year counts reconcile with direct panel counts -----
     print("\n[1] manifest row counts reconcile with direct DuckDB panel counts")
-    shard_train = "TRUE" if dev_lt is None else f"shard < {dev_lt}"
+    shard_train = "TRUE" if train_lt is None else f"shard < {train_lt}"
     keep = (f"NOT({_CUR2CUR}) OR "
             f"(hash(\"Loan Identifier\" || '|' || period_ym::VARCHAR) % 1000000) < {_THR}")
     panel_train = dict(con.execute(

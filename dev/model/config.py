@@ -112,22 +112,36 @@ P_KEEP_CURRENT = 0.05
 
 # Eval pool: NEVER thinned; a fixed, loan-disjoint block of whole loans (selected by
 # shard) carrying every loan-month whose label month is ≥ this floor. The block is
-# fixed forever so every window's val/test slice is identical across all models.
-EVAL_SHARD_LT = round(0.20 * N_SHARDS)     # shard < 51  (≈ 20% of loans), full scale
-EVAL_LABEL_YM_MIN = 201401                 # labels ≥ 2014-01 (covers k=2015 val onward)
+# fixed forever (per variant) so every window's val/test slice is identical across all
+# models. 02 §3.2's design-intent block is 20% of loans (≈51 shards); the spec also
+# permits a SMALLER fixed block when the full eval pool is intractable to upload/score.
+# The operative per-variant size is `eval_shard_lt` in VARIANTS below — the full export
+# uses a 12-shard (≈4.7%) block, still ~7.5 M unthinned loan-months per test year (an NLL
+# standard error ~20× below the NN-vs-logit gap; see the M10a notes / PROMPTS.md).
+EVAL_SHARD_DESIGN_INTENT = round(0.20 * N_SHARDS)   # 51 shards (≈20%) — reference only
+EVAL_LABEL_YM_MIN = 201401                          # labels ≥ 2014-01 (covers k=2015 val onward)
 
 # The 4 transient origin states; terminal states never originate a transition.
 ORIGIN_STATES = ("current", "dpd_30", "dpd_60", "dpd_90plus")
 
 # ---------------------------------------------------------------------------
-# Export variants — dev (this milestone) vs full (M10). The dev variant caps loans
-# to a small shard band so the whole export streams in seconds and the train pool
-# lands at the spec's ~5–10 M rows; loan-level (whole-shard) capping is MCAR, so it
-# does not distort conditional probabilities (only current→current thinning needs a
-# weight). `dev_shard_lt` = None ⇒ full population.
+# Export variants — dev (M4–M9 tuning) vs full (M10). Each variant fixes a train-pool
+# loan block `train_shard_lt` (shards [0, train_shard_lt)) and a never-thinned eval
+# block `eval_shard_lt` ⊆ the train block (eval loans live in the train pool, separated
+# only by the period_ym mask). Loan-level (whole-shard) capping is MCAR, so it does not
+# distort conditional probabilities — only current→current thinning needs the 1/p_keep
+# weight. Per-shard yield ≈ 1.16 M train rows and ≈ 7.55 M eval rows (eval unthinned,
+# hence ~6.5× denser per shard).
+#
+# Full sizing (M10a): a 25% loan sample (64 shards) at P_KEEP_CURRENT=0.05 lands the
+# train pool at ≈74 M rows — central in 02 §3's 50–100 M target, ~10.6× the dev pool,
+# so the k=2015 tuning slice grows 3.15 M → ≈34 M (a decisive re-test of M9's
+# scale-sensitive depth-3-vs-5 call). The eval block is held to 12 shards for a tractable
+# upload/scoring footprint (≈90 M rows, ~0.75 GB); full-population eval (51 shards) would
+# be ≈385 M rows / 3.2 GB and score 11×+ensemble for no CI gain.
 VARIANTS: dict[str, dict] = {
-    "dev":  {"dev_shard_lt": 6},     # shards 0–5 ⇒ train ≈ 7 M, eval ≈ 45 M (label ≥ 2014)
-    "full": {"dev_shard_lt": None},  # all 256 shards (train ~hundreds of M) — M10
+    "dev":  {"train_shard_lt": 6,  "eval_shard_lt": 6},   # train ≈7 M,  eval ≈45 M (label ≥ 2014)
+    "full": {"train_shard_lt": 64, "eval_shard_lt": 12},  # train ≈74 M, eval ≈90 M — M10
 }
 
 # ---------------------------------------------------------------------------
