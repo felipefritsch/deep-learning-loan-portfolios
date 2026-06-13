@@ -145,25 +145,36 @@ VARIANTS: dict[str, dict] = {
 }
 
 # ---------------------------------------------------------------------------
-# M9 frozen NN config (02_LOAN_LEVEL §6) — the depth/dropout/L2 selection
+# Frozen NN config (02_LOAN_LEVEL §6) — depth/dropout/L2 selection (M9 → M10b)
 # ---------------------------------------------------------------------------
 # The pruned grid (grid.py: depth×dropout plane at L2=0 + an L2 sweep at the anchor,
-# 14 cells) ran once on the tuning window k=2015 (dev export). The config below is the
-# argmin of that window's VAL NLL; backtest.py (M10) freezes it and loops it over all 11
-# windows (per-window early stopping / scalers / vocab — never re-tuned on a test slice,
-# §6 protocol). The optimization hyperparameters (lr, batch, patience, schedule) were not
-# searched — they stay at the paper-anchored M8 values in train.py.
+# 14 cells) ran once on the tuning window k=2015 (DEV export, ~3.15 M train rows) and
+# selected depth 3, dropout 0.2 on that window's VAL NLL — shallower than the paper's
+# 5 layers (Sirignano et al. fit billions of loan-months; on the dev slice the deeper net
+# overfits and only a small L2 *rescues* it back to depth-3's level). M9 flagged this as
+# **scale-sensitive** and deferred a full-scale re-check to M10b.
 #
-# Evidence: models/nn/dev/grid_summary.json (the 14-cell val/test ranking),
-# models/nn/dev/ensemble_summary.json (8-net ensemble + size curve), and
-# outputs/tables/loan_level/table_a.* (paper-Table-11 analogue).
+# M10b full-scale re-check (k=2015 FULL export, 33.5 M train rows = 10.6× dev): re-fit
+# depth 3 vs depth 5 at dropout 0.2, ±L2 1e-5, on the GPU-resident fast path, selecting on
+# this window's val NLL. Result — **depth 3 still wins, decisively over depth 5** (the
+# selection is NOT a dev-scale artefact):
+#     d3 do0.2 wd1e-5 : val 0.095723  test 0.103125   <- val argmin (frozen)
+#     d3 do0.2 wd0    : val 0.095746  test 0.103091
+#     d5 do0.2 wd0    : val 0.095912  test 0.103142
+#     d5 do0.2 wd1e-5 : val 0.096020  test 0.102970
+# Depth gap d5−d3 = +1.66e-4 val (robust: ~7× the within-depth-3 L2 spread). The L2
+# sub-choice IS within noise — wd=1e-5 beats wd=0 by only 2.3e-5 on val (and test marginally
+# favours wd=0) — but the stated protocol is "take the val-NLL winner", so the frozen config
+# is the strict argmin: depth 3, dropout 0.2, L2 1e-5. A small L2 is the mild-regularisation
+# direction M9 already noted; the choice is immaterial to performance either way.
 #
-# Dev-scale deviation from the paper (noted, per the M9 Accept clause): Sirignano et al.
-# selected 5 hidden layers on billions of loan-months; on the ~3 M-row dev train slice the
-# val optimum is shallower (depth 3) and a small L2 only *rescues* the depth-5 net back to
-# the depth-3 level — capacity that helps at population scale overfits here. The grid is
-# regenerable, so M10 re-confirms (or revises) this selection at full scale before the loop.
-# The ensemble (paper Fig 7) is 8 nets at this SAME config, so the ensemble-vs-single delta
-# is an architecture-held-constant comparison.
-NN_SELECTED = {"depth": 3, "dropout": 0.2, "weight_decay": 0.0}   # k=2015 val argmin
+# backtest.py (M10) freezes THIS config and loops it over all 11 windows (per-window early
+# stopping / scalers / vocab — never re-tuned on a test slice, §6 protocol). Optimization
+# hyperparameters (lr, batch, patience, schedule) were not searched — paper-anchored M8
+# values in train.py. The ensemble (paper Fig 7) is 8 nets at this SAME config, so the
+# ensemble-vs-single delta is an architecture-held-constant comparison.
+#
+# Evidence: models/nn/dev/grid_summary.json (dev 14-cell ranking); the four full-scale cells
+# models/nn/full/k2015_d{3,5}_do0.2_wd{0,1e-05}/metrics.json; logs/m10b/depth_check.log.
+NN_SELECTED = {"depth": 3, "dropout": 0.2, "weight_decay": 1e-5}  # k=2015 FULL-scale val argmin (M10b)
 NN_ENSEMBLE_MEMBERS = 8                                           # paper Fig 7

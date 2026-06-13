@@ -141,6 +141,91 @@ def eval_batches(enc: dict, batch_size: int):
 
 
 # ---------------------------------------------------------------------------
+# GPU-resident fast path (M10 full scale) — keep the whole split on the GPU
+# ---------------------------------------------------------------------------
+# The dev-scale numpy path above re-indexes NumPy arrays and copies host→device every
+# minibatch; on the full export that pins the GPU at ~10% util (CPU/transfer-bound, the
+# M10b throughput probe: ~0.35 M rows/s on the A4500). The whole index-encoded split fits
+# in 20 GB (k=2015 ≈ 8 GB, the k=2025 ≈74 M-row slice ≈14 GB with int32 ``cat``), so for
+# ``--gpu-resident`` we upload it once and index ON the GPU. The minibatch **order** is the
+# identical ``np.random.default_rng([seed, epoch]).permutation`` the numpy path uses (moved
+# to a device LongTensor), so a resumed run still reproduces an uninterrupted one. Loss/eval
+# are the same weight-averaged CE / float64-accumulated NLL as ``torch_common`` — only the
+# tensors' residence changes, so NN-vs-logit differences stay attributable to architecture.
+def to_resident(enc: dict, device: torch.device) -> dict:
+    """Upload an index-encoded split (``preload_split`` output) to persistent GPU tensors.
+    ``cat`` is held as int32 (halves its footprint; cast to long per-batch for the embedding
+    lookup, which nn.Embedding requires)."""
+    return {
+        "cont": torch.as_tensor(np.asarray(enc["cont"]), dtype=torch.float32, device=device),
+        "cat": torch.as_tensor(np.asarray(enc["cat"]), dtype=torch.int32, device=device),
+        "bin": torch.as_tensor(np.asarray(enc["bin"]), dtype=torch.float32, device=device),
+        "y": torch.as_tensor(np.asarray(enc["y"]), dtype=torch.long, device=device),
+        "w": torch.as_tensor(np.asarray(enc["w"]), dtype=torch.float32, device=device),
+    }
+
+
+def _resident_logits(model, T: dict, idx) -> torch.Tensor:
+    """Forward ``model`` on rows ``idx`` of a resident split (``idx`` a device LongTensor or
+    a slice). ``cat`` int32 → long only for the gathered minibatch."""
+    if isinstance(idx, slice):
+        cont, cat, binb = T["cont"][idx], T["cat"][idx], T["bin"][idx]
+    else:
+        cont = T["cont"].index_select(0, idx)
+        cat = T["cat"].index_select(0, idx)
+        binb = T["bin"].index_select(0, idx)
+    return model(cont, cat.long(), binb)
+
+
+def train_one_epoch_resident(model, T: dict, opt, amp_scaler, *, device, epoch, seed,
+                             batch_size, use_amp) -> float:
+    """One reshuffled pass over a resident train split. Same ``(seed, epoch)`` permutation
+    and weight-averaged-CE loss as :func:`train_one_epoch`; accumulators stay on-GPU and sync
+    once at the end (no per-batch host round-trip)."""
+    model.train()
+    n = T["y"].shape[0]
+    order = torch.as_tensor(np.random.default_rng([seed, epoch]).permutation(n), device=device)
+    swce = torch.zeros((), dtype=torch.float64, device=device)
+    sw = torch.zeros((), dtype=torch.float64, device=device)
+    for s in range(0, n, batch_size):
+        idx = order[s:s + batch_size]
+        y = T["y"].index_select(0, idx)
+        w = T["w"].index_select(0, idx)
+        opt.zero_grad(set_to_none=True)
+        with torch.autocast(device_type=device.type, enabled=use_amp):
+            loss = tc.weighted_ce(_resident_logits(model, T, idx), y, w)
+        amp_scaler.scale(loss).backward()
+        amp_scaler.step(opt)
+        amp_scaler.update()
+        wsum = w.double().sum()
+        swce += loss.detach().double() * wsum
+        sw += wsum
+    return float((swce / sw).item()) if float(sw) else float("nan")
+
+
+@torch.no_grad()
+def evaluate_nll_resident(model, T: dict, batch_size: int, device) -> dict:
+    """Streaming NLL over a resident split — the :func:`torch_common.evaluate_nll` contract
+    (weighted + unweighted + n_rows + sum_w), float64 accumulation, GPU-side."""
+    model.eval()
+    n = int(T["y"].shape[0])
+    swce = torch.zeros((), dtype=torch.float64, device=device)
+    sw = torch.zeros((), dtype=torch.float64, device=device)
+    sce = torch.zeros((), dtype=torch.float64, device=device)
+    for s in range(0, n, batch_size):
+        sl = slice(s, s + batch_size)
+        y, w = T["y"][sl], T["w"][sl]
+        ce = torch.nn.functional.cross_entropy(
+            _resident_logits(model, T, sl), y, reduction="none").double()
+        swce += (w.double() * ce).sum()
+        sw += w.double().sum()
+        sce += ce.sum()
+    return {"weighted_nll": float((swce / sw).item()),
+            "unweighted_nll": float((sce / n).item()),
+            "n_rows": n, "sum_w": float(sw.item())}
+
+
+# ---------------------------------------------------------------------------
 # Checkpointing — atomic write of the full resumable state, every epoch
 # ---------------------------------------------------------------------------
 def _rng_state(device: torch.device) -> dict:
@@ -275,25 +360,42 @@ def train(args) -> Path:
               f"{arch['n_binary']} bin)")
 
     predict = N.make_nn_predict()
+    resident = bool(getattr(args, "gpu_resident", False)) and device.type == "cuda"
     enc_train = preload_split(args.variant, args.k, "train", scaler, vocab, cap)
     enc_val = preload_split(args.variant, args.k, "val", scaler, vocab, cap)
     print(f"rows: train={enc_train['y'].shape[0]:,} (Σw={enc_train['w'].sum():,.0f})  "
           f"val={enc_val['y'].shape[0]:,}")
+    n_train = int(enc_train["y"].shape[0])
+    if resident:
+        # Upload both splits to the GPU once; drop the host arrays (keep only the keys/shape
+        # the finalize + metrics need) so RAM isn't doubled on the big windows.
+        T_train, T_val = to_resident(enc_train, device), to_resident(enc_val, device)
+        train_sum_w = float(enc_train["w"].sum())
+        n_val = int(enc_val["y"].shape[0])
+        del enc_train, enc_val
+        torch.cuda.synchronize()
+        print(f"gpu-resident: train+val uploaded, "
+              f"{torch.cuda.memory_allocated(device) / 1e9:.1f} GB allocated")
 
     # --- training loop: early stopping on val NLL, atomic checkpoint each epoch ----------
-    n_train = int(enc_train["y"].shape[0])
     for epoch in range(start_epoch, max_epochs):
         # Per-epoch wall-clock (M8b throughput, sizes the M10 full export). train_sec times
         # the GPU pass over the train slice (cuda-synced so async kernels are accounted);
         # epoch_sec adds the val eval + atomic checkpoint write.
         t0 = time.perf_counter()
-        train_nll = train_one_epoch(model, enc_train, predict, opt, amp_scaler,
-                                    device=device, epoch=epoch, seed=args.seed,
-                                    batch_size=args.batch_size, use_amp=use_amp)
+        if resident:
+            train_nll = train_one_epoch_resident(model, T_train, opt, amp_scaler,
+                                                 device=device, epoch=epoch, seed=args.seed,
+                                                 batch_size=args.batch_size, use_amp=use_amp)
+        else:
+            train_nll = train_one_epoch(model, enc_train, predict, opt, amp_scaler,
+                                        device=device, epoch=epoch, seed=args.seed,
+                                        batch_size=args.batch_size, use_amp=use_amp)
         if device.type == "cuda":
             torch.cuda.synchronize()
         train_sec = time.perf_counter() - t0
-        val = tc.evaluate_nll(model, eval_batches(enc_val, EVAL_BATCH), predict, device)
+        val = (evaluate_nll_resident(model, T_val, EVAL_BATCH, device) if resident
+               else tc.evaluate_nll(model, eval_batches(enc_val, EVAL_BATCH), predict, device))
         sched.step(val["weighted_nll"])
         lr_now = opt.param_groups[0]["lr"]
         improved = val["weighted_nll"] < best["val_nll"] - 1e-7
@@ -331,15 +433,29 @@ def train(args) -> Path:
     # --- finalize: best model, frozen-test NLL, metrics.json ----------------------------
     model.load_state_dict(best["state"])
     enc_test = preload_split(args.variant, args.k, "test", scaler, vocab, cap)
-    test = tc.evaluate_nll(model, eval_batches(enc_test, EVAL_BATCH), predict, device)
-    val_best = tc.evaluate_nll(model, eval_batches(enc_val, EVAL_BATCH), predict, device)
+    if resident:
+        # Free the resident train slice before uploading test (keeps the big windows under
+        # 20 GB); val is re-scored from T_val, test from a freshly uploaded resident slice.
+        del T_train
+        torch.cuda.empty_cache()
+        T_test = to_resident(enc_test, device)
+        n_test = int(enc_test["y"].shape[0])
+        del enc_test
+        test = evaluate_nll_resident(model, T_test, EVAL_BATCH, device)
+        val_best = evaluate_nll_resident(model, T_val, EVAL_BATCH, device)
+    else:
+        n_train = int(enc_train["y"].shape[0])
+        train_sum_w = float(enc_train["w"].sum())
+        n_val, n_test = int(enc_val["y"].shape[0]), int(enc_test["y"].shape[0])
+        test = tc.evaluate_nll(model, eval_batches(enc_test, EVAL_BATCH), predict, device)
+        val_best = tc.evaluate_nll(model, eval_batches(enc_val, EVAL_BATCH), predict, device)
 
     torch.save(best["state"], run / "best_model.pt")
     manifest = json.loads((config.TRAINING_DIR / args.variant / "manifest.json").read_text())
     logit_cmp = _logit_comparison(args.variant, args.k, val_best["weighted_nll"],
                                   test["unweighted_nll"])
     val0 = history[0]["val_nll"] if history else float("nan")
-    throughput = _throughput_summary(history, n_train=int(enc_train["y"].shape[0]))
+    throughput = _throughput_summary(history, n_train=n_train)
     metrics = {
         "created_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "model": "nn_mlp", "variant": args.variant, "window_k": args.k,
@@ -359,9 +475,8 @@ def train(args) -> Path:
                         "batch_size": args.batch_size, "max_epochs": max_epochs,
                         "patience": args.patience, "sched_factor": SCHED_FACTOR,
                         "sched_patience": SCHED_PATIENCE},
-        "rows": {"train": int(enc_train["y"].shape[0]),
-                 "train_sum_w": float(enc_train["w"].sum()),
-                 "val": int(enc_val["y"].shape[0]), "test": int(enc_test["y"].shape[0])},
+        "rows": {"train": n_train, "train_sum_w": train_sum_w,
+                 "val": n_val, "test": n_test},
         "training": {"n_epochs_run": len(history), "best_epoch": best["epoch"],
                      "val_nll_first": val0, "val_nll_best": best["val_nll"],
                      "loss_decreased": bool(best["val_nll"] < val0),
@@ -526,6 +641,9 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=SEED)
     ap.add_argument("--amp", action="store_true",
                     help="mixed precision (active only on cuda; no-op on cpu/mps)")
+    ap.add_argument("--gpu-resident", action="store_true",
+                    help="M10 full-scale: hold the whole split on the GPU and index on-device "
+                         "(removes the per-batch host→device bottleneck; cuda only)")
     ap.add_argument("--smoke", action="store_true",
                     help="CPU pipeline check on ≤100k rows (standing rule 3)")
     ap.add_argument("--run-name", default=None,
