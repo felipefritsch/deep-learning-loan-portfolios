@@ -11,7 +11,7 @@ DuckDB panel views; tables in `outputs/tables/eda/`, figures in `outputs/figures
 The assembled panel is the **complete Fannie Mae Single-Family Loan Performance**
 release, 2000–2025: **3,312,456,883 loan-months across 57,562,668 loans**, spanning
 reporting months `2000-01 … 2025-12` over 104 acquisition-vintage partitions
-(coverage table T1.1). Each loan-month carries the Sirignano-style seven-state target
+(coverage table T1.1). Each loan-month carries the seven-state target
 (`state`, `state_next`), leakage-safe calendar keys (`period_ym`, `orig_ym`), and a
 loan-keyed `shard`.
 
