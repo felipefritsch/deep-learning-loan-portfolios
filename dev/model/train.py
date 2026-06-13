@@ -316,7 +316,8 @@ def train(args) -> Path:
            "dropout": args.dropout, "weight_decay": args.weight_decay, "lr": args.lr,
            "batch_size": args.batch_size, "max_epochs": max_epochs,
            "patience": args.patience, "seed": args.seed, "smoke": args.smoke,
-           "use_amp": use_amp, "cap": cap}
+           "use_amp": use_amp, "cap": cap,
+           "width_mult": getattr(args, "width_mult", 1.0)}
 
     resuming = ckpt_path.exists() and not args.fresh
     if resuming:
@@ -345,7 +346,8 @@ def train(args) -> Path:
         tc.set_seed(args.seed)
         scaler, vocab = D.fit_window(args.variant, args.k)
         F.save_pipeline(run, scaler, vocab)
-        model = N.build(scaler, vocab, depth=args.depth, dropout=args.dropout).to(device)
+        model = N.build(scaler, vocab, depth=args.depth, dropout=args.dropout,
+                        width_mult=getattr(args, "width_mult", 1.0)).to(device)
         arch = model.arch()
         opt = torch.optim.Adam(model.parameters(), lr=args.lr,
                                weight_decay=args.weight_decay)
@@ -472,6 +474,7 @@ def train(args) -> Path:
                          "vocab_cols": vocab.cols},
         "hyperparams": {"depth": args.depth, "dropout": args.dropout,
                         "weight_decay": args.weight_decay, "lr": args.lr,
+                        "width_mult": getattr(args, "width_mult", 1.0),
                         "batch_size": args.batch_size, "max_epochs": max_epochs,
                         "patience": args.patience, "sched_factor": SCHED_FACTOR,
                         "sched_patience": SCHED_PATIENCE},
@@ -633,6 +636,8 @@ def main() -> None:
     ap.add_argument("--depth", type=int, default=DEPTH)
     ap.add_argument("--dropout", type=float, default=DROPOUT)
     ap.add_argument("--weight-decay", type=float, default=WEIGHT_DECAY)
+    ap.add_argument("--width-mult", type=float, default=1.0,
+                    help="scale the paper hidden widths (M12 width sweep; 1.0=200/140)")
     ap.add_argument("--lr", type=float, default=LR)
     ap.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     ap.add_argument("--max-epochs", type=int, default=None,

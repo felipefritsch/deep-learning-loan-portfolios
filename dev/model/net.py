@@ -35,16 +35,24 @@ PAPER_REST_WIDTH = 140
 MAX_EMB_DIM = 64
 
 
-def depth_to_hidden(depth: int) -> list[int]:
+def depth_to_hidden(depth: int, width_mult: float = 1.0) -> list[int]:
     """Hidden-layer widths for a given depth under the paper's rule (§6).
 
     ``depth`` = number of hidden layers. ``depth 5 → [200, 140, 140, 140, 140]`` (the M8
     config); ``1 → [200]``; the M9 grid ``{1,3,5,7}`` indexes straight in. ``depth 0`` is
     the multinomial logit (``logit.py``), so it returns an empty list (a bare output layer).
+
+    ``width_mult`` scales both the wide first layer and the constant rest (M12 width sweep:
+    the appendix completeness check that the paper-inherited 200/140 widths aren't leaving
+    accuracy on the table). It defaults to 1.0, where ``round(200·1.0)=200`` /
+    ``round(140·1.0)=140`` reproduce the paper widths exactly — so every pre-M12 run is
+    bit-identical. Half → 100/70, double → 400/280.
     """
     if depth < 1:
         return []
-    return [PAPER_FIRST_WIDTH] + [PAPER_REST_WIDTH] * (depth - 1)
+    first = int(round(PAPER_FIRST_WIDTH * width_mult))
+    rest = int(round(PAPER_REST_WIDTH * width_mult))
+    return [first] + [rest] * (depth - 1)
 
 
 def emb_dim(cardinality: int, cap: int = MAX_EMB_DIM) -> int:
@@ -126,14 +134,15 @@ def from_arch(arch: dict) -> "MortgageMLP":
 
 
 def build(scaler: F.Scaler, vocab: F.Vocab, depth: int = 5,
-          dropout: float = 0.2) -> "MortgageMLP":
+          dropout: float = 0.2, width_mult: float = 1.0) -> "MortgageMLP":
     """Construct the net for a fitted ``(scaler, vocab)`` at the paper's depth/width (§6).
     ``n_continuous`` from the scaler, ``n_binary`` from the (fixed) binary block, embedding
-    cardinalities from the vocab."""
+    cardinalities from the vocab. ``width_mult`` (default 1.0 = paper widths) scales the
+    hidden layers for the M12 width sweep."""
     return MortgageMLP(
         n_continuous=len(scaler.cols), n_binary=len(F.BINARY),
-        vocab_sizes=list(vocab.vocab_sizes), hidden_dims=depth_to_hidden(depth),
-        dropout=dropout)
+        vocab_sizes=list(vocab.vocab_sizes),
+        hidden_dims=depth_to_hidden(depth, width_mult), dropout=dropout)
 
 
 # ---------------------------------------------------------------------------

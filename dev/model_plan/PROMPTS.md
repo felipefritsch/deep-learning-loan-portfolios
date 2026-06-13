@@ -135,7 +135,7 @@ Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks throu
 Read dev/model_plan/04_TASKS.md (task M11b). Tasks through M11 are complete and committed, and models/ + outputs/ are synced back to the SSD. Execute M11b only: (1) verify every number quoted in writeup/latex/chapter4.tex §4.1 against the run-folder metrics.json and table_a artifacts, correcting any discrepancy and reporting the diff; (2) copy the EDA and loan-level figure/table artifacts from outputs/ into writeup/latex/figs/ and replace the corresponding \figplaceholder/\tabplaceholder blocks in chapters 3–4 with real \includegraphics/\input (leave the Phase-3 placeholders). Recompile main.tex with latexmk and verify zero undefined references. Commit M11b. The SSD is mounted.
 ```
 
-### M12 — Phase-2 gate
+### M12 — Phase-2 gate ✅
 
 ```
 Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M11 are complete and committed. Execute task M12 only (seed variance, ranking stability, tuning-window sensitivity on k=2019, the width sweep at the selected config — half/paper/double widths, dev scale, appendix artifact — and optional permutation importance). Verify every Accept criterion for M12 with evidence, then commit M12. The SSD is mounted.
