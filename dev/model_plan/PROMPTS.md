@@ -102,7 +102,28 @@ Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks throu
 Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. M10a (full-scale export) is complete and committed, and the export is uploaded to this box at processed/training/full/ (via the ROOT symlink). This is the GPU half of M10. Two preliminaries before the loop: (1) M9 selected depth 3 on the 3M-row dev slice and flagged it as scale-sensitive — re-fit depth 3 vs depth 5 (dropout 0.2; add the L2 1e-5 variant if cheap) on the full-scale tuning window k=2015, take the val-NLL winner, update the frozen config with rationale, and use it for the loop; (2) this card may differ from M8b's RTX 4090 — re-measure throughput on that first full-scale fit and confirm the loop budget is tractable before launching it. Then run backtest.py over all 11 windows: per-window logit + best single NN everywhere, ensemble of 8 on the 5 key windows (2015/2019/2020/2023/2025). Run long fits inside tmux with per-window checkpointing so preemption or disconnects only cost the current epoch. Verify every Accept criterion for M10 with evidence, then commit as "M10b: rolling loop". Do not start M11.
 ```
 
-### M11
+### M11 ✅
+
+> **Result:** `evaluate.py` scores all four model families (empirical / logit / best NN /
+> 8-net ensemble) through one path on the frozen unthinned test slices. **All M11 Accept
+> PASS** (`models/nn/full/evaluate_summary.json`, 17.8 min): every model on identical
+> per-window rows (row-count == committed metrics + byte-identical scaler/vocab per window),
+> each of **84,512,377** pooled test rows appearing exactly once (Σ window rows == unique
+> (loan, period_ym)), figures regenerate. **Table B** (`outputs/tables/loan_level/table_b.*`):
+> NN beats logit **11/11 windows**; pooled **NN 0.101468 < logit 0.108249 < empirical
+> 0.111477** (NN −9.0 % vs floor, logit only −2.9 % → the nonlinearity is ~⅔ of the achievable
+> gain). By origin, the NN beats the floor in **all 4** origins while the logit is at/below the
+> floor in every delinquent origin. **AUC** (`auc.*`): NN's edge concentrates in prepayment
+> (current→prepaid 0.653→0.748) and the deep-delinquency events the logit can't rank
+> (dpd_90+→foreclosure 0.482→0.623). Calibration + rate-overlay figures confirm the NN tracks
+> the prepay waves and is better-calibrated; both models miss only the 2020 COVID dpd_30 spike.
+> Ensemble ≤ mean single member 5/5, ≤ deployed single net 4/5 (2023 a seed-noise tie).
+> **Note (perf):** the AUC builder re-slices the full [84.5M×7] prob matrix per cell (~14 min
+> of the 17.8); numbers verified correct — the vectorized `_auc_one_vs_rest` (np.unique
+> average-ranks) matches the original Python-loop AUC **and** sklearn `roc_auc_score` to **|Δ|
+> = 0.0** on a 386,760-row tie-bearing slice. A `# TODO(perf)` marks the re-slice for a later
+> speedup. Memos `02a_benchmarks.md` + `02b_loan_level.md` committed. Committed "M11:
+> evaluation suite + memos 2a/2b".
 
 ```
 Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks through M10 are complete and committed. Execute task M11 only (evaluation suite: Tables A & B, AUC, calibration, rate overlay; memos 2a and 2b to writeup/memos/). Verify every Accept criterion for M11 with evidence, then commit M11. Do not start M12. The SSD is mounted.
