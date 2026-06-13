@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dissertation Process Overview — Asset Loans Default Risk</title>
+<style>
+  :root{
+    --oxblue:#002147; --ink:#1c2330; --muted:#5b6675; --line:#d8dee7;
+    --bg:#f6f8fa; --card:#ffffff;
+    --done:#1a7f37; --done-bg:#e6f4ea;
+    --prog:#b45309; --prog-bg:#fdf3e3;
+    --pend:#6b7280; --pend-bg:#eef0f3;
+    --accent:#2b6cb0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+  header{position:sticky;top:0;z-index:10;background:var(--oxblue);color:#fff;padding:14px 28px;display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;box-shadow:0 2px 6px rgba(0,0,0,.18)}
+  header h1{font-size:18px;margin:0;font-weight:650}
+  header .sub{font-size:13px;opacity:.75}
+  header .now{margin-left:auto;font-size:12.5px;background:#ffffff22;border:1px solid #ffffff44;border-radius:20px;padding:3px 12px}
+  main{max-width:1060px;margin:0 auto;padding:28px 24px 80px}
+  h2{font-size:20px;margin:42px 0 6px;color:var(--oxblue)}
+  h2 .tag{font-size:11px;vertical-align:3px;margin-left:8px;letter-spacing:.06em;color:var(--muted);font-weight:600}
+  p.lead{color:var(--muted);margin:4px 0 18px;max-width:78ch}
+
+  /* badges */
+  .badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;border-radius:12px;padding:2px 10px;vertical-align:2px}
+  .b-done{color:var(--done);background:var(--done-bg)}
+  .b-prog{color:var(--prog);background:var(--prog-bg)}
+  .b-pend{color:var(--pend);background:var(--pend-bg)}
+
+  /* stat cards */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:18px 0}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .stat b{display:block;font-size:21px;color:var(--oxblue)}
+  .stat span{font-size:12.5px;color:var(--muted)}
+
+  /* seven-state strip */
+  .states{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:14px 0 4px}
+  .st{border-radius:8px;padding:6px 10px;font-size:12.5px;font-weight:600;border:1.5px solid}
+  .st.cur{border-color:#2f855a;color:#2f855a;background:#f0fff4}
+  .st.dpd{border-color:#b7791f;color:#975a16;background:#fffbeb}
+  .st.term{border-color:#9b2c2c;color:#9b2c2c;background:#fff5f5}
+  .st.pre{border-color:#2b6cb0;color:#2b6cb0;background:#ebf4ff}
+  .arrow{color:var(--muted);font-size:15px}
+
+  /* spine */
+  .spine{position:relative;margin-top:26px}
+  .spine::before{content:"";position:absolute;left:21px;top:8px;bottom:8px;width:3px;background:linear-gradient(var(--oxblue),var(--accent));border-radius:2px}
+  .node{position:relative;padding:0 0 26px 58px}
+  .node .dot{position:absolute;left:9px;top:6px;width:27px;height:27px;border-radius:50%;background:var(--oxblue);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;border:3px solid var(--bg)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;box-shadow:0 1px 3px rgba(16,30,54,.06)}
+  .card h3{margin:0 0 2px;font-size:16.5px;color:var(--oxblue)}
+  .card .meta{font-size:12px;color:var(--muted);margin-bottom:8px}
+  .card p{margin:8px 0}
+  details{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+  summary{cursor:pointer;font-size:13px;font-weight:650;color:var(--accent);user-select:none}
+  summary:hover{text-decoration:underline}
+  details[open] summary{margin-bottom:8px}
+  .flow{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;background:#0f1b2d;color:#dbe7f5;border-radius:8px;padding:12px 16px;overflow-x:auto;white-space:pre;line-height:1.65}
+
+  table{border-collapse:collapse;width:100%;font-size:13px;margin:8px 0}
+  th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+  th{background:#eef2f7;color:var(--oxblue);font-weight:650}
+  td.num{font-variant-numeric:tabular-nums}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+
+  /* backtest grid */
+  .bt{display:grid;grid-template-columns:64px repeat(26,1fr);gap:2px;font-size:10px;margin:10px 0}
+  .bt div{height:18px;border-radius:3px;display:flex;align-items:center;justify-content:center}
+  .bt .lbl{font-size:11px;color:var(--muted);justify-content:flex-start;font-weight:600}
+  .bt .tr{background:#c6dbef}.bt .va{background:#fdd9a0}.bt .te{background:#f4a6a6}.bt .no{background:#edf0f4}
+  .bt .yr{height:14px;color:var(--muted);background:none;font-size:9px}
+  .legend{font-size:12px;color:var(--muted);display:flex;gap:14px;margin-top:6px}
+  .sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .mini{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .mini h4{margin:0 0 6px;font-size:14px;color:var(--oxblue)}
+  .mini ul{margin:6px 0;padding-left:18px}
+  .mini li{margin:4px 0;font-size:13.5px}
+  footer{margin-top:48px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
+  .ctrl{font-size:12.5px;margin:14px 0 0}
+  .ctrl button{font:inherit;border:1px solid var(--line);background:#fff;border-radius:6px;padding:4px 12px;cursor:pointer;color:var(--accent)}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Asset Loans Default Risk — Process Overview</h1>
+  <span class="sub">Oxford MCF dissertation · Sirignano-style deep-learning mortgage transition models</span>
+  <span class="now">Status (12 Jun 2026): M1–M9 + M10a complete · next: M10b rolling backtest</span>
+</header>
+
+<main>
+
+<!-- ============ AT A GLANCE ============ -->
+<h2>The project at a glance</h2>
+<p class="lead">
+Replicate and extend <i>Sirignano, Sadhwani &amp; Giesecke — Deep Learning for Mortgage Risk</i> (JFEC 2021)
+on the complete public Fannie Mae Single-Family Loan Performance dataset: estimate the monthly conditional
+state-transition distribution <span class="mono">P(state<sub>t+1</sub> | state<sub>t</sub>, x<sub>t</sub>)</span> of US mortgages
+with deep nets, benchmark against an empirical transition matrix and multinomial logit on a strictly
+out-of-sample rolling backtest (2015–2025), then show the differences <b>matter economically</b> by rolling
+the model forward to pool-level prepayment/delinquency counts and translating them into CPR / WAL / price errors.
+</p>
+
+<div class="states">
+  <span class="st cur">current</span><span class="arrow">→</span>
+  <span class="st dpd">30 DPD</span><span class="arrow">→</span>
+  <span class="st dpd">60 DPD</span><span class="arrow">→</span>
+  <span class="st dpd">90+ DPD</span><span class="arrow">→</span>
+  <span class="st term">foreclosure</span><span class="arrow">→</span>
+  <span class="st term">REO</span><span class="arrow">&nbsp;|&nbsp;</span>
+  <span class="st pre">prepaid</span>
+</div>
+<p class="lead" style="font-size:13px">Seven states; in this dataset foreclosure / REO / prepaid are <b>terminal</b> (Zero-Balance-code derived), so origins are the four live states and the transition matrix is <b>4×7</b>, not 7×7.</p>
+
+<div class="stats">
+  <div class="stat"><b>~800 GB</b><span>raw CSV, 104 vintage files, 2000–2025, 113 pipe-delimited fields, no header</span></div>
+  <div class="stat"><b>3.31 B</b><span>loan-months in the cleaned panel (3,312,456,883)</span></div>
+  <div class="stat"><b>57.6 M</b><span>loans (57,562,668), reporting months 2000-01 … 2025-12</span></div>
+  <div class="stat"><b>96.28 %</b><span>of loan-months are <i>current</i> — the class imbalance that drives thinning + importance weights</span></div>
+  <div class="stat"><b>11 windows</b><span>rolling expanding-window backtest, one test year each, k = 2015 … 2025</span></div>
+</div>
+
+<!-- ============ SPINE ============ -->
+<h2>The process, end to end</h2>
+<p class="lead">Top layer reads as a narrative; expand <b>Technical detail</b> on any stage for milestones, file paths, key numbers and acceptance evidence.</p>
+<p class="ctrl"><button onclick="document.querySelectorAll('details').forEach(d=>d.open=true)">Expand all</button>
+<button onclick="document.querySelectorAll('details').forEach(d=>d.open=false)">Collapse all</button></p>
+
+<div class="spine">
+
+<!-- 1 SOURCES -->
+<div class="node"><div class="dot">1</div>
+<div class="card">
+  <h3>Problem definition &amp; source material <span class="badge b-done">DONE</span></h3>
+  <div class="meta">docs/ · supervisor meeting 8 May 2026</div>
+  <p>Topic selected (MCF Option 34) and anchored on the Sirignano et al. paper. Source corpus assembled:
+  the paper, the Fannie Mae dataset glossary / tutorial / FAQ PDFs, MCF dissertation guidelines, and the
+  May-8 supervisor notes (which fixed the model ladder, regularization list, minibatch randomization scheme
+  and the pool-level idea).</p>
+  <details><summary>Technical detail</summary>
+    <ul>
+      <li><span class="mono">docs/Justin Sirginano Paper - Deep Learning for Mortgage Risk.pdf</span> — the template: 7-state monthly multinomial transition model, depth/NLL grid (Table 11), ensemble curve (Fig 7), pool-level §5.</li>
+      <li><span class="mono">docs/loan-performance-data-tutorial.pdf, crt-file-layout-and-glossary.pdf, sf-loan-performance-dataset-faqs.pdf</span> — the 113-field layout and code maps behind <span class="mono">schema.py</span>.</li>
+      <li>Key scope note carried into the writeup: the public dataset is a <i>subset</i> of Fannie Mae's book (30-yr FRM, conventional, fully documented, LTV ≤ 97) — no ARMs/subprime, so lower base rates than the paper's CoreLogic universe.</li>
+    </ul>
+  </details>
+</div></div>
+
+<!-- 2 DATA -->
+<div class="node"><div class="dot">2</div>
+<div class="card">
+  <h3>Raw data acquisition <span class="badge b-done">DONE</span></h3>
+  <div class="meta">SSD Felipe · /Volumes/SSD Felipe/dissertation/raw/ (immutable)</div>
+  <p>The complete acquisition-vintage set downloaded: ~104 quarterly CSVs (one per vintage, Q1 2000 → 2025,
+  no loan-level overlap), ~800 GB of pipe-delimited, header-less loan-month panel. Stored on an external SSD
+  under an immutable-raw layout (<span class="mono">raw/ → interim/ → processed/</span>); a superseded partial
+  download (2017Q2–2022Q2) was replaced by the full set.</p>
+  <details><summary>Technical detail</summary>
+    <ul>
+      <li>Grain: one row per loan × monthly reporting period; 113 fields; dates encoded <span class="mono">MMYYYY</span>.</li>
+      <li><span class="mono">raw/</span> is never written by code; <span class="mono">interim/</span> and <span class="mono">processed/</span> are fully rebuildable from it (so neither is backed up — see node 9).</li>
+      <li>Single-release check: Stage 1 verifies a uniform <span class="mono">max(reporting period)</span> cut-off across vintages so right-censoring is consistent.</li>
+    </ul>
+  </details>
+</div></div>
+
+<!-- 3 PIPELINE -->
+<div class="node"><div class="dot">3</div>
+<div class="card">
+  <h3>Data pipeline — six stages, S1–S6 <span class="badge b-done">DONE</span></h3>
+  <div class="meta">dev/pipeline/ · spec: dev/pipeline_plan/ · stack: DuckDB + Polars + PyArrow + Parquet(zstd)</div>
+  <p>Converts the raw CSVs — one quarter at a time, never fully in RAM — into a compressed columnar lake, then
+  derives the seven-state transition panel that everything downstream consumes. Idempotent, per-quarter,
+  resumable; the one hard rule is <b>never load a full quarter into memory</b>.</p>
+  <div class="flow">raw/Performance_All/*.csv                 (~800 GB, immutable)
+   │ S1  inventory + integrity audit       s1_inventory.py   manifest, field counts, release cut-off
+   │ S2  streaming CSV → Parquet           s2_to_parquet.py  interim/perf/acq_quarter=YYYYQn/ (zstd)
+   │ S3  clean + standardise               s3_clean.py       interim/clean/  dates, categoricals, sentinels
+   │ S4  transition panel                  s4_panel.py       processed/panel/  state, state_next, censored,
+   │                                                         period_ym, orig_ym, shard = hash(loan) % 256
+   │ S5  DuckDB views + sampling           s5_sample.py      processed/samples/ + lake.duckdb catalog
+   │ S6  QA + reconciliation               s6_qa.py          row-count reconcile, null/target audits
+   ▼
+cleaned loan-month panel: 3.31 B rows / 57.6 M loans / 104 partitions</div>
+  <details><summary>Technical detail</summary>
+    <ul>
+      <li><b>Why this stack:</b> Parquet+zstd compresses 4–8×; DuckDB queries the lake out-of-core with predicate/projection pushdown (<span class="mono">SET memory_limit</span>); Polars <span class="mono">scan_*</span> streams transforms; PyArrow chunked reader handles 25 GB files block-by-block. pandas only on filtered in-RAM slices.</li>
+      <li><b>Target derivation (S4):</b> <span class="mono">state<sub>t</sub></span> from Current Loan Delinquency Status + Zero Balance Code; <span class="mono">state_next</span> = same loan, month t+1; censored rows flagged and excluded from every likelihood.</li>
+      <li><b>Leakage safety baked in:</b> calendar keys <span class="mono">period_ym / orig_ym</span> for strict temporal masks; deterministic loan-keyed <span class="mono">shard</span> (fixed-seed hash → 256 buckets) for loan-disjoint sampling; output sorted <span class="mono">(shard, loan, period)</span> for row-group skipping.</li>
+      <li><b>Invariants</b> (root + pipeline <span class="mono">CLAUDE.md</span>): single <span class="mono">ROOT</span> in <span class="mono">config.py</span>; every stage calls <span class="mono">require_drive()</span>; stages idempotent and per-quarter; tasks executed one at a time against the Accept criteria of <span class="mono">03_CLAUDE_CODE_TASKS.md</span>.</li>
+      <li>QA refinements committed along the way: feature quantiles estimated on a 2 % sample; <span class="mono">orig_ym &gt; period_ym</span> reported as a data-quality note, not a FAIL.</li>
+    </ul>
+  </details>
+</div></div>
+
+<!-- 4 MACRO -->
+<div class="node"><div class="dot">4</div>
+<div class="card">
+  <h3>Macro data block — MD1–MD4 <span class="badge b-done">DONE</span></h3>
+  <div class="meta">spec: dev/model_plan/05_MACRO_DATA.md · code: fetch_macro.py, build_macro.py, macro_features.py · = task M2b</div>
+  <p>A June-2026 decision reversed the original "macro out of scope" call: a small fixed set of macro series
+  enters as two thin time-keyed Parquet tables joined <b>at export time</b> — the 800 GB lakes are never
+  reprocessed. This unlocks the true refi <b>incentive</b> (vs PMMS) and <b>mark-to-market LTV</b>, the paper's
+  key default driver.</p>
+  <details><summary>Technical detail</summary>
+    <table>
+      <tr><th>Variable</th><th>Source</th><th>Geography</th><th>Join lag</th></tr>
+      <tr><td>pmms30 (30-yr mortgage rate)</td><td>FRED MORTGAGE30US</td><td>national</td><td>0 m</td></tr>
+      <tr><td>dgs10, slope_10y2y</td><td>FRED DGS10 / DGS2</td><td>national</td><td>0 m</td></tr>
+      <tr><td>unrate (national + state)</td><td>FRED UNRATE + {POSTAL}UR ×51</td><td>nat + 50 states + DC</td><td>1 m</td></tr>
+      <tr><td>hpi (national + state)</td><td>Freddie Mac FMHPI master file (SA)</td><td>nat + states</td><td>2 m</td></tr>
+    </table>
+    <ul>
+      <li>Outputs: <span class="mono">processed/macro/macro_national.parquet</span> (one row/month from 1998-01) and <span class="mono">macro_state.parquet</span> (state × month, with a <span class="mono">US</span> pseudo-state fallback row; fallback indicators become binary features).</li>
+      <li>Derived features (in <span class="mono">features.py</span>): <span class="mono">incentive = current_rate − pmms30(t)</span>; <span class="mono">ltv_mtm = (cur_upb/orig_upb) × orig_ltv × hpi(orig_ym)/hpi(period_ym)</span>; <span class="mono">hpi_chg_12m</span>. HPI <i>levels</i> are never features.</li>
+      <li>Stated limitations: final-revision series (not real-time vintages); state, not zip/county, granularity.</li>
+      <li>One deliberate invariant amendment: <span class="mono">raw/macro/&lt;date&gt;/</span> snapshots are "written once at download time"; <span class="mono">raw/Performance_All/</span> stays untouched.</li>
+    </ul>
+  </details>
+</div></div>
+
+<!-- 5 EDA -->
+<div class="node"><div class="dot">5</div>
+<div class="card">
+  <h3>Phase 1 — EDA &amp; motivation (M1–M3) <span class="badge b-done">DONE — Phase-1 gate passed</span></h3>
+  <div class="meta">dev/analysis/ (one script per figure/table) · memo: writeup/memos/01_eda.md · outputs/figures|tables/eda/</div>
+  <p>Model-free evidence that transition risk is <b>nonlinear and interactive</b> — the empirical case for deep
+  nets before any model is fit. Every exhibit is a bounded-memory DuckDB aggregation over the full 3.31 B-row
+  panel, with Wilson CIs on rare rates.</p>
+  <details><summary>Technical detail — headline findings</summary>
+    <table>
+      <tr><th>Exhibit</th><th>Finding</th></tr>
+      <tr><td>T1.1–T1.3 coverage &amp; states</td><td>Panel integrity; state distribution current 96.28 %, prepaid 1.25 %, dpd_30 1.15 %, dpd_90+ 0.98 %, dpd_60 0.31 %, REO 0.014 %, foreclosure 0.0067 % → motivates thinning + Laplace smoothing.</td></tr>
+      <tr><td>T2.1 / F2.2 transition structure</td><td>Pooled 4×7 matrix; monthly rates show 2003 &amp; 2020-21 refi waves, 2008-11 default wave, 2022-23 prepay collapse → motivates the rolling backtest over a single split.</td></tr>
+      <tr><td>F2.3 COVID check</td><td>Forbearance-era delinquency codes behave unusually; no special handling, flagged in the writeup.</td></tr>
+      <tr><td>F3.1 seasoning hump</td><td>Prepay 0.27 %/mo at origination → 1.56 % peak at ≈17 mo → burnout to 1.11 % by ≈52 mo. Non-monotone in age.</td></tr>
+      <tr><td>F3.2 refi S-curve</td><td>Prepay flat 0.4–0.6 % out-of-the-money → 2.71 % peak near +1.5 pp incentive → 2.16 % burnout (~7× range).</td></tr>
+      <tr><td>F3.3 FICO decay</td><td>dpd_30 hazard 3.06 %/mo @ FICO 623 → 0.13 % @ 815 (~24×), convex.</td></tr>
+      <tr><td>F3.4 FICO×LTV interaction</td><td>Additive FICO gradient grows +43 % from low to high LTV; LTV effect ~8.5× larger for low-FICO. Additivity misspecified.</td></tr>
+      <tr><td>F3.5 incentive×FICO</td><td>In-the-money refi response rises with credit quality (2.36 → 3.01 %/mo): credit-constrained burnout.</td></tr>
+      <tr><td>F3.6 vintage</td><td>2007 cohort hazard ×3.6 vs calm cohorts at fixed age — vintage is a real feature.</td></tr>
+      <tr><td>F4.1 incentive proxy</td><td>Panel-derived <span class="mono">mkt_rate</span> tracks PMMS: corr 0.991, RMSE 0.198 pp → PMMS primary, proxy = robustness.</td></tr>
+      <tr><td>F5.1/F5.2 shard checks</td><td>256 shards uniform (CV ≈ 0.2 %), not vintage-clustered — the May-8 failure mode ruled out.</td></tr>
+    </table>
+    <p><b>Carried hypothesis:</b> a linear-additive logit should underfit, most severely on prepayment (sharpest nonlinearity + first-order interaction with credit).</p>
+  </details>
+</div></div>
+
+<!-- 6 PHASE 2 -->
+<div class="node"><div class="dot">6</div>
+<div class="card">
+  <h3>Phase 2 — Loan-level models (M4–M12) <span class="badge b-prog">IN PROGRESS — M10a done, M10b next</span></h3>
+  <div class="meta">dev/model/ · spec: 02_LOAN_LEVEL.md · compute: Mac (exports, benchmarks) + cloud GPU (RTX 4090 class, training)</div>
+  <p>The model ladder — empirical 4×7 matrix → multinomial logit (0-layer net in PyTorch, shared loss/eval path)
+  → MLPs with categorical embeddings (depth grid, dropout/L2, ensemble of 8) — compared on frozen out-of-sample
+  test slices by mean NLL, per-transition AUC and calibration. All tuning happens once on window k=2015, then the
+  config is frozen and looped over all 11 windows.</p>
+  <details open><summary>Milestone tracker</summary>
+    <table>
+      <tr><th style="width:88px">Milestone</th><th>What</th><th style="width:110px">Status</th></tr>
+      <tr><td>M4</td><td>dev/model scaffolding + export: shared <b>train pool</b> (current→current thinned, p_keep, weight 1/p_keep) + <b>eval pool</b> (unthinned, fixed loan-disjoint shard block); window masks applied at load time</td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>M5</td><td>Empirical matrix benchmark, all 11 windows (Laplace α=0.5), bit-for-bit reproducible NLLs</td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>M6</td><td>features.py (train-only scalers, embedding vocab + UNK) + data.py shard-streaming loader; unit-tested</td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>M7</td><td>Logit benchmark (k=2015), sklearn cross-check to ~1e-3, beats empirical matrix</td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>M8</td><td>Single 5-layer NN end-to-end: CPU smoke path, then GPU dev fit — <b>val NLL 0.09767 &lt; logit 0.10008; test 0.10485 &lt; 0.10943</b>; ~1.55 M rows/s, ≈2.3 s/epoch on 3.15 M rows; cuda resume bug found + fixed</td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>M9</td><td>Depth {1,3,5,7} × dropout {0,.2,.5} × L2 grid on k=2015 + Table A + ensemble-of-8 curve; <b>depth 3 selected, flagged scale-sensitive</b> → re-check at M10b</td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>M10a</td><td>Full-scale export: <b>train_pool 74.42 M rows</b> (p_keep 0.05, weighted 814 M; 64-shard = 25 % of loans), <b>eval_pool 90.52 M rows</b> (12-shard ≈ 4.7 %); 2.7 GB to rsync; all M4-style accepts pass at scale</td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>M10b</td><td>On the GPU pod: full-scale depth-3-vs-5 re-check on k=2015 (33.5 M-row tuning slice), then <span class="mono">backtest.py</span> over all 11 windows — logit + best NN everywhere, ensemble of 8 on 5 key windows (2015/2019/2020/2023/2025); ≈60 full-scale fits</td><td><span class="badge b-prog">NEXT</span></td></tr>
+      <tr><td>M11</td><td>Evaluation suite: Table B (test-year × model NLL + pooled), AUC, calibration (incl. 2020-21 split), rate overlay; memos 2a/2b</td><td><span class="badge b-pend">PENDING</span></td></tr>
+      <tr><td>M11b</td><td>Thesis draft sync: verify every chapter-4 §4.1 number against run artifacts; swap \figplaceholder/\tabplaceholder for real figures/tables; clean recompile</td><td><span class="badge b-pend">PENDING</span></td></tr>
+      <tr><td>M12</td><td>Robustness: 3-seed variance, ranking stability across windows, k=2019 tuning-sensitivity, width sweep — <b>Phase-2 gate</b></td><td><span class="badge b-pend">PENDING</span></td></tr>
+    </table>
+  </details>
+  <details><summary>Technical detail — features &amp; training discipline</summary>
+    <ul>
+      <li><b>Features:</b> continuous (rates, incentive, UPBs log, age, remaining term, LTV/CLTV/DTI, FICOs, MI%) standardized with train-only scalers; macro block (pmms30, unrate, ltv_mtm, hpi_chg_12m, dgs10/slope) with per-variable publication lags; categoricals (origin state, channel, purpose, property type/state, MSA, zip3, …) as embeddings with reserved UNK; month-of-year seasonality; <b>no raw calendar time as a feature</b> (test years are unseen values).</li>
+      <li><b>One multinomial model</b> conditioned on origin state (paper's design), not four separate models; impossible transitions left for the model to learn ≈0 and QA-asserted &lt; 0.1 % mass.</li>
+      <li><b>Imbalance handling:</b> current→current rows kept with p_keep = 0.05 and loss importance-weighted (w = 1/p_keep) so probabilities stay unbiased; verified against unsampled base rates.</li>
+      <li><b>Reproducibility:</b> every fit writes a self-describing run folder (config, git commit, manifest hash, window id, scaler, metrics.json); resumable checkpoints (bit-for-bit resume verified on GPU).</li>
+      <li><b>Per-window locality:</b> scalers, vocabularies and the incentive index re-derived from each window's train slice — no leakage across windows.</li>
+    </ul>
+  </details>
+</div></div>
+
+<!-- 7 PHASE 3 -->
+<div class="node"><div class="dot">7</div>
+<div class="card">
+  <h3>Phase 3 — Pool-level analysis (M13–M15) <span class="badge b-pend">PENDING</span></h3>
+  <div class="meta">dev/model/pool.py (to be written) · spec: 03_POOL_LEVEL.md · consumes frozen Phase-2 models only</div>
+  <p>The economic punchline: roll each window's frozen model forward 12 months by <b>composing monthly transition
+  matrices</b> (deterministic, no Monte Carlo; terminal states absorbing; first-passage trick for "ever 60+ DPD"),
+  aggregate to pools, and compare predicted vs realized counts — then translate counts into <b>CPR, WAL and price
+  errors</b> via a level-pay pass-through cashflow engine. The CPR/WAL/price translation plus the by-anchor regime
+  exhibit are the dissertation's main beyond-replication contributions.</p>
+  <details><summary>Technical detail</summary>
+    <ul>
+      <li><b>M13 — roll-forward harness:</b> p ← p · P<sub>h</sub> for h = 1…12; static features frozen at t0, age/term/seasonality evolve, macro frozen at t0 (stated assumption); unit-tested against a closed-form toy chain; h=1 must equal evaluate.py exactly.</li>
+      <li><b>M14 — pools:</b> characteristic buckets (FICO × rate × LTV, ≥2,000 loans/pool) + 500 random pools of 1,000 loans; anchors at Dec(k−1) — all 11 if scoring allows, minimum the ensemble-bearing 2019-12 / 2022-12 / 2024-12; predicted count = Σ p<sub>i</sub>, Poisson-binomial intervals; R²/RMSE scatter vs realized per model.</li>
+      <li><b>M15 — economic translation (Phase-3 gate):</b> UPB-weighted SMM/CPR paths → cashflow engine (unit-tested vs zero-prepay annuity and constant-SMM closed forms, ~1e-8) → CPR (pp), WAL (months), price (per 100) errors per pool × model × anchor → T5.1 + F5.2; headline = ensemble-vs-logit reduction in mean |price error|. Portfolio-decile sort deliberately deferred (pricing tests levels; sorts only ranking).</li>
+      <li>Memo <span class="mono">03_pool.md</span> closes with the contributions paragraph: prime conforming credit box, 2015–2025 regimes incl. COVID + 2022-23 rate shock, the rolling-window protocol, and the CPR/WAL/price translation.</li>
+    </ul>
+  </details>
+</div></div>
+
+<!-- 8 WRITEUP -->
+<div class="node"><div class="dot">8</div>
+<div class="card">
+  <h3>Dissertation writeup <span class="badge b-prog">IN PROGRESS</span></h3>
+  <div class="meta">writeup/latex/ (department MScThesis template) · interim memos in writeup/memos/ feed the chapters</div>
+  <p>The draft is assembled ahead of the results: chapters 1–3 drafted from the specs and the EDA memo;
+  chapter 4 is partial with framed placeholders awaiting M10b/M11 (loan-level) and Phase 3 (pool-level)
+  artifacts. M11b and M15 each include an explicit "swap placeholders for real artifacts + clean recompile" step.</p>
+  <details><summary>Technical detail — chapter map</summary>
+    <table>
+      <tr><th>Chapter</th><th>Content</th><th>Fed by</th><th>Status</th></tr>
+      <tr><td>1 Introduction</td><td>Question, contributions, paper context</td><td>00_OVERVIEW, 03 §5–6</td><td><span class="badge b-prog">DRAFTED</span></td></tr>
+      <tr><td>2 Methodology</td><td>States/target, model ladder, rolling backtest, training discipline (incl. shard-loop TikZ)</td><td>01_SCHEMA, 02_LOAN_LEVEL, methodology_overview.tex</td><td><span class="badge b-prog">DRAFTED</span></td></tr>
+      <tr><td>3 Data &amp; exploratory evidence</td><td>Dataset scope, deviations from the paper, EDA exhibits</td><td>memo 01_eda.md, T1/T2/F2–F5 figures</td><td><span class="badge b-prog">DRAFTED</span></td></tr>
+      <tr><td>4 Results</td><td>§4.1 tuning grid/Table A · §4.2 rolling Table B/AUC/calibration · §4.3 pool level</td><td>M9 (done) · M10b/M11 · M13–M15</td><td><span class="badge b-prog">PARTIAL</span></td></tr>
+      <tr><td>Conclusions + appendices</td><td>Contributions, limitations, robustness appendix (width sweep etc.)</td><td>M12, M15 memos</td><td><span class="badge b-pend">PENDING</span></td></tr>
+    </table>
+    <p>Memos: <span class="mono">01_eda.md</span> ✅ · <span class="mono">02a/02b</span> (benchmarks / headline, at M11) · <span class="mono">03_pool.md</span> (at M15).</p>
+  </details>
+</div></div>
+
+<!-- 9 INFRA -->
+<div class="node"><div class="dot">9</div>
+<div class="card">
+  <h3>Cross-cutting: infrastructure, backup &amp; working method <span class="badge b-done">STANDING</span></h3>
+  <div class="meta">dev/tools/backup_ssd.sh · CLAUDE.md invariants · PROMPTS.md task protocol</div>
+  <p>Three machines, one discipline: the <b>Mac</b> runs everything that touches the panel lake (pipeline, EDA,
+  exports, evaluation); a rented <b>GPU pod</b> runs training on rsynced compact exports (2.7 GB, not 800 GB);
+  the <b>SSD</b> holds data + models. Work proceeds one milestone at a time via scripted prompts, each verified
+  against explicit Accept criteria and committed before the next begins.</p>
+  <details><summary>Technical detail</summary>
+    <ul>
+      <li><b>Backup tiers:</b> code/specs/memos → git + GitHub; small irreplaceables (models, scalers, metrics, figures, manifests, macro tables) → <span class="mono">backup_ssd.sh → ssd_mirror/</span> after every milestone gate and GPU session; Parquet lakes and raw/ → not backed up, rebuildable/re-downloadable (Stage-1 manifest provides checksums to verify a re-download).</li>
+      <li><b>GPU sessions:</b> checkpoints synced back to <span class="mono">models/</span> before pod teardown — never the only copy on a rented box; every GPU task keeps a <span class="mono">--smoke</span> CPU path (≤100 k rows).</li>
+      <li><b>Method:</b> Karpathy-style guidelines (state assumptions, simplest thing, surgical diffs, verify Accept criteria with pasted evidence); one task per session/branch; results contradicting the paper are recorded, not tuned away.</li>
+    </ul>
+  </details>
+</div></div>
+
+</div><!-- /spine -->
+
+<!-- ============ BACKTEST ============ -->
+<h2>The evaluation backbone: 11 rolling windows <span class="tag">DESIGN</span></h2>
+<p class="lead">One window per test year k = 2015…2025 (2025 partial to the release cutoff). Train on labels ≤ Dec(k−2)
+(expanding from 2000), validate on year k−1 (<b>early stopping only</b>), test on year k. Splits stated on label months;
+masks enforce <span class="mono">period_ym &lt; cutoff</span>. Hyperparameters tuned <b>once</b> on k=2015 and frozen;
+pooled all-years NLL = every 2015–2025 test row predicted exactly once by a model that never saw it. Regime shifts
+(COVID 2020-21, the 2022-23 rate spike) become test-year effects, not a cutoff choice.</p>
+<div class="bt" id="btgrid"></div>
+<div class="legend">
+  <span><span class="sw" style="background:#c6dbef"></span>train (expanding)</span>
+  <span><span class="sw" style="background:#fdd9a0"></span>validation (k−1)</span>
+  <span><span class="sw" style="background:#f4a6a6"></span>test (year k)</span>
+  <span>★ = ensemble-of-8 window (2015 · 2019 · 2020 · 2023 · 2025)</span>
+</div>
+
+<!-- ============ MODEL LADDER + DEVIATIONS ============ -->
+<div class="grid2" style="margin-top:34px">
+  <div class="mini">
+    <h4>The model ladder (all share loss, data, eval path)</h4>
+    <ul>
+      <li><b>A — Empirical 4×7 matrix:</b> row-normalized counts, Laplace α=0.5; no covariates — the floor. (+ optional bucketed variant.)</li>
+      <li><b>B — Multinomial logit:</b> 0-hidden-layer net in PyTorch, one-hot categoricals, L2 on val; sklearn cross-checked. (+ optional augmented logit.)</li>
+      <li><b>C — Deep nets:</b> MLP on [standardized continuous ‖ embeddings]; depth {1,3,5,7}, paper widths (200, 140×4), ReLU, dropout/L2 grid, Adam + AMP, early stopping on val NLL.</li>
+      <li><b>D — Ensemble:</b> 8 independent nets, averaged probabilities, on the 5 key windows; NLL-vs-size curve (paper Fig 7).</li>
+      <li><b>Metrics:</b> out-of-sample mean NLL (per year + pooled + by origin state), one-vs-rest AUC per transition, reliability diagrams, predicted-vs-realized rate overlay.</li>
+    </ul>
+  </div>
+  <div class="mini">
+    <h4>Known deviations from Sirignano et al. (stated in the writeup)</h4>
+    <ul>
+      <li><b>Dataset:</b> public GSE prime conforming book vs CoreLogic private-label — lower base rates; nonlinearity <i>strength</i> is the open question.</li>
+      <li><b>States:</b> foreclosure/REO/prepaid terminal here → 4×7 matrix, not 7×7; all models share the origin set, so comparisons stay apples-to-apples.</li>
+      <li><b>Macro granularity:</b> national rates, state unemployment/HPI (vs zip/county) — channels present, local variation a stated limitation + future-work hook.</li>
+      <li><b>Period:</b> 2000–2025 (vs 1995–2014) — test regimes include COVID forbearance and the 2022-23 rate shock.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ WHAT'S LEFT ============ -->
+<h2>What remains</h2>
+<table>
+  <tr><th style="width:110px">Step</th><th>Work</th><th>Where</th></tr>
+  <tr><td class="mono">M10b</td><td>Full-scale depth 3-vs-5 re-check on k=2015, then the rolling loop: 11 × {logit, NN} + 5 × ensemble (~60 fits, tmux + per-window checkpoints)</td><td>GPU pod</td></tr>
+  <tr><td class="mono">M11 / M11b</td><td>Evaluation suite (Table B, AUC, calibration, overlay) + memos 2a/2b; thesis number-verification and placeholder swap for chapters 3–4</td><td>Mac</td></tr>
+  <tr><td class="mono">M12</td><td>Robustness: seeds, ranking stability, k=2019 sensitivity, width sweep → <b>Phase-2 gate</b> (backup + push)</td><td>Mac + pod</td></tr>
+  <tr><td class="mono">M13–M15</td><td>Roll-forward harness → pools + predicted-vs-realized → CPR/WAL/price translation + pool memo + final placeholder swap → <b>Phase-3 gate</b></td><td>Mac (+ pod for scoring)</td></tr>
+  <tr><td>Writeup</td><td>Chapter 4 completion, conclusions, appendices, final compile against MCF guidelines</td><td>Mac</td></tr>
+</table>
+
+<footer>
+  Generated 12 June 2026 from the repository's planning specs (<span class="mono">dev/pipeline_plan/</span>, <span class="mono">dev/model_plan/</span>),
+  the EDA memo (<span class="mono">writeup/memos/01_eda.md</span>), <span class="mono">PROMPTS.md</span> task records, the git history, and <span class="mono">writeup/latex/main.tex</span>.
+  Statuses reflect committed work as of that date; regenerate after each milestone gate.
+</footer>
+</main>
+
+<script>
+// rolling-window grid: years 2000..2025, windows k=2015..2025
+(function(){
+  const g = document.getElementById('btgrid');
+  const Y0 = 2000, Y1 = 2025;
+  const star = new Set([2015,2019,2020,2023,2025]);
+  let html = '<div class="lbl"></div>';
+  for(let y=Y0;y<=Y1;y++) html += `<div class="yr">${(y%5===0||y===Y1)?"'"+String(y).slice(2):''}</div>`;
+  for(let k=2015;k<=2025;k++){
+    html += `<div class="lbl">k=${k}${star.has(k)?' ★':''}</div>`;
+    for(let y=Y0;y<=Y1;y++){
+      let c='no';
+      if(y<=k-2) c='tr'; else if(y===k-1) c='va'; else if(y===k) c='te';
+      html += `<div class="${c}"></div>`;
+    }
+  }
+  g.innerHTML = html;
+})();
+</script>
+</body>
+</html>
