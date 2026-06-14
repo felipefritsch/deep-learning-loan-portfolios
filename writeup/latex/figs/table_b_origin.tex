@@ -1,0 +1,13 @@
+% Source: outputs/tables/loan_level/table_b.* (pooled NLL by origin state, all 11
+% windows, 84.5 M test rows). Ensemble omitted: it exists only on the five key
+% windows, so a pooled-all-years ensemble column would mix row coverage.
+\begin{tabular}{lrrrr}
+\toprule
+Origin state & $n$ (rows) & Empirical & Logit & Best NN \\
+\midrule
+Current   & 82{,}817{,}018 & 0.094731 & 0.091067 & 0.085066 \\
+30\,DPD   &    788{,}362 & 1.117058 & 1.147346 & 1.090599 \\
+60\,DPD   &    220{,}753 & 1.360988 & 1.387931 & 1.335079 \\
+90+\,DPD  &    686{,}244 & 0.575219 & 0.576468 & 0.547682 \\
+\bottomrule
+\end{tabular}

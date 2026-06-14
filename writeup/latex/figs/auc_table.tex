@@ -1,0 +1,29 @@
+% Source: outputs/tables/loan_level/auc.* -- ALL ELEVEN WINDOWS pooled
+% (84.5 M test rows), logit vs network. This is the pooled all-years comparison and
+% is therefore restricted to the two models that exist on every window. The 8-net
+% ensemble (five key windows only) is compared to the network on its matched windows
+% in the text. Tabular-only; caption+label in chapter4.tex.
+\begin{tabular}{llrrr}
+\toprule
+Origin & Destination & $n_{+}$ & Logit & Network \\
+\midrule
+Current  & Current      & 81{,}466{,}577 & 0.6538 & 0.7225 \\
+Current  & 30\,DPD      &    438{,}665 & 0.7639 & 0.7684 \\
+Current  & Prepaid      &    908{,}017 & 0.6527 & 0.7484 \\
+30\,DPD  & Current      &    321{,}129 & 0.6098 & 0.6264 \\
+30\,DPD  & 30\,DPD      &    312{,}451 & 0.6152 & 0.6266 \\
+30\,DPD  & 60\,DPD      &    141{,}904 & 0.5320 & 0.5322 \\
+30\,DPD  & Prepaid      &     11{,}764 & 0.5899 & 0.6659 \\
+60\,DPD  & Current      &     33{,}750 & 0.5726 & 0.5883 \\
+60\,DPD  & 30\,DPD      &     30{,}105 & 0.5961 & 0.6034 \\
+60\,DPD  & 60\,DPD      &     66{,}512 & 0.5590 & 0.5614 \\
+60\,DPD  & 90+\,DPD     &     87{,}182 & 0.5481 & 0.5939 \\
+60\,DPD  & Prepaid      &      3{,}190 & 0.5559 & 0.6198 \\
+90+\,DPD & Current      &     56{,}883 & 0.5890 & 0.6021 \\
+90+\,DPD & 30\,DPD      &      7{,}482 & 0.5405 & 0.6294 \\
+90+\,DPD & 60\,DPD      &     10{,}519 & 0.5687 & 0.6630 \\
+90+\,DPD & 90+\,DPD     &    594{,}879 & 0.5465 & 0.5717 \\
+90+\,DPD & Foreclosure  &      4{,}257 & 0.4818 & 0.6233 \\
+90+\,DPD & Prepaid      &      8{,}747 & 0.5434 & 0.6257 \\
+\bottomrule
+\end{tabular}

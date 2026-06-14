@@ -1,0 +1,23 @@
+% Source: outputs/tables/eda/T1.2_covariate_summary_continuous.tex (full-panel
+% Stage-6 QA). Tabular-only; wrap in \resizebox in chapter3.tex. Caption+label there.
+\begin{tabular}{lrrrrrrrrrrl}
+\toprule
+column & null\_rate & mean & std & min & p01 & p25 & median & p75 & p99 & max & log\_flagged \\
+\midrule
+Original Interest Rate & 0 & 4.71882 & 1.32648 & 1.5 & 2.36602 & 3.62711 & 4.62688 & 5.75 & 7.85794 & 16.5 & False \\
+Current Interest Rate & 0.012707 & 4.68763 & 1.32523 & 0 & 2.28982 & 3.625 & 4.60188 & 5.75 & 7.83746 & 13.5 & False \\
+Original UPB & 0 & 199755 & 121639 & 1000 & 38809.4 & 109817 & 170562 & 262260 & 596156 & 2.326e+06 & True \\
+Current Actual UPB & 0 & 159715 & 124113 & 0 & 0 & 71875.9 & 134287 & 224204 & 564970 & 2.86e+06 & True \\
+Original Loan Term & 0 & 306.643 & 82.0617 & 36 & 120 & 202.959 & 360 & 360 & 360 & 360 & False \\
+Loan Age & 0.01272 & 46.8107 & 42.4782 & -3 & 0 & 15 & 34.9747 & 65.8525 & 188.817 & 322 & False \\
+Remaining Months to Maturity & 0.027474 & 252.795 & 97.4912 & 0 & 22.5446 & 167.472 & 294.279 & 335.84 & 359 & 480 & False \\
+Original Loan-to-Value (LTV) & 0 & 69.7447 & 17.8489 & 1 & 21.1656 & 59.0522 & 74.5451 & 80 & 97 & 105 & False \\
+Original Combined LTV (CLTV) & 0.003362 & 70.4277 & 17.9251 & 1 & 21.6837 & 59.7414 & 75 & 80 & 97 & 199 & False \\
+Debt-to-Income (DTI) & 0.014108 & 33.3364 & 11.2275 & 0 & 9.02377 & 25 & 33.6755 & 41.9385 & 60.056 & 64 & False \\
+fico\_orig & 0.002844 & 746.693 & 52.418 & 300 & 603.635 & 712.774 & 759.539 & 788.96 & 817.552 & 850 & False \\
+fico\_co & 0.515382 & 754.702 & 49.6835 & 300 & 611.863 & 725.849 & 768.606 & 793.443 & 818.68 & 850 & False \\
+Mortgage Insurance Percentage & 0.810875 & 24.1429 & 7.26184 & 0.12 & 6 & 22.29 & 25 & 30 & 35 & 50 & False \\
+Number of Borrowers & 0.000119 & 1.55013 & 0.514524 & 1 & 1 & 1 & 2 & 2 & 2 & 10 & False \\
+Number of Units & 0 & 1.03643 & 0.248099 & 1 & 1 & 1 & 1 & 1 & 2 & 4 & False \\
+\bottomrule
+\end{tabular}

@@ -1,0 +1,19 @@
+% Source: outputs/tables/loan_level/table_a.tex (k=2015 dev export).
+% Tabular-only; Unicode sanitized for OT1/pdfLaTeX. Caption+label in chapter4.tex.
+\begin{tabular}{lrr}
+\toprule
+Model & In-sample NLL & Out-of-sample NLL \\
+\midrule
+Empirical matrix & --- & 0.112661 \\
+Bucketed matrix & --- & 0.109247 \\
+Logit & 0.141395 & 0.109430 \\
+Augmented logit & --- & 0.108843 \\
+NN depth 1 (no reg) & 0.136005 & 0.103680 \\
+NN depth 3 (no reg) & 0.135114 & 0.104159 \\
+NN depth 5 (no reg) & 0.134329 & 0.104299 \\
+NN depth 7 (no reg) & 0.134434 & 0.104176 \\
+NN-5 + dropout 0.2 & 0.136880 & 0.104845 \\
+NN best single ($L{=}3$, dropout 0.2) & 0.133948 & 0.103187 \\
+Ensemble $\times 8$ ($L{=}3$, dropout 0.2) & 0.134417 & 0.102741 \\
+\bottomrule
+\end{tabular}

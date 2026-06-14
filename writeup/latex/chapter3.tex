@@ -438,15 +438,22 @@ delinquency states followed by elevated cure rates; no special
 treatment is applied, but results involving those years are read with
 this in mind.
 
-\figplaceholder{fig:transitionrates}{Monthly transition rates out of
-the Current state, 2000--2025: prepayment and entry into 30\,DPD
-(left axis), serious-delinquency terminations (right axis).  Vertical
-shading marks the 2008--11 crisis and the 2020--21 forbearance
-episode.}{outputs/figures/eda/F2.2\_transition\_rates.png}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.9\textwidth]{figs/F2.2_transition_rates.pdf}
+\caption[Monthly transition rates out of the Current state]{Monthly
+transition rates out of the Current state, 2000--2025: prepayment and
+entry into 30\,DPD (left axis), serious-delinquency terminations
+(right axis).  Vertical shading marks the 2008--11 crisis and the
+2020--21 forbearance episode.}\label{fig:transitionrates}
+\end{figure}
 
-\tabplaceholder{tab:covariate-summary}{Summary statistics of model
-covariates (mean, standard deviation, 1st/50th/99th percentiles,
-missingness rate) over the full panel.}{outputs/tables/eda/T1.2\_covariate\_summary.tex}
+\begin{table}[htbp]\centering\small
+\caption[Summary statistics of model covariates]{Summary statistics of
+the continuous model covariates over the full panel: null rate, mean,
+standard deviation, and the min/1st/25th/50th/75th/99th/max
+percentiles.}\label{tab:covariate-summary}
+\resizebox{\textwidth}{!}{\input{figs/T1.2_covariate_summary.tex}}
+\end{table}
 
 % ────────────────────────────────────────────────────────────
 \section{Exploratory Evidence: Nonlinearity and Interactions}
@@ -485,16 +492,26 @@ slope in the low-score half is roughly $3.7$ times that in the
 high-score half.  None of the three shapes is representable by a
 linear term.
 
-\figplaceholder{fig:hazard-age}{Empirical prepayment hazard by loan
-age (equal-population buckets, Wilson 95\% intervals): the seasoning
-hump.}{outputs/figures/eda/F3.1\_hazard\_age.png}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.8\textwidth]{figs/F3.1_prepay_age.pdf}
+\caption[Empirical prepayment hazard by loan age]{Empirical prepayment
+hazard by loan age (equal-population buckets, Wilson 95\% intervals):
+the seasoning hump.}\label{fig:hazard-age}
+\end{figure}
 
-\figplaceholder{fig:hazard-incentive}{Empirical prepayment hazard by
-refinancing incentive: the S-curve, with burnout beyond
-$+1.5$\,pp.}{outputs/figures/eda/F3.2\_hazard\_incentive.png}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.8\textwidth]{figs/F3.2_prepay_incentive.pdf}
+\caption[Empirical prepayment hazard by refinancing incentive]{Empirical
+prepayment hazard by refinancing incentive: the S-curve, with burnout
+beyond $+1.5$\,pp.}\label{fig:hazard-incentive}
+\end{figure}
 
-\figplaceholder{fig:hazard-fico}{Empirical 30\,DPD entry hazard by
-origination credit score: convex decay.}{outputs/figures/eda/F3.3\_hazard\_fico.png}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.8\textwidth]{figs/F3.3_delinq_fico.pdf}
+\caption[Empirical 30\,DPD entry hazard by origination credit
+score]{Empirical 30\,DPD entry hazard by origination credit score:
+convex decay.}\label{fig:hazard-fico}
+\end{figure}
 
 \subsection{Interactions: the case against additivity}
 \label{subsec:data-eda-interactions}
@@ -526,18 +543,28 @@ for calm cohorts --- a $3.6$-fold premium
 feature in its own right, not reducible to contemporaneous
 covariates.
 
-\figplaceholder{fig:interaction-ficoltv}{Monthly delinquency-entry
-rate on a credit-score $\times$ LTV grid (equal-population bands):
-the additive credit-score gradient grows with leverage ---
-additivity is misspecified.}{outputs/figures/eda/F3.4\_fico\_ltv.png}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.78\textwidth]{figs/F3.4_fico_ltv_heatmap.pdf}
+\caption[Monthly delinquency-entry rate on a credit-score $\times$ LTV
+grid]{Monthly delinquency-entry rate on a credit-score $\times$ LTV grid
+(equal-population bands): the additive credit-score gradient grows with
+leverage --- additivity is misspecified.}\label{fig:interaction-ficoltv}
+\end{figure}
 
-\figplaceholder{fig:interaction-incfico}{The incentive S-curve by
-credit-score tercile: the refinancing response to an in-the-money
-option rises with credit quality.}{outputs/figures/eda/F3.5\_incentive\_fico.png}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.8\textwidth]{figs/F3.5_incentive_fico.pdf}
+\caption[The incentive S-curve by credit-score tercile]{The incentive
+S-curve by credit-score tercile: the refinancing response to an
+in-the-money option rises with credit
+quality.}\label{fig:interaction-incfico}
+\end{figure}
 
-\figplaceholder{fig:vintage}{Delinquency hazard by origination
-cohort at fixed loan age (12--36 months): the 2006--08 bubble
-vintages.}{outputs/figures/eda/F3.6\_vintage.png}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.8\textwidth]{figs/F3.6_vintage.pdf}
+\caption[Delinquency hazard by origination cohort at fixed loan
+age]{Delinquency hazard by origination cohort at fixed loan age
+(12--36 months): the 2006--08 bubble vintages.}\label{fig:vintage}
+\end{figure}
 
 Taken together, the evidence points one way: monthly transition risk
 depends on the covariates nonlinearly (the seasoning hump, the

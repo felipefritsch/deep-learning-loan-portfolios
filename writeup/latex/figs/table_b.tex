@@ -1,0 +1,25 @@
+% Source: outputs/tables/loan_level/table_b.tex (full export, frozen test slices).
+% Tabular-only; Unicode sanitized. The pooled column is restricted to the models
+% that exist on all eleven windows (empirical, logit, network): the 8-net ensemble
+% was fit only on the five key windows, so a pooled-all-years ensemble figure would
+% mix incomparable row coverage and is shown ``---''. The ensemble is compared to
+% the network per window in the five key-year rows above. Caption+label in chapter4.tex.
+\begin{tabular}{lrrrr}
+\toprule
+Test year & Empirical matrix & Logit & Best NN & Ensemble $\times 8$ \\
+\midrule
+2015 & 0.112870 & 0.108246 & 0.103125 & 0.102662 \\
+2016 & 0.119296 & 0.116390 & 0.109378 & --- \\
+2017 & 0.108116 & 0.105750 & 0.097431 & --- \\
+2018 & 0.099608 & 0.098172 & 0.088404 & --- \\
+2019 & 0.109673 & 0.106352 & 0.100600 & 0.100479 \\
+2020 & 0.193580 & 0.191949 & 0.184869 & 0.183414 \\
+2021 & 0.153786 & 0.149628 & 0.141729 & --- \\
+2022 & 0.093759 & 0.090422 & 0.085874 & --- \\
+2023 & 0.079130 & 0.074943 & 0.069296 & 0.069318 \\
+2024 & 0.082829 & 0.079053 & 0.072203 & --- \\
+2025 & 0.085575 & 0.082164 & 0.075157 & 0.075095 \\
+\midrule
+\textbf{Pooled (11 windows)} & 0.111477 & 0.108249 & 0.101468 & --- \\
+\bottomrule
+\end{tabular}

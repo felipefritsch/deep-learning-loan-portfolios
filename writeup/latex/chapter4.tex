@@ -1,11 +1,11 @@
 % ============================================================
 %  Chapter 4 — Results
-%  Status (June 2026): §4.1 carries real numbers from the tuning-window
-%  work (tasks M7–M9) and the full-scale preliminaries of M10b.
-%  §4.2 and §4.3 are structured but PENDING the rolling loop (M10b),
-%  the evaluation suite (M11), and Phase 3 (M13–M15).
-%  Numbers quoted here trace to run folders under models/ on the data
-%  drive; swap in the generated table artifacts where marked.
+%  Status (M11b, June 2026): §4.1 (tuning window, tasks M7–M9 + M10b
+%  depth check) and §4.2 (rolling backtest + evaluation suite, M10b–M11)
+%  carry real numbers and real artifacts from outputs/. §4.3 remains
+%  structured but PENDING Phase 3 (tasks M13–M15); its four placeholders
+%  are intentionally left. All numbers/tables/figures here trace to
+%  outputs/{tables,figures}/loan_level and models/ on the data drive.
 % ============================================================
 
 \chapter{Results}
@@ -24,15 +24,21 @@ the $k{=}2015$ tuning window (training on labels through December
 2013, early stopping and selection on validation year 2014), and
 frozen thereafter.  The search covered depth
 $L\in\{1,3,5,7\}$ $\times$ dropout $\{0, 0.2, 0.5\}$ at zero weight
-decay, plus an $\ell_2$ sweep at the leading configuration --- a
+decay, plus an $\ell_2$ sweep at the five-layer anchor --- a
 pruned grid of 14 cells anchored at the five-layer geometry of
 \citet{sirignano2021}.
 
-\tabplaceholder{tab:tablea}{Tuning-window comparison (the analogue of
-Table 11 in \citealp{sirignano2021}): in- and out-of-sample NLL for
-the empirical matrix, bucketed matrix, multinomial logit, augmented
-logit, neural networks of depth 1/3/5/7, the selected configuration
-with dropout, and the eight-network ensemble.}{outputs/tables/loan\_level/table\_a.tex}
+\begin{table}[htbp]\centering\small
+\caption[Tuning-window architecture comparison (analogue of
+\citealp{sirignano2021} Table 11)]{Tuning-window comparison (the
+analogue of Table 11 in \citealp{sirignano2021}): in- and
+out-of-sample NLL on the $k{=}2015$ window (dev export) for the
+empirical matrix, bucketed matrix, multinomial logit, augmented logit,
+neural networks of depth 1/3/5/7, the selected configuration with
+dropout, and the eight-network ensemble.  Frequency benchmarks and the
+augmented logit carry no in-sample column.}\label{tab:tablea}
+\input{figs/table_a.tex}
+\end{table}
 
 Three findings from the grid, at dev scale (a stratified
 $\sim$3.15-million-row training slice of the window):
@@ -59,9 +65,12 @@ $\sim$3.15-million-row training slice of the window):
   (Figure~\ref{fig:ensemblecurve}).
 \end{itemize}
 
-\figplaceholder{fig:ensemblecurve}{Out-of-sample NLL versus number of
-ensemble members, tuning window (the analogue of Figure 7 in
-\citealp{sirignano2021}).}{outputs/figures/loan\_level/ensemble\_size\_curve.png}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.8\textwidth]{figs/F_ensemble_size_curve.pdf}
+\caption[Out-of-sample NLL versus ensemble size, tuning window]{Out-of-sample
+NLL versus number of ensemble members, tuning window (the analogue of
+Figure 7 in \citealp{sirignano2021}).}\label{fig:ensemblecurve}
+\end{figure}
 
 The multinomial logit baseline was validated against a standard
 library implementation (agreement in NLL to within $10^{-3}$ across
@@ -72,11 +81,12 @@ architecture alone.
 
 \paragraph{Full-scale depth check.}  Because the grid above was run
 at dev scale, the depth choice was re-examined at full scale
-($\sim$10$^8$ training rows) before the rolling loop was launched:
-depth 3 and depth 5 were re-fitted on the full tuning window (with
-and without the $\ell_2$ rescue).  Depth 3 won robustly, and the
-frozen configuration for the loop is depth 3, dropout $0.2$, weight
-decay $10^{-5}$.  This is a substantive deviation from
+($\sim$33.5 million training rows, $10.6\times$ the dev slice) before
+the rolling loop was launched: depth 3 and depth 5 were re-fitted on
+the full tuning window (with and without the $\ell_2$ rescue).  Depth
+3 won robustly on validation (its best validation NLL $0.09572$
+against depth 5's $0.09591$), and the frozen configuration for the
+loop is depth 3, dropout $0.2$, weight decay $10^{-5}$.  This is a substantive deviation from
 \citet{sirignano2021}, whose optimum at population scale was five
 layers: on the prime conforming credit box, the optimal network is
 \emph{shallower} --- the nonlinearity premium documented in
@@ -88,39 +98,126 @@ subprime-heavy private-label data.
 \section{The rolling backtest, 2015--2025}
 \label{sec:results-rolling}
 
-\pendingnote{This section is populated by the rolling loop and
-evaluation suite (tasks M10b--M11), which at the time of writing are
-running.  Structure below; numbers to follow.}
+The frozen configuration of Section~\ref{sec:results-tuning} --- depth
+3, dropout $0.2$, weight decay $10^{-5}$ --- is refitted from scratch
+on each of the eleven rolling windows (per-window scaler, embedding
+vocabulary, and rate incentive; early stopping on that window's
+validation year), alongside a per-window multinomial logit and, on the
+five regime-spanning key windows $\{2015, 2019, 2020, 2023, 2025\}$,
+an eight-network ensemble.  Every model is scored on the same frozen,
+unthinned test slice for its window, so each of the 84.5\,million
+pooled test rows is predicted exactly once by a model that never saw
+it.
 
-The headline exhibit is the test-year~$\times$~model NLL matrix ---
-empirical matrix, multinomial logit, the frozen network, and (on the
-five key windows) the ensemble, for each test year 2015 through 2025
---- together with the pooled all-years NLL, in which every test row
-is predicted exactly once by a model that never saw it.
+Table~\ref{tab:tableb} is the headline exhibit: out-of-sample NLL by
+test year, with the pooled all-years comparison and the by-origin-state
+breakdown beneath.  \textbf{The network beats the logit in every one of
+the eleven test years} --- calm years, the 2020 COVID forbearance
+spike, and the 2022--23 rate shock alike
+(Figure~\ref{fig:nllbyyear}).  Pooled over all 84.5\,million test rows,
+NLL falls from the $0.111477$ covariate-free empirical floor to
+$0.108249$ for the logit and $0.101468$ for the network: the logit
+recovers only $2.9\%$ of the distance below the floor while the network
+recovers $9.0\%$, so the nonlinearity supplies roughly two-thirds of
+the achievable improvement.  The 2020 window is by far the hardest for
+every model (NLL ${\approx}\,0.18$--$0.19$, about twice the calm-year
+level), reflecting the forbearance-driven distribution shift in the
+delinquency codes; the network's relative edge over the logit
+nonetheless holds there too.
 
-\tabplaceholder{tab:tableb}{Out-of-sample NLL by test year and model,
-2015--2025, with the pooled all-years comparison; by-origin-state
-breakdown beneath.}{outputs/tables/loan\_level/table\_b.tex}
+Because the ensemble was fit only on the five key windows, it is
+\emph{not} pooled into the all-years figure --- doing so would compare
+it against the logit and network on a different, COVID-weighted set of
+rows.  It is read against the network per window instead, in the five
+key-year rows of Table~\ref{tab:tableb}: the ensemble's test NLL is at
+or below the deployed single network in four of the five (2015, 2019,
+2020, 2025) and ties within seed noise on 2023
+($+2.2\times10^{-5}$) --- the small variance-reduction effect of
+\citeauthor{sirignano2021}'s Figure 7, muted on this cleaner credit
+box.
 
-\figplaceholder{fig:nllbyyear}{Out-of-sample NLL by test year, one
-line per model: the time series of the value of
-nonlinearity.}{outputs/figures/loan\_level/nll\_by\_year.png}
+\begin{table}[htbp]\centering\small
+\caption[Rolling out-of-sample NLL by test year and origin
+state]{Out-of-sample NLL by test year and model, 2015--2025 (top),
+with the pooled all-years comparison, and the pooled-NLL breakdown by
+origin state (bottom).  Pooled figures are over all eleven windows
+(84.5\,M test rows); the eight-network ensemble was fit only on the
+five key windows and is therefore reported per year, not pooled --- a
+pooled-all-years ensemble figure would mix incomparable row
+coverage.}\label{tab:tableb}
+\input{figs/table_b.tex}
 
-\tabplaceholder{tab:auc}{One-versus-rest AUC by origin and
-destination state, pooled test predictions: logit versus network
-versus ensemble.}{outputs/tables/loan\_level/auc\_table.tex}
+\vspace{1.5ex}
+\input{figs/table_b_origin.tex}
+\end{table}
 
-\figplaceholder{fig:calibration}{Reliability diagrams for the
-Current$\to$Prepaid and Current$\to$30\,DPD transitions, pooled and
-for the 2020--21 forbearance years separately; predicted versus
-realised aggregate transition rates over
-2015--2025.}{outputs/figures/loan\_level/calibration.png}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.85\textwidth]{figs/F_tableB_nll_by_year.pdf}
+\caption[Out-of-sample NLL by test year, one line per model]{Out-of-sample
+NLL by test year, one line per model: the time series of the value of
+nonlinearity.  The ensemble line is drawn only on the five key
+windows.}\label{fig:nllbyyear}
+\end{figure}
 
-Robustness exhibits (task M12): seed variance of the selected network
-against the network--logit gap; stability of the model ranking across
-the eleven test years (notably through 2020--21 and 2022--23);
-re-tuning sensitivity on the $k{=}2019$ window; and the width sweep
-at the selected configuration (Appendix~\ref{app:supplementary}).
+The discrimination gain concentrates exactly where the exploratory
+evidence of Section~\ref{sec:data-eda} located the nonlinearity.
+Table~\ref{tab:auc} reports one-versus-rest AUC by origin and
+destination, pooled over all eleven windows for the two models that
+span them.  The network's largest edges are in the prepayment channel
+(Current$\to$Prepaid AUC $0.653 \to 0.748$), which combines the
+sharpest single-variable nonlinearity with a first-order interaction
+with credit, and in the deep-delinquency transitions the logit cannot
+even rank (90+\,DPD$\to$Foreclosure $0.482 \to 0.623$, from below
+chance to a genuine ranker).  On the five key windows the ensemble's
+AUC is at or above the single network's in nearly every cell,
+consistent with its marginal NLL gain.
+
+\begin{table}[htbp]\centering\small
+\caption[One-versus-rest AUC by transition, all eleven windows
+pooled]{One-versus-rest AUC by origin and destination state, pooled
+over all eleven windows of test predictions (84.5\,M rows): logit
+versus network.  Restricted to the two models fit on every window; the
+ensemble (five key windows only) is discussed in the
+text.}\label{tab:auc}
+\input{figs/auc_table.tex}
+\end{table}
+
+The aggregate fit is examined two ways.
+Figure~\ref{fig:calibration} gives reliability diagrams for the two
+dominant Current transitions, pooled and split out for the 2020--21
+forbearance years: the network tracks the diagonal markedly better than
+the logit, whose miscalibration is worst in the high-hazard upper bins
+(the burned-out, deep-in-the-money tail of the prepayment S-curve).
+Both models degrade under the 2020--21 shift, but the network remains
+the better-calibrated of the two.  Figure~\ref{fig:rateoverlay}
+overlays predicted and realised \emph{monthly aggregate} transition
+rates over 2015--2025: the network reproduces the level and the timing
+of the prepayment waves and the 2022--23 collapse, with the realised
+2020 delinquency spike the one place the aggregate prediction lags ---
+the expected forbearance-shock miss.
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.49\textwidth]{figs/F_calibration_current_to_prepaid.pdf}\hfill
+\includegraphics[width=0.49\textwidth]{figs/F_calibration_current_to_dpd_30.pdf}
+\caption[Reliability diagrams, Current transitions]{Reliability
+diagrams for the Current$\to$Prepaid (left) and Current$\to$30\,DPD
+(right) transitions, pooled and for the 2020--21 forbearance years
+separately: the network is the better-calibrated of the two
+models.}\label{fig:calibration}
+\end{figure}
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.85\textwidth]{figs/F_rate_overlay.pdf}
+\caption[Predicted versus realised aggregate transition rates]{Predicted
+versus realised monthly aggregate Current$\to$Prepaid and
+Current$\to$30\,DPD transition rates, 2015--2025.}\label{fig:rateoverlay}
+\end{figure}
+
+Robustness exhibits: seed variance of the selected network against the
+network--logit gap; stability of the model ranking across the eleven
+test years (notably through 2020--21 and 2022--23); re-tuning
+sensitivity on the $k{=}2019$ window; and the width sweep at the
+selected configuration (Appendix~\ref{app:supplementary}).
 
 \section{Pool-level results and economic translation}
 \label{sec:results-pool}
