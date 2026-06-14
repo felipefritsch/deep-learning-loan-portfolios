@@ -133,6 +133,8 @@ Read dev/model_plan/04_TASKS.md and dev/model_plan/02_LOAN_LEVEL.md. Tasks throu
 
 ```
 Read dev/model_plan/04_TASKS.md (task M11b). Tasks through M11 are complete and committed, and models/ + outputs/ are synced back to the SSD. Execute M11b only: (1) verify every number quoted in writeup/latex/chapter4.tex §4.1 against the run-folder metrics.json and table_a artifacts, correcting any discrepancy and reporting the diff; (2) copy the EDA and loan-level figure/table artifacts from outputs/ into writeup/latex/figs/ and replace the corresponding \figplaceholder/\tabplaceholder blocks in chapters 3–4 with real \includegraphics/\input (leave the Phase-3 placeholders). Recompile main.tex with latexmk and verify zero undefined references. Commit M11b. The SSD is mounted.
+
+Additionally, in §4.2 (the rolling backtest): the eight-network ensemble was fit only on the 5 key windows (2015/2019/2020/2023/2025), not all 11. So do NOT report a pooled all-years ensemble figure alongside the pooled network/logit numbers — that pools incomparable row coverage. Present the ensemble-vs-network comparison per-window on the windows where the ensemble exists (or pooled over exactly those matched 5 windows), while the pooled all-years comparison stays restricted to logit vs the single network, which exist on all 11. Adjust the Table B and AUC-table captions/text accordingly if they currently imply a pooled ensemble number.
 ```
 
 ### M12 — Phase-2 gate ✅
