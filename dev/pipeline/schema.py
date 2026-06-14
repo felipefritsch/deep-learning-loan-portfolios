@@ -1,4 +1,4 @@
-"""Schema, dtypes, code maps and the Sirignano seven-state target.
+"""Schema, dtypes, code maps and the seven-state target.
 
 Single source of truth in code for the positional 113-column Fannie Mae
 loan-performance layout (see ``dev/pipeline_plan/01_SCHEMA.md``). The CSVs have
