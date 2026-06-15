@@ -84,13 +84,16 @@ Characteristic-bucket **prepaid** R² (the interpretable cross-pool metric):
 | Dec2024 | −1.455 | 0.651 | **0.939** |
 
 - The **value of nonlinearity is regime-conditional** (the `§6` exhibit): the ensemble cuts
-  characteristic-bucket prepay RMSE vs logit by **+58% (k=2025)**, **+27% (k=2019)**, **+23%
-  (k=2023)** — but at the **COVID anchor (Dec2019) it is *worse* than the covariate-free
-  empirical floor** (R² 0.449 vs 0.647; random-pool prepay RMSE +9% vs logit). The cause is the
+  characteristic-bucket prepay RMSE vs logit by **+58% (Dec2024)**, **+27% (Dec2018)**, **+23%
+  (Dec2022)** — but at the **COVID anchor (Dec2019) it is *worse* than the covariate-free
+  empirical floor** (R² 0.449 vs 0.647; characteristic-bucket prepay RMSE +9% vs logit and +25%
+  vs the empirical floor — random-pool RMSE +4% vs logit). The cause is the
   frozen-t0 macro assumption (`§3`): predictions are made at Dec-2019 incentives, blind to the
   March-2020 rate collapse, so the loan-level refi nonlinearity fires on the *wrong* signal and
   the broad refi wave is best tracked by the flat historical average. This is the headline
-  caveat for the M15 memo, not a bug.
+  caveat for the M15 memo, not a bug. (Fuller two-regime / shock-type framing — forbearance
+  shock 2020 vs rate/prepay-incentive shock 2022–24 — and the §4.3 write-up feed:
+  `writeup/memos/02c_robustness_caveats.md §4`.)
 - **60+ dpd** counts are harder for all models (smaller event base); the ensemble is the only
   model with a positive characteristic-bucket R² at Dec2022 (0.635) and Dec2024 (0.261).
 
