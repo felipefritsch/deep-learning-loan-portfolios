@@ -1,0 +1,29 @@
+% Source: outputs/tables/pool_level/t_m15_econ_errors.json (M15b).
+% Characteristic-bucket panel. Each model cell is the mean |error| over the bucket pools;
+% errors = model-implied minus realized-SMM valuation through the same level-pay engine
+% (identical WAC/WAM/UPB, WAC-25bp curve, so price dispersion isolates the prepay model).
+% Last column = ensemble-vs-logit reduction in that row's mean |error| (the price row is the
+% headline). Reported per anchor, never pooled (the Dec2019 COVID anchor inverts). Caption in chapter4.tex.
+\begin{tabular}{llrrrr}
+\toprule
+Metric & Anchor & Empirical & Logit & Ensemble & Ens.\,vs\,Logit \\
+\midrule
+\multirow{5}{*}{\shortstack[l]{Price error\\(per 100 face)}} & Dec2014 & 0.228 & 0.148 & 0.121 & $+18\%$ \\
+ & Dec2018 & 0.205 & 0.560 & 0.418 & $+25\%$ \\
+ & Dec2019 & 0.552 & 0.583 & 0.587 & $-1\%$ \\
+ & Dec2022 & 1.068 & 0.254 & 0.176 & $+31\%$ \\
+ & Dec2024 & 0.657 & 0.233 & 0.122 & $+48\%$ \\
+\midrule
+\multirow{5}{*}{\shortstack[l]{CPR error\\(pp)}} & Dec2014 & 4.30 & 2.34 & 3.28 & $-40\%$ \\
+ & Dec2018 & 3.14 & 6.28 & 4.79 & $+24\%$ \\
+ & Dec2019 & 17.08 & 16.69 & 17.41 & $-4\%$ \\
+ & Dec2022 & 11.80 & 2.69 & 1.56 & $+42\%$ \\
+ & Dec2024 & 9.30 & 2.02 & 0.50 & $+75\%$ \\
+\midrule
+\multirow{5}{*}{\shortstack[l]{WAL error\\(months)}} & Dec2014 & 14.8 & 10.1 & 8.1 & $+20\%$ \\
+ & Dec2018 & 13.3 & 38.5 & 28.5 & $+26\%$ \\
+ & Dec2019 & 34.0 & 35.7 & 35.8 & $0\%$ \\
+ & Dec2022 & 72.0 & 18.9 & 12.9 & $+32\%$ \\
+ & Dec2024 & 42.6 & 16.2 & 9.3 & $+43\%$ \\
+\bottomrule
+\end{tabular}

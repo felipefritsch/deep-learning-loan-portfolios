@@ -1,0 +1,24 @@
+% Source: outputs/tables/pool_level/t_m14_pool_counts.json (M14, full run).
+% Characteristic-bucket panel (FICO x orig-rate-quartile x LTV, >=2000 loans/cell): the
+% interpretable cross-pool metric. Random-pool R^2 is uninformative by construction
+% (homogeneous ~1000-loan draws) and is discussed in text, not tabulated. For the rare
+% 60+ DPD outcome read RMSE, not R^2 (>=~16 buckets makes R^2 unstable). Caption in chapter4.tex.
+\begin{tabular}{llrrrrrr}
+\toprule
+ & & \multicolumn{3}{c}{$R^2$} & \multicolumn{3}{c}{RMSE (loans)} \\
+\cmidrule(lr){3-5}\cmidrule(lr){6-8}
+Outcome & Anchor & Emp. & Logit & Ens. & Emp. & Logit & Ens. \\
+\midrule
+\multirow{5}{*}{Prepaid} & Dec2014 & 0.575 & 0.980 & 0.981 & 1517 & 328 & 320 \\
+ & Dec2018 & 0.744 & 0.607 & 0.791 & 1118 & 1387 & 1011 \\
+ & Dec2019 & 0.647 & 0.537 & 0.449 & 3054 & 3500 & 3817 \\
+ & Dec2022 & -4.616 & 0.742 & 0.848 & 3303 & 708 & 542 \\
+ & Dec2024 & -1.455 & 0.651 & 0.939 & 2627 & 991 & 415 \\
+\midrule
+\multirow{5}{*}{60+ DPD} & Dec2014 & -4.525 & -0.782 & 0.299 & 449 & 255 & 160 \\
+ & Dec2018 & -8.699 & -1.230 & -0.390 & 423 & 203 & 160 \\
+ & Dec2019 & -0.165 & -0.467 & -0.464 & 591 & 663 & 663 \\
+ & Dec2022 & -17.181 & -0.155 & 0.635 & 514 & 129 & 73 \\
+ & Dec2024 & -16.461 & -0.063 & 0.261 & 471 & 116 & 97 \\
+\bottomrule
+\end{tabular}
