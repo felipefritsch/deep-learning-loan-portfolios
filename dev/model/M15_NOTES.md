@@ -47,8 +47,9 @@ the SMM path).
 
 **Run:** `nohup caffeinate -i .venv/bin/python -u dev/model/smm_paths.py --models
 empirical,ensemble --device cpu` (CPU background; ~20 min, 5 anchors), log
-`logs/m15/smm_paths.log`. Models scored: **empirical + ensemble + realized** (logit pending — see
-below).
+`logs/m15/smm_paths.log`. Models scored: **empirical + ensemble + realized** in the first pass;
+**logit merged later** from the recovered M14 checkpoints (`--add-logit`, see below) — all four
+models now present.
 
 **Sanity — mean CPR by anchor (random pools), model vs realized** (the regime story of M14, now
 in prepayment-speed units):
@@ -79,18 +80,27 @@ fit k=2015 first, validate its 12-month random-pool counts against the committed
 ≤1e-3 prepaid rel-RMSE; only if it passes does it fit the other 4 windows and **merge** logit's SMM
 path; if k=2015 misses, STOP for a GPU-pod fallback.
 
-**Outcome — gate FAILED → use the GPU pod (`logit/full/refit_gate_k2015.json`).** The streaming
-re-fit's *val NLL* matched M14 (k=2015 selected wd=1e-5, val 0.099951 vs M14's 0.09981) but its
-**12-month pool counts diverged 5.7%** (prepaid rel-RMSE 5.72e-2, max|Δ| 8.7 on a ~120 count;
-dpd60p 15.9%) — far over the 1e-3 bar. Diagnosis: the logit is early-stopped (≈4–5 epochs, not run
-to the unique optimum), and the weighted-CE loss is dominated by the `current→current` mass, so it
-is **insensitive to the small prepayment-hazard tail** that the 12-month pool prepaid count is made
-of. Streaming shard-shuffle batch order ≠ M14's resident global-shuffle → a different early-stop
-point → matching NLL but a 5.7%-different prepay hazard. Local streaming therefore **cannot**
-reproduce M14's specific early-stopped logit; the faithful path is the standard
-`backtest.fit_logit` on a GPU pod (exact resident protocol). k=2015's recomputed checkpoint is left
-in `logit/full/k2015/` (idempotent) but is **not** trusted/merged. Logit SMM merge + the
-ensemble-vs-logit headline move to **M15b** once faithful logit checkpoints exist.
+**RESOLVED — the original M14 logit/full checkpoints were recovered (no re-fit needed).** They
+were never lost, just never synced off the pod's persistent volume; all 11 windows were rsync'd to
+`models/logit/full/` (k2015 val_nll 0.09981142 — bit-matches the committed `backtest_summary.json`;
+seed 0; variant full). The Block-D gate (recovered logit's 12-month random-pool counts vs the
+committed `pools_random_k*.parquet` `logit_*_pred`) **PASSES at all 5 anchors to ~1e-8** (prepaid
+rel-RMSE 1.9e-8–1.2e-7, max|Δ| rounds to 0.0000; ~5 orders of magnitude inside the 1e-3 bar) — i.e.
+the recovered checkpoints reproduce M14 to re-scoring float noise. Logit's SMM path was then merged
+into `smm_paths_k*.parquet` (`smm_paths --add-logit`); **all four models — empirical / logit /
+ensemble / realized — are now present and row-aligned** (verified: identical pool sets + identical
+per-pool WAC/WAM/UPB across models; SMM ∈ [0,1]) at every key anchor. Logit CPR by anchor: Dec2014
+12.2%, Dec2018 7.2%, Dec2019 15.6% (vs realized 33.0% — same frozen-macro COVID miss), Dec2022 4.5%
+(vs realized 4.0%), Dec2024 5.3% (vs realized 6.0%).
+
+*Dead-end recorded for posterity:* the memory-safe streaming re-fit (`refit_logit.py`) reproduced
+M14's k=2015 **val NLL** (0.099951 vs 0.09981) but its 12-month pool counts diverged **5.7%**
+(`logit/full/refit_gate_k2015.json`) — because the logit is early-stopped and weighted-CE is
+dominated by `current→current`, so it is insensitive to the small prepay-hazard tail the pool count
+is built from; streaming's batch order ≠ M14's resident global-shuffle → matching NLL, different
+early-stop point. The recovery made this moot, and it's a clean illustration that *matching loss ≠
+matching the tail an economic exhibit depends on*. The ensemble-vs-logit T5.1/F5.2 headline is
+**M15b** (now unblocked — all four SMM paths exist).
 
 ## Side-fix — Python 3.9 import compatibility
 
@@ -103,5 +113,6 @@ numerics. `table_a.py` has the same construct but is not in the M15 import chain
 - Code: `pool.py` (`cashflow_engine` + `roll_forward(capture_smm/which)`), `smm_paths.py`,
   `refit_logit.py`, `test_pool.py` (+5 engine tests), `evaluate.py` (3.9 fix).
 - Outputs (SSD): `outputs/tables/pool_level/smm_paths_k{2015,2019,2020,2023,2025}.parquet`
-  (empirical/ensemble/realized; logit merged in M15b), `models/nn/full/smm_paths_summary.json`,
-  `logs/m15/smm_paths.log`.
+  (**all 4 models**: empirical/logit/ensemble/realized, row-aligned), `models/nn/full/`
+  `smm_paths_summary.json` + `smm_paths_summary_merge_logit.json`, `logs/m15/{smm_paths,
+  logit_gate,logit_merge}.log`. Recovered logit checkpoints: `models/logit/full/k*/`.
