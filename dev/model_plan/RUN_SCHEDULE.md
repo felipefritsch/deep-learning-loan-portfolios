@@ -39,9 +39,9 @@ Only the GPU scoring runs tonight (Mac-side realized counts wait for tomorrow). 
 tmux ls && nvidia-smi
 ```
 
-Want: a session listed (or a python proc under `nvidia-smi`) and GPU-Util above idle. Then **leave the pod running overnight** (there's a live job on it) and sleep. Disconnect-safe.
+**The gate before bed (do not skip):** do *not* sleep until `nvidia-smi` shows **GPU-Util above idle and power draw climbing** (e.g. the M12 night: 13% util, 86W vs 22W idle). That live reading — not "I pasted the prompt" — is the proof the batch is actually running. A fake launch means you wake to nothing done *and* a pod that ran idle all night. Once you see the GPU working, **leave the pod up overnight** (there's a live job on it) and sleep. Disconnect-safe; you wake to finished scoring.
 
-> **Too tired after M13?** Don't pay for an idle pod. Either launch M14 now (5 min) and let it work overnight, or **terminate the pod after M13** and run M14 GPU half first thing tomorrow on a fresh pod (15 min redeploy — schedule below). Don't leave it idling unused.
+> Fallback only if M13 runs so late you can't trust the launch check: **terminate the pod** instead and run M14 on a fresh pod tomorrow (15 min redeploy — step 4). Never leave an unlaunched pod idling.
 
 ---
 
