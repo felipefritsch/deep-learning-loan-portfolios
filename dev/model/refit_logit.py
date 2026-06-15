@@ -177,7 +177,11 @@ def validate_k2015(device) -> dict:
 
     out = {}
     for outcome in ("prepaid", "dpd60p"):
-        pred = PP.pool_counts_random(df, idx, "logit", outcome)["pred"]
+        # predicted count per pool = Σ_i p_i over members (the parquet stores M14's logit pred);
+        # compute directly — pools.pool_counts_random also wants realized_* columns this table
+        # doesn't carry, and the realized side is model-free so it's irrelevant to this check.
+        p = df.get_column(f"logit_{outcome}_12m").to_numpy()
+        pred = p[idx].sum(axis=1)
         refc = ref.get_column(f"logit_{outcome}_pred").to_numpy()
         resid = pred - refc
         rel_rmse = float(np.sqrt(np.mean(resid ** 2)) / np.mean(np.abs(refc)))
