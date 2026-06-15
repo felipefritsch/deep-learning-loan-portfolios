@@ -74,13 +74,23 @@ So M15a's SMM run covers empirical + ensemble + realized; logit is added later.
 `refit_logit.py` recomputes them **memory-safely on the Mac** (the pod's whole-split-resident
 `backtest.fit_logit` overflows 16 GB on the 36–63 M-row slices): it reuses the saved scaler/vocab
 from the NN run folders (byte-identical to logit's), streams the train slice via `WindowLoader`,
-and fits the identical `LogitEmbNet` / weighted-CE / hyperparameters / L2 grid. The logit is convex
-(+ embedding zero-init + L2), so the recompute reproduces M14's logit up to optimiser noise.
-**Self-gating:** fit k=2015 first, validate its 12-month random-pool counts against the committed
-`logit_*_pred` to ≤1e-3 prepaid rel-RMSE; only if it passes does it fit the other 4 windows and
-**merge** logit's SMM path into `smm_paths_k*.parquet` (`smm_paths --add-logit`). If k=2015 misses,
-it STOPS for a GPU-pod fallback (`backtest.fit_logit`). Launched detached; the validation + merge
-land in M15b.
+and fits the identical `LogitEmbNet` / weighted-CE / hyperparameters / L2 grid. **Self-gating:**
+fit k=2015 first, validate its 12-month random-pool counts against the committed `logit_*_pred` to
+≤1e-3 prepaid rel-RMSE; only if it passes does it fit the other 4 windows and **merge** logit's SMM
+path; if k=2015 misses, STOP for a GPU-pod fallback.
+
+**Outcome — gate FAILED → use the GPU pod (`logit/full/refit_gate_k2015.json`).** The streaming
+re-fit's *val NLL* matched M14 (k=2015 selected wd=1e-5, val 0.099951 vs M14's 0.09981) but its
+**12-month pool counts diverged 5.7%** (prepaid rel-RMSE 5.72e-2, max|Δ| 8.7 on a ~120 count;
+dpd60p 15.9%) — far over the 1e-3 bar. Diagnosis: the logit is early-stopped (≈4–5 epochs, not run
+to the unique optimum), and the weighted-CE loss is dominated by the `current→current` mass, so it
+is **insensitive to the small prepayment-hazard tail** that the 12-month pool prepaid count is made
+of. Streaming shard-shuffle batch order ≠ M14's resident global-shuffle → a different early-stop
+point → matching NLL but a 5.7%-different prepay hazard. Local streaming therefore **cannot**
+reproduce M14's specific early-stopped logit; the faithful path is the standard
+`backtest.fit_logit` on a GPU pod (exact resident protocol). k=2015's recomputed checkpoint is left
+in `logit/full/k2015/` (idempotent) but is **not** trusted/merged. Logit SMM merge + the
+ensemble-vs-logit headline move to **M15b** once faithful logit checkpoints exist.
 
 ## Side-fix — Python 3.9 import compatibility
 
