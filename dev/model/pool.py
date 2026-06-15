@@ -67,6 +67,7 @@ N_CLASSES = F.N_CLASSES
 ORIGIN_STATES = list(config.ORIGIN_STATES)            # the 4 transient origins
 ORIGIN_ROWS = [SI[s] for s in ORIGIN_STATES]          # their row indices in the 7×7
 TERMINAL_ROWS = [SI[s] for s in STATES if s not in ORIGIN_STATES]  # fc / REO / prepaid
+TRANSIENT_COLS = np.array(ORIGIN_ROWS)                # transient (= alive) state columns
 PREPAID = SI["prepaid"]
 DPD60 = SI["dpd_60"]
 STATE_COL = F.CATEGORICAL.index("state")              # the `state` column position in the vocab
@@ -113,6 +114,63 @@ def onehot_origin(origin_idx: np.ndarray) -> np.ndarray:
     p0 = np.zeros((origin_idx.shape[0], N_CLASSES), dtype=np.float64)
     p0[np.arange(origin_idx.shape[0]), origin_idx] = 1.0
     return p0
+
+
+# ===========================================================================
+# Layer 3 — level-pay pass-through cashflow engine (03_POOL_LEVEL §5.2; hermetic)
+# ===========================================================================
+SERVICING_SPREAD = 0.0025      # 25 bp servicing strip — the fixed premium that makes price
+                               # prepayment-sensitive; the SAME curve for every model, so the
+                               # price spread isolates the prepayment-model component (§5.2).
+
+
+def cashflow_engine(wac: float, wam: float, upb: float, smm,
+                    *, servicing_spread: float = SERVICING_SPREAD) -> dict:
+    """Deterministic level-pay pass-through (``§5.2``). Given a pool ``(WAC, WAM, UPB)`` and a
+    monthly ``SMM`` vector (``h=1..len``, **constant-extrapolated** past its end), amortise the
+    pool month by month — recomputing the level payment on the *surviving* balance and remaining
+    term each month — and return the principal/interest cashflow with its **price** (per 100
+    face) and **WAL** (years).
+
+    Each month: scheduled principal ``= pmt − interest`` (pmt fully amortises the current balance
+    over the remaining term); the ``SMM`` then prepays that fraction of the post-amortisation
+    balance. Cashflows carry the gross note coupon ``wac`` and are discounted at
+    ``y = wac − servicing_spread``: a positive spread makes a premium pass-through whose price
+    *falls* as the pool prepays faster (prepaid principal returns at par, retiring above-coupon
+    cashflow). With the curve fixed (``wac`` is a pool property, identical across models) all
+    price dispersion isolates the SMM path. Closed forms that pin the engine (``test_pool.py``):
+
+      * ``servicing_spread = 0`` ⇒ ``y = c`` ⇒ price ≡ 100 for **any** SMM (par identity, by
+        telescoping ``Σ cf_h/(1+c)^h = B_0 − B_n/(1+c)^n`` with ``B_n = 0``);
+      * ``smm ≡ 0`` ⇒ the level-pay **annuity** (constant payment; price = ``PMT·a(y,n)``);
+      * ``smm ≡ λ`` ⇒ the **survival schedule** ``B_h = UPB·φ_h·(1−λ)^h`` with ``φ_h`` the
+        no-prepay scheduled-balance fraction ``((1+c)^n−(1+c)^h)/((1+c)^n−1)``."""
+    n = int(round(wam))
+    c = wac / 12.0
+    y = (wac - servicing_spread) / 12.0
+    smm = np.asarray(smm, dtype=np.float64).reshape(-1)
+    bal = np.empty(n); interest = np.empty(n); sched = np.empty(n); prepay = np.empty(n)
+    B = float(upb)
+    for h in range(n):
+        s = smm[h] if h < smm.shape[0] else smm[-1]          # constant extrapolation past h=len
+        rem = n - h                                          # remaining months incl. this one
+        pmt = B / rem if c == 0.0 else B * c / (1.0 - (1.0 + c) ** (-rem))
+        i_h = B * c
+        sp = min(pmt - i_h, B)                               # scheduled principal (guard last mo.)
+        bal_after_sched = B - sp
+        pp = s * bal_after_sched                             # SMM acts on post-amortisation balance
+        bal[h] = B; interest[h] = i_h; sched[h] = sp; prepay[h] = pp
+        B = bal_after_sched - pp
+    total_prin = sched + prepay
+    cashflow = interest + total_prin
+    months = np.arange(1, n + 1, dtype=np.float64)
+    disc = (1.0 + y) ** (-months)
+    price = 100.0 * float((cashflow * disc).sum()) / upb
+    wal = float((months * total_prin).sum() / (12.0 * total_prin.sum()))
+    return {"n": n, "balance": bal, "interest": interest, "sched_prin": sched, "prepay": prepay,
+            "total_prin": total_prin, "cashflow": cashflow, "price": price, "wal": wal,
+            "total_principal": float(total_prin.sum()), "wac": wac, "wam": n, "upb": float(upb),
+            "servicing_spread": servicing_spread, "discount_rate": wac - servicing_spread}
 
 
 # ===========================================================================
@@ -174,20 +232,27 @@ def config_state_index(s: str) -> int:
 # ===========================================================================
 # Roll-forward driver
 # ===========================================================================
-def _load_models(k: int, device):
+def _load_models(k: int, device, *, which: set | None = None):
     """Frozen window-``k`` models + the shared (scaler, vocab). Mirrors ``evaluate.score_window``
     model loading: empirical matrix, logit, best single NN, and (key windows) the 8-net
-    ensemble. Returns ``(scaler, vocab, emp[4×7], torch_models{name:callable_or_list})``."""
+    ensemble. Returns ``(scaler, vocab, emp[4×7], torch_models{name:callable_or_list})``.
+
+    ``which`` (a subset of ``{"logit", "nn", "ensemble"}``) restricts which torch models to load
+    — used by M15a to (a) score ``{ensemble}`` when the logit/full checkpoints are unavailable and
+    (b) later score ``{logit}`` alone to merge its SMM path. ``None`` loads the full set (the
+    M13/M14 default). The empirical matrix is always built (panel-derived, no checkpoint)."""
     nn_run = config.MODELS / "nn" / VARIANT / B._nn_tag(k, dict(config.NN_SELECTED))
     logit_run = config.MODELS / "logit" / VARIANT / f"k{k}"
-    scaler, vocab = F.load_pipeline(nn_run)
+    scaler, vocab = F.load_pipeline(nn_run)        # shared by logit/nn/ensemble (same train slice)
 
     emp = E.empirical_matrix(k)                                   # [4, 7]
-    torch_models: dict[str, object] = {
-        "logit": E._load_logit(logit_run, scaler, vocab, device),
-        "nn": E._load_nn(nn_run, device),
-    }
-    if k in E.KEY_WINDOWS:
+    want = (lambda name: which is None or name in which)
+    torch_models: dict[str, object] = {}
+    if want("logit"):
+        torch_models["logit"] = E._load_logit(logit_run, scaler, vocab, device)
+    if want("nn"):
+        torch_models["nn"] = E._load_nn(nn_run, device)
+    if want("ensemble") and k in E.KEY_WINDOWS:
         torch_models["ensemble"] = [
             E._load_nn(config.MODELS / "nn" / VARIANT / f"ens_k{k}_s{s}", device)
             for s in range(B.E.N_MEMBERS)]
@@ -227,16 +292,30 @@ def _chunk_matrices(scaler, vocab, emp, torch_models, base: pl.DataFrame,
 
 def roll_forward(k: int, device, *, variant: str = VARIANT, chunk: int = DEFAULT_CHUNK,
                  max_loans: int | None = None, horizon: int = HORIZON,
-                 capture_h1: bool = False) -> dict:
+                 capture_h1: bool = False, capture_smm: bool = False,
+                 which: set | None = None) -> dict:
     """Roll every frozen window-``k`` model forward ``horizon`` months over all loans alive at
     the anchor ``t0 = Dec(k−1)`` (the eval-pool rows at ``period_ym == t0``), in bounded-memory
     loan chunks. Returns a per-loan result table (loan id, origin, and per-model
     ``prepaid_12m`` / ``dpd60p_12m`` probabilities), plus — when ``capture_h1`` — the full h=1
-    distribution per model for the ``evaluate.py`` equality check."""
+    distribution per model for the ``evaluate.py`` equality check.
+
+    With ``capture_smm`` the harness also records, per loan and per model, the **monthly
+    prepayment-hazard path** (``03_POOL_LEVEL §5.1``): ``out["smm"][m]`` holds two float32
+    arrays ``[N, horizon]`` aligned to the result rows —
+
+      * ``cum_prepaid[:, h-1]`` = composed ``p[prepaid]`` after step ``h`` (cumulative prepaid
+        mass through month ``t0+h``); its first difference ``Δ_h`` is the *unconditional*
+        probability loan ``i`` prepays during step ``h``;
+      * ``alive_before[:, h-1]`` = transient (non-terminated) mass at the *start* of step ``h``.
+
+    M15a (``smm_paths.py``) aggregates these UPB-weighted across a pool to the pool monthly
+    ``SMM_P(h) = Σ_i w_i·Δ_h(i) / Σ_i w_i·alive_before_{h-1}(i)`` — a balance-of-survivors-weighted
+    conditional monthly prepayment rate (the realized analogue comes from the panel)."""
     global _STATE_IDX
     assert variant == VARIANT, "roll-forward consumes the full-export frozen models"
     t0 = config._dec(k - 1)
-    scaler, vocab, emp, torch_models = _load_models(k, device)
+    scaler, vocab, emp, torch_models = _load_models(k, device, which=which)
     _STATE_IDX = {s: vocab.maps["state"][s] for s in ORIGIN_STATES}
     model_names = ["empirical", *torch_models.keys()]
 
@@ -254,6 +333,8 @@ def roll_forward(k: int, device, *, variant: str = VARIANT, chunk: int = DEFAULT
     prep = {m: [] for m in model_names}
     dpd60 = {m: [] for m in model_names}
     h1_acc = {m: [] for m in model_names} if capture_h1 else None
+    smm_cum = {m: [] for m in model_names} if capture_smm else None   # per-chunk [c, horizon]
+    smm_alv = {m: [] for m in model_names} if capture_smm else None
 
     for start in range(0, n_total, chunk):
         base = F.prepare_raw(df.slice(start, chunk))
@@ -263,13 +344,21 @@ def roll_forward(k: int, device, *, variant: str = VARIANT, chunk: int = DEFAULT
         p0 = onehot_origin(origin_idx)
         p = {m: p0.copy() for m in model_names}
         pfp = {m: p0.copy() for m in model_names}
+        nc = base.height
+        if capture_smm:
+            cum_c = {m: np.empty((nc, horizon), np.float32) for m in model_names}
+            alv_c = {m: np.empty((nc, horizon), np.float32) for m in model_names}
 
         for h in range(1, horizon + 1):
             mats = _chunk_matrices(scaler, vocab, emp, torch_models, base, t0, h, device)
             for m in model_names:
                 M = mats[m]
+                if capture_smm:                                   # alive mass at START of step h
+                    alv_c[m][:, h - 1] = p[m][:, TRANSIENT_COLS].sum(axis=1)
                 p[m] = np.einsum("ni,nij->nj", p[m], M)
                 pfp[m] = np.einsum("ni,nij->nj", pfp[m], absorb_rows(M, DPD60))
+                if capture_smm:                                   # cumulative prepaid through step h
+                    cum_c[m][:, h - 1] = p[m][:, PREPAID]
                 if capture_h1 and h == 1:
                     h1_acc[m].append(p[m].copy())
 
@@ -278,6 +367,9 @@ def roll_forward(k: int, device, *, variant: str = VARIANT, chunk: int = DEFAULT
         for m in model_names:
             prep[m].append(p[m][:, PREPAID])
             dpd60[m].append(pfp[m][:, DPD60])
+            if capture_smm:
+                smm_cum[m].append(cum_c[m])
+                smm_alv[m].append(alv_c[m])
 
     cols = {"Loan Identifier": np.concatenate(loan_out),
             "origin": np.concatenate(origin_out)}
@@ -290,6 +382,9 @@ def roll_forward(k: int, device, *, variant: str = VARIANT, chunk: int = DEFAULT
            "horizon": horizon, "result": result}
     if capture_h1:
         out["h1"] = {m: np.concatenate(h1_acc[m]) for m in model_names}
+    if capture_smm:
+        out["smm"] = {m: {"cum_prepaid": np.concatenate(smm_cum[m]),
+                          "alive_before": np.concatenate(smm_alv[m])} for m in model_names}
     return out
 
 

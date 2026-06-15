@@ -548,7 +548,9 @@ def write_auc(auc: dict) -> None:
     tex = [r"\begin{tabular}{llrrr}", r"\toprule",
            r"Origin & Destination & Logit & Best NN & Ensemble \\", r"\midrule"]
     for r in auc["key_window_pooled"]:
-        tex.append(f"{r['origin'].replace('_', r'\_')} & {r['destination'].replace('_', r'\_')} & "
+        o = r["origin"].replace("_", r"\_")            # escape outside the f-string expr (py<3.12)
+        dst = r["destination"].replace("_", r"\_")
+        tex.append(f"{o} & {dst} & "
                    f"{_fmt_auc(r.get('logit'))} & {_fmt_auc(r.get('nn'))} & "
                    f"{_fmt_auc(r.get('ensemble'))} \\\\")
     tex += [r"\bottomrule", r"\end{tabular}"]
