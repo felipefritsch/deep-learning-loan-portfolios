@@ -164,6 +164,88 @@ def test_first_passage_monotone_concentrates_at_dpd60():
     assert (pfp[:, P.DPD60] > 0).all()                    # some first-passage mass
 
 
+# ===========================================================================
+# Layer 3 — cashflow engine vs closed forms (03_POOL_LEVEL §5.2; the M15a (B) gate)
+# ===========================================================================
+def _annuity_pv(pmt, y_m, n):
+    """PV of an ``n``-month annuity-immediate of ``pmt`` discounted at monthly ``y_m``."""
+    return pmt * (1.0 - (1.0 + y_m) ** (-n)) / y_m
+
+
+def test_engine_par_identity_any_smm():
+    """``servicing_spread = 0`` ⇒ discount rate = the note coupon, so the pool is worth par for
+    *any* prepayment vector: each outstanding dollar earns exactly the discount rate and principal
+    returns at par (telescoping ``Σ cf_h/(1+c)^h = B_0 − B_n/(1+c)^n``, ``B_n=0``). The strongest
+    hermetic check — exercises amortisation, the SMM prepay step and discounting at once."""
+    rng = np.random.default_rng(0)
+    wac, wam, upb = 0.06, 360, 250_000.0
+    for smm in (np.zeros(12),                                  # no prepay
+                np.full(12, 0.02),                             # constant
+                rng.uniform(0, 0.08, 12),                      # arbitrary path
+                rng.uniform(0, 0.4, 12)):                      # extreme speeds
+        r = P.cashflow_engine(wac, wam, upb, smm, servicing_spread=0.0)
+        assert abs(r["price"] - 100.0) < 1e-8, (smm[:3], r["price"])
+        assert abs(r["total_principal"] - upb) < 1e-6 * upb   # all principal returned, B_n=0
+
+
+def test_engine_zero_prepay_is_annuity():
+    """``smm ≡ 0`` ⇒ a level-pay loan: constant payment ``PMT = UPB·c/(1−(1+c)^−n)`` for all n
+    months, so the price is the closed-form annuity PV discounted at ``y = wac − spread``."""
+    wac, wam, upb, spread = 0.05, 360, 100.0, 0.0025
+    r = P.cashflow_engine(wac, wam, upb, np.zeros(6), servicing_spread=spread)  # extrapolates 0
+    c, y_m, n = wac / 12.0, (wac - spread) / 12.0, 360
+    pmt = upb * c / (1.0 - (1.0 + c) ** (-n))
+    assert np.allclose(r["cashflow"], pmt, atol=1e-8)         # constant level payment
+    assert abs(r["total_principal"] - upb) < 1e-8 * upb
+    price_ref = 100.0 * _annuity_pv(pmt, y_m, n) / upb
+    assert abs(r["price"] - price_ref) < 1e-8, (r["price"], price_ref)
+    assert r["price"] > 100.0                                 # premium bond (y < coupon)
+
+
+def test_engine_constant_smm_survival_schedule():
+    """``smm ≡ λ`` ⇒ the closed-form survival schedule ``B_h = UPB·φ_h·(1−λ)^h`` with ``φ_h`` the
+    no-prepay scheduled-balance fraction. Reconstruct balance / cashflow / price / WAL from the
+    closed form (independent of the engine's recursion) and require ~1e-8 agreement."""
+    wac, wam, upb, spread, lam = 0.045, 360, 500_000.0, 0.0025, 0.015
+    r = P.cashflow_engine(wac, wam, upb, np.full(12, lam), servicing_spread=spread)
+    c, y_m, n = wac / 12.0, (wac - spread) / 12.0, 360
+    h = np.arange(0, n + 1)
+    phi = ((1.0 + c) ** n - (1.0 + c) ** h) / ((1.0 + c) ** n - 1.0)   # scheduled-balance fraction
+    B = upb * phi * (1.0 - lam) ** h                                   # survival schedule, h=0..n
+    total_prin_ref = B[:-1] - B[1:]                                    # months 1..n
+    interest_ref = B[:-1] * c
+    cf_ref = interest_ref + total_prin_ref
+    months = np.arange(1, n + 1)
+    price_ref = 100.0 * float((cf_ref * (1.0 + y_m) ** (-months)).sum()) / upb
+    wal_ref = float((months * total_prin_ref).sum() / (12.0 * total_prin_ref.sum()))
+
+    assert np.allclose(r["balance"], B[:-1], rtol=1e-9, atol=1e-6)     # start-of-month balances
+    assert np.allclose(r["cashflow"], cf_ref, rtol=1e-9, atol=1e-6)
+    assert abs(r["price"] - price_ref) < 1e-8, (r["price"], price_ref)
+    assert abs(r["wal"] - wal_ref) < 1e-8, (r["wal"], wal_ref)
+
+
+def test_engine_price_monotone_in_prepay_speed():
+    """Economic sanity (not a closed form): for a premium pass-through (``spread>0``) a faster
+    constant SMM erodes the premium, so price is strictly decreasing in CPR — the property §5.2
+    relies on to read price error as prepayment-model error."""
+    wac, wam, upb = 0.06, 360, 100.0
+    prices = [P.cashflow_engine(wac, wam, upb, np.full(12, s))["price"]
+              for s in (0.0, 0.005, 0.01, 0.02, 0.04)]
+    assert all(p > 100.0 for p in prices)                    # premium throughout
+    assert all(a > b for a, b in zip(prices, prices[1:]))    # strictly decreasing in speed
+
+
+def test_engine_constant_extrapolation_past_horizon():
+    """A 12-vector SMM drives a 360-month pool by holding the terminal SMM constant past h=12 —
+    so a 12-long constant vector and a full-length constant vector price identically."""
+    wac, wam, upb, lam = 0.05, 360, 100.0, 0.03
+    r12 = P.cashflow_engine(wac, wam, upb, np.full(12, lam))
+    rfull = P.cashflow_engine(wac, wam, upb, np.full(360, lam))
+    assert abs(r12["price"] - rfull["price"]) < 1e-10
+    assert abs(r12["wal"] - rfull["wal"]) < 1e-10
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:
