@@ -1,97 +1,81 @@
-# Run Schedule — re-anchored to M13 (evening start)
+# Run Schedule — what's left (M15 → wrap)
 
-> Tags per step: ⏱ duration · 🌐 internet (continuous = live session; momentary = one command) · 💾 SSD plugged in.
-> Prompts come from `PROMPTS.md`. Practical rule: leave the SSD in; Wi-Fi only matters while you're typing.
-> **Pod now pushes to GitHub natively** (SSH key registered) — no more Mac-bridge patches. Code travels by `git push` from the pod; only `outputs/` + `models/` (gitignored) still come home by rsync.
+> Tags per step: ⏱ duration · 🌐 internet (momentary = one git command; the work itself is offline) · 💾 SSD.
+> Prompts come from `PROMPTS.md` (use the split **M15a / M15b / M15c** blocks). All Mac, no pod — the GPU chapter is closed.
 
-## Status as of now
+## Status
 
-- ✅ **M1–M12** complete, committed, pushed. M12 reviewed (Accept criteria pass; k=2015 grid intact). See `robustness.{json,md}`.
-- ✅ **M11b** complete — §4.1 numbers verified, chapters 3–4 placeholders swapped, §4.2 ensemble comparison confirmed per-window (no pooled all-years ensemble figure), clean 47-page recompile.
-- 📝 **Memo 02c** (`writeup/memos/02c_robustness_caveats.md`) written, **pending its own commit** (left unstaged by M11b — correct).
-- 🔄 **M13** — roll-forward harness, **in progress on the pod** (interactive). Watch the two gates: toy-chain closed-form **PASS**, and h=1 probabilities **equal `evaluate.py` exactly**.
+- ✅ **M1–M14** complete, committed, pushed; `models/` + `outputs/` synced to the SSD and mirrored. **Pod terminated.**
+- ▶️ **Remaining: M15a → M15b → M15c → wrap.** All on the Mac, no GPU.
 
----
+## SSD rule (read this first)
 
-## TONIGHT
+**The SSD must be connected for every M15 session.** `config.require_drive()` fails fast without it, and each sub-step reads or writes SSD-resident data:
 
-### 1. Commit the 02c memo — ⏱ 1 min · 💾 — (do whenever)
+- **M15a** reads the frozen model checkpoints (`models/nn/…`) and the eval-pool panel, reuses `outputs/tables/pool_level/pools_random_k*.parquet`, and writes `smm_paths_k*.parquet` — all on the SSD.
+- **M15b** reads the SMM paths + pools and writes `T5.1` / `F5.2` to `outputs/` — SSD.
+- **M15c** copies the real figure/table artifacts off the SSD into `writeup/latex/figs/`, and `backup_ssd.sh` mirrors the SSD.
 
-```bash
-cd "/Users/felipefritsch/Documents/Masters MCF Oxford/Dissertation/Dissertation - Asset Loans Default Risk"
-git add writeup/memos/02c_robustness_caveats.md
-git commit -m "memo 02c: M12 robustness caveats" && git push
-```
-
-### 2. Finish M13 — ⏱ ~1 h remaining (interactive) · 🌐 continuous · 💾 no
-
-Stay with it through the two Accept gates (toy-chain PASS, h=1 == evaluator exactly) — exact-match checks are where the time goes. It commits; then from the **pod**:
-
-```bash
-cd /workspace/repo && git pull --rebase && git push
-```
-
-### 3. Launch M14 GPU half (anchor scoring), then bed — ⏱ launch 5 min, runs 1–2 h unattended · 🌐 launch only · 💾 no
-
-Only the GPU scoring runs tonight (Mac-side realized counts wait for tomorrow). `/clear`, paste the **M14 prompt**, let it queue the scoring as a tmux/nohup batch, then verify with your own eyes before sleeping:
-
-```bash
-tmux ls && nvidia-smi
-```
-
-**The gate before bed (do not skip):** do *not* sleep until `nvidia-smi` shows **GPU-Util above idle and power draw climbing** (e.g. the M12 night: 13% util, 86W vs 22W idle). That live reading — not "I pasted the prompt" — is the proof the batch is actually running. A fake launch means you wake to nothing done *and* a pod that ran idle all night. Once you see the GPU working, **leave the pod up overnight** (there's a live job on it) and sleep. Disconnect-safe; you wake to finished scoring.
-
-> Fallback only if M13 runs so late you can't trust the launch check: **terminate the pod** instead and run M14 on a fresh pod tomorrow (15 min redeploy — step 4). Never leave an unlaunched pod idling.
+The only purely-repo bits (the engine's hermetic unit tests, the `latexmk` recompile itself) happen *inside* sessions that already need the SSD, so the simple rule is: **SSD plugged in the whole time.** Internet is only needed momentarily for `git push`/`pull`.
 
 ---
 
-## TOMORROW — mostly Mac
+## 1. M15a — cashflow engine + monthly SMM paths — ⏱ ~1.5–2.5 h · 🌐 momentary (commit) · 💾 YES (essential)
 
-### 4. Bring M14 scoring home + terminate pod — ⏱ 20 min · 🌐 momentary · 💾 YES
+`/clear`, paste the **M15a** prompt. It runs an internal parallel block:
 
-**Pod** (if M14 committed code):
-
-```bash
-cd /workspace/repo && git pull --rebase && git push
-```
-
-**Mac:**
+- **(A) SMM-path regeneration** launches first as a background CPU job (`nohup`, logs to `logs/m15/smm_paths.log`). This is the slow piece (~1–2 h). Confirm it's actually running before moving on:
 
 ```bash
-cd "/Users/felipefritsch/Documents/Masters MCF Oxford/Dissertation/Dissertation - Asset Loans Default Risk"
-git pull
-rsync -av dissertation_pod:/workspace/dissertation-data/models/nn "/Volumes/SSD Felipe/dissertation/models/"
-rsync -av dissertation_pod:/workspace/dissertation-data/outputs/ "/Volumes/SSD Felipe/dissertation/outputs/"
-./dev/tools/backup_ssd.sh
+tail -f "/Volumes/SSD Felipe/dissertation/logs/m15/smm_paths.log"   # should be growing; Ctrl-C to stop watching
 ```
 
-Verify the M14 scoring artifacts landed on the SSD, **then** RunPod console: **Stop → Terminate**. Close the remote VS Code window. *(GPU chapter closed.)*
+- **(B) cashflow engine** is built and unit-tested while (A) runs.
 
-*(If you terminated last night instead: redeploy a pod, set `~/.ssh/config` to the new IP, `ssh dissertation_pod`, then on the pod `ln -s /workspace/dissertation-data "/Volumes/SSD Felipe/dissertation"`, `cd /workspace/repo && git pull && source /workspace/.venv/bin/activate`, confirm `torch.cuda.is_available()` True, run M14 GPU half, then do step 4.)*
-
-### 5. M14 second half — realized counts + Accept — ⏱ 2–4 h · 🌐 no · 💾 YES
-
-Local Claude Code: finish M14 per its session plan (realized-outcome queries against the panel, predicted-vs-realized artifacts). When it commits:
+**Gates to watch:** the two closed-form tests must pass to **~1e-8** (zero-prepay = annuity; constant-SMM = survival schedule) — this is the time-variable part, like M13's toy-chain. And the SMM run must finish with sane CPR ranges. Then it commits `M15a`.
 
 ```bash
 git push
 ```
 
-### 6. M15 — econ translation + memo + §4.3 swaps — ⏱ 2–3 h · 🌐 final push only · 💾 YES
+> **If you background (A) and step away:** keep the Mac awake — `caffeinate -i` (or lid open / on power). A sleeping laptop *pauses* the job (unlike the pod). It's only ~1–2 h, so this isn't really an overnight job.
+> **Fallback if CPU is painfully slow:** a ~20-min pod round-trip (redeploy → `ssh` → symlink → `git pull` → run just the SMM scoring on GPU → rsync `smm_paths*` home → terminate) is the only step that would benefit from GPU.
 
-Paste the **M15 prompt** (local). Watch the two cashflow closed-form unit tests pass; review T5.1's headline price-error reduction; confirm no Phase-3 placeholders remain in chapter 4. Then the Phase-3 gate:
+## 2. M15b — CPR/WAL/price errors + T5.1 + F5.2 — ⏱ ~30–60 min · 🌐 momentary (commit) · 💾 YES (essential)
+
+`/clear`, paste the **M15b** prompt. Light compute over ~550 pools/anchor.
+
+**Watch:** the headline ensemble-vs-logit |price-error| reduction is reported **per anchor** (not pooled), and the regime signature matches the counts — ensemble beats logit off-COVID, inverts at Dec-2019 under frozen-t0 macro. T5.1 + F5.2 exist for ensemble vs logit at ≥3 regime-spanning anchors. Then it commits `M15b`.
 
 ```bash
-./dev/tools/backup_ssd.sh
 git push
 ```
 
-### 7. Wrap — ⏱ 15 min · 🌐 momentary · 💾 no
+## 3. M15c — pool memo + §4.3 LaTeX swap (Phase-3 gate) — ⏱ ~1–1.5 h · 🌐 momentary (commit) · 💾 YES (essential)
 
-Mark M11–M15 ✅ in `PROMPTS.md`:
+`/clear`, paste the **M15c** prompt. Writes `writeup/memos/03_pool.md`, then swaps the remaining §4.3 placeholders for the real artifacts (copied off the SSD) and recompiles.
+
+**Gates to watch:** `latexmk` recompiles clean — **zero undefined references**, no Phase-3 placeholders left in chapter 4. Every M15 Accept criterion verified with evidence. Then it commits `M15c`.
+
+**Phase-3 gate (you run these):**
+
+```bash
+./dev/tools/backup_ssd.sh        # 💾 SSD essential — mirrors the SSD dirs
+git push                         # 🌐
+```
+
+## 4. Wrap — ⏱ 15 min · 🌐 momentary · 💾 no
+
+Mark M11–M15 ✅ in `PROMPTS.md`, commit, push:
 
 ```bash
 git add dev/model_plan/PROMPTS.md && git commit -m "PROMPTS: Phase 2-3 complete" && git push
 ```
 
 One-line status email to supervisor. Done — remaining work is prose.
+
+---
+
+### Order at a glance
+
+`M15a` (SSD) → push → `M15b` (SSD) → push → `M15c` (SSD) → `backup_ssd.sh` + push → wrap. SSD connected for 1–3; only the final wrap commit needs nothing but the repo. Splittable across sittings — each sub-prompt restates "prior sub-tasks complete & committed," so you can stop after any push and resume later.
