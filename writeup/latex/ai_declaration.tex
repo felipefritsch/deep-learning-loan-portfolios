@@ -1,0 +1,75 @@
+% =====================================================================
+%  Statement on the Use of Generative AI
+%  -------------------------------------------------------------------
+%  Drop-in front-matter section. In main.tex, add  \include{ai_declaration}
+%  on the line immediately after  \include{acknowlegements}  (line 71).
+%  As front matter (like the acknowledgements) it is excluded from the
+%  40-page limit. Uses \chapter* to match the MScThesis class convention.
+%
+%  POLICY BASIS: Oxford Mathematical Institute, "Guidance for students on
+%  the use of generative artificial intelligence in summatively assessed
+%  work" (covers MCF dissertations). The policy REQUIRES that the
+%  declaration state *how* the tool was interacted with, treated like any
+%  other software/literature reference, and that you take full
+%  responsibility for the submitted work.
+%
+%  >>> ACTION REQUIRED: every [CONFIRM ...] marker below is a factual claim
+%  you must verify and edit so it is TRUE for your project, then delete the
+%  marker. You are accountable for the accuracy of this declaration.
+% =====================================================================
+
+\chapter*{Statement on the Use of Generative AI}
+\addcontentsline{toc}{chapter}{Statement on the Use of Generative AI}
+
+In accordance with the Mathematical Institute's \emph{Guidance for students on
+the use of generative artificial intelligence in summatively assessed work} and
+the University's Declaration of Authorship, I record below how generative AI
+tools were used in preparing this dissertation. I take full responsibility for
+the entire content of the submitted work, including any material developed with
+the assistance of these tools, and I have checked all such output for
+correctness.
+
+\paragraph{Tool.}
+The generative AI assistant used was Anthropic's Claude Opus and OpenAI's ChatGPT, 
+including one-off command-line coding assistance (Claude Code), used during
+May through June 2026.
+
+\paragraph{Software and code.}
+The data pipeline---ingestion, cleaning, and construction of the seven-state
+monthly transition panel from the Fannie Mae Single-Family Loan Performance
+dataset---together with the analysis and modelling code, was developed with
+substantial assistance from Claude Code through a \emph{specification-driven,
+iterative} process. I wrote the design specifications and task breakdowns; the
+assistant generated and revised code one task at a time in side-by-side fashion; and I reviewed each
+task against explicit acceptance criteria, ran and debugged the code myself, and
+verified its outputs before proceeding. No code was incorporated without my
+review or editing at any single point.
+
+\paragraph{Literature.}
+Generative AI was used in a limited way to support the literature search. Much of
+the technical material here was learned from lecture notes, which do not always
+cite their original sources; I used AI to help identify the primary
+reference---the textbook or article---from which a given result, algorithm, or
+mathematical idea originates. I also used it to scope the mortgage, default, and
+mortgage-backed-securities literature, with which I had little prior familiarity
+beyond Sirignano, Sadhwani \& Giesecke,% optionally use \citet{<your-bibkey>}
+{} the paper that motivated this dissertation. In every case I independently
+verified that each reference exists, is relevant, and is correctly attributed,
+and all discussion of the sources is my own; no part of the literature review was
+written, verbatim or paraphrased, by a generative AI tool.
+
+\paragraph{Writing and interpretation.}
+The text of this dissertation---including the introduction, the conclusions, and
+all interpretation of the mathematics and of the empirical results---is my own.
+Any AI assistance with the prose was limited to spelling and grammar. Generative AI was not used for substantive
+original writing or to interpret data or mathematics.
+
+\paragraph{Figures and numerical results.}
+All figures were produced by my own (AI-assisted) plotting code from data I
+generated. No plot, table, or numerical result was produced by a generative AI
+tool, and no data were altered by such a tool much less interpreted by one. 
+
+\paragraph{Data handling.}
+The loan-level data is the publicly available Fannie Mae
+Single-Family Loan Performance dataset; no confidential or licensed third-party
+data were entered into any third-party AI tool.
