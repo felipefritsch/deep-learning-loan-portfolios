@@ -237,3 +237,152 @@ PART-2 removals, confirming `schwartz1989`/`deng2000` were already in use).
    "Parameter initialisation" were removed because neither concept survives in
    another section (see PART 2). If you'd rather keep either, it needs a
    destination section to point at.
+
+---
+
+# Skeleton pass (results split + contributions list + notation table) — 2026-06-16
+
+Three independent skeleton changes in one pass. Scope: `writeup/latex/`. Surgical;
+no body prose written (one §outline factual edit, see PART 1.5). Build re-verified.
+
+## Build status (clean)
+`latexmk -pdf main.tex` from a cleaned tree: **exit 0**, **65 pages total** (was
+63), **0 `!` errors**, **0 undefined references/citations** (grep of `main.log`).
+**Body-only = 44 pages** (Ch.1 p.1 … last body page p.44; first appendix p.45),
+was 43 — the +1 is the new Ch.5 chapter break. The +2 total = the new Notation
+front-matter page (roman folio iv) + the chapter break; both excluded from the
+40-page body count (front matter, appendices A–C, bibliography all excluded).
+Cosmetic overfull-hbox count is unchanged in substance (the two pool tables
+`table_t42`/`table_t51` carry their pre-existing minor overfull verbatim into
+Ch.5; the new Notation table adds none).
+
+---
+
+## PART 1 — split Results into Ch.4 (Loan-level) + Ch.5 (Pool-level)
+
+### Files created / moved
+- **`chapter5.tex` created.** The pool-level material moved **verbatim** from
+  `chapter4.tex` §4.3 ("Pool-level results and economic translation"): the
+  roll-forward lead paragraph and the two former subsections (pool accuracy +
+  economic translation), with their figures/tables (`fig:poolscatter`,
+  `tab:poolaccuracy`, `tab:econerrors`, `fig:pricerrorbuckets`) and `\input`
+  table includes. No sentence altered.
+- **`chapter4.tex` truncated** to its loan-level content (ends after the §4.2
+  robustness paragraph at `Appendix~\ref{app:supplementary}`).
+
+### Retitle + relabel
+- `chapter4.tex`: `\chapter{Results}` → `\chapter{Loan-level results}`;
+  `\label{chap:results}` → `\label{chap:loanlevel}`.
+- `chapter5.tex`: `\chapter{Pool-level valuation}` `\label{chap:poollevel}`.
+- Header comment in each file updated factually (loan-level scope in ch4; "moved
+  from §4.3" provenance in ch5). Comments only — no document prose.
+
+### Sectioning decision — FLAG (reversible)
+The former §4.3 `\section{Pool-level results and economic translation}` heading was
+**absorbed into the chapter title** "Pool-level valuation", its `\label`
+**`sec:results-pool` dropped** (it was referenced **nowhere** — only at its own
+definition, verified by grep), and its two **`\subsection`s promoted to
+`\section`s** so they number **§5.1 / §5.2** — matching your instruction "its
+subsections become §5.x". The §4.3 lead paragraph (the "from loans to pools"
+roll-forward description) now **opens the chapter**; it references
+`sec:results-rolling` (Ch.4) and `subsec:meth-pools`/`subsec:meth-econ` (Ch.2), so
+the chapter opens with a natural lead-in — **no abrupt opening, no transition
+written, no lead-in flag needed.** *If you would rather a fully verbatim move that
+keeps the section heading (Ch.5 → single §5.1 with subsections §5.1.1/§5.1.2),
+revert this one heading + label.*
+
+### main.tex
+- `\include{chapter5}` added immediately after `\include{chapter4}`, before
+  `\include{conclusions}`. No other include moved. Numbering is now Ch.4
+  loan-level, Ch.5 pool-level, **Ch.6 Conclusions** (verified in `main.toc`).
+
+### Re-pointed `\ref{chap:results}` (7 occurrences; 0 leftover, verified by grep)
+| File:line (pre-edit) | Old → New | Why |
+|---|---|---|
+| `chapter1.tex:66` (§design) | `chap:results` → `chap:loanlevel` | loan-level model estimation/comparison |
+| `chapter1.tex:70` (§design) | `chap:results` → `chap:poollevel` | "translation into valuation units" = pool level |
+| `chapter1.tex:119` (§outline) | rewritten (see PART 1.5) | — |
+| `chapter3.tex:567` | `chap:results` → `chap:loanlevel` | EDA "linear should underfit … tested" = loan-level horse race |
+| `conclusions.tex:82` | `chap:results` → `chap:poollevel` | "bucket-level error map" = `fig:pricerrorbuckets`, pool level |
+| `chapter2.tex:448` | `Chapter~\ref{chap:results}` → `Chapters~\ref{chap:loanlevel} and~\ref{chap:poollevel}` | reproducibility: "any number reported in the results" now spans both chapters |
+| `appendix2.tex:16` | same as chapter2.tex:448 | same reproducibility claim |
+
+- **FLAG (Chapter→Chapters):** the two reproducibility refs are the only place the
+  referenced content genuinely lives in **both** new chapters, so the singular
+  "Chapter" became "Chapters … and …". If you prefer a single target, point both
+  at `chap:loanlevel` (where the model-fit run records sit).
+- **§design note:** the two §design refs were re-pointed **mechanically only**
+  (required for a 0-undefined-refs build). No other change to §design, per your
+  step-5 instruction.
+
+### PART 1.5 — §outline factual edit (`chapter1.tex`, `sec:intro-outline`)
+**Before:** `Chapter~\ref{chap:results} reports the results.`
+**After:** `Chapter~\ref{chap:loanlevel} reports the loan-level results, and
+Chapter~\ref{chap:poollevel} the pool-level valuation.`
+The trailing `Chapter~\ref{chap:conclusions} concludes.` is unchanged. The new
+wording reuses your assigned chapter titles ("loan-level results", "pool-level
+valuation"); the connective "reports the … and … the" mirrors the original
+"reports the results". **§design and the rest of the introduction untouched.**
+*If you want different outline wording, this is the only spot.*
+
+---
+
+## PART 2 — contributions list (no change required)
+The four Ch.1 contributions (`sec:intro-contributions`) are **already** an explicit
+`\begin{enumerate} … \end{enumerate}` (chapter1.tex:81–107) with their bold
+lead-ins intact (**A prime, conforming testbed** / **Eleven test years …** / **A
+stricter evaluation protocol …** / **An economic translation …**). Per the
+instruction ("if already a list, leave them"), **left as-is** — no edit.
+
+---
+
+## PART 3 — front-matter notation table
+
+- **`notation.tex` created** and `\input` into `main.tex` **inside** the
+  `romanpages` block, after `\listoffigures` and before `\end{romanpages}` — so it
+  sits in the front matter (rendered on roman page **iv**) and is **excluded from
+  the body page count**. Built as a "Notation" page using the template's
+  `alwayssingle` front-matter idiom (centred `\Large\bfseries` heading, as the
+  abstract/acknowledgements pages do).
+- **One grouped table**, booktabs + `tabularx` (`\textwidth`, `@{}lX@{}`), no
+  colour/decoration. **5 groups, 15 rows (~22 symbols):**
+  - *Indices and sets* — `$i,\ t$`, `$\mathcal{P}$`
+  - *State space* — `$S_{i,t}\in\mathcal{S}$` (with `$|\mathcal{S}|=7$`, four live origins, `$4\times7$`)
+  - *Model and estimation* — `$x_{i,t}\in\mathbb{R}^{d}$`, `$p_\theta(j\mid x)$`, `$\widehat{P}_{uv}$`, `$w_i=1/p$`, `$L,\ K$`, `$\mathrm{NLL}$`
+  - *Derived covariates* — `$\mathrm{incentive}_{i,t}$`, `$\mathrm{ltv}^{\mathrm{mtm}}_{i,t}$`
+  - *Backtest and roll-forward* — `$\mathrm{shard}(i)$`, `$k$`, `$\rho_h,\ H$`, `$\widehat{C}_{\mathcal{P}},\ q_i$`
+- Every symbol is rendered **exactly as the body renders it** and points to its
+  defining equation via `\eqref` (forward refs into Ch.1–2; resolve after reruns).
+- **Body-form deviations from the overview's Table 4 (body wins, per instruction):**
+  - importance weight is **`$w_i = 1/p$`** in the body (chapter2.tex:180), not the
+    overview's `$1/\pi_i$`.
+  - **`$\mathbb{R}^d$`** (body) not the overview's `\R`; code keys in `\texttt`
+    style, not the overview's `\code`.
+  - backtest cutoff is written **`$\mathrm{Dec}(k{-}2)$`** in the body, not a
+    symbol `$T_k$` — so the table lists `$k$` (window/test year) with the cutoff
+    inline, and **omits `$T_k$`** (it does not appear in the body).
+- **Checklist symbols deliberately EXCLUDED (not present in the body) — FLAG:**
+  - **calendar keys `period_ym` / `orig_ym`** — appear only in the methodology
+    overview, **not** in chapters 1–5 or appendices (the body uses the English word
+    "period"). Per "include only symbols that appear in the body", omitted.
+  - **origin set symbol `$\mathcal{S}_{\mathrm{org}}$`** — the body describes the
+    origins in words ("the four live states", "$4\times7$ matrix") and uses **no
+    symbol**; folded into the `$S_{i,t}\in\mathcal{S}$` row rather than invented.
+  - If you want any of these three represented, they need to be introduced as
+    symbols in the body first (then I can add the rows).
+- **Notation page is not added to the ToC** — matching this template, where the
+  abstract / acknowledgements / list-of-figures are not ToC entries either. Say if
+  you'd like an `\addcontentsline` entry.
+
+---
+
+## Needs Felipe (this pass)
+1. **Sectioning of Ch.5** — confirm the absorbed §4.3 heading / promoted §5.1–§5.2
+   (PART 1, "Sectioning decision"). One-line revert if you want the verbatim
+   alternative.
+2. **"Chapters … and …"** in the two reproducibility refs (PART 1 table) — keep, or
+   collapse to a single chapter target.
+3. **§outline wording** (PART 1.5) — reuses your chapter titles; adjust if desired.
+4. **Three checklist symbols omitted** from the notation table (`period_ym`,
+   `orig_ym`, `$\mathcal{S}_{\mathrm{org}}$`) because they are not in the body
+   (PART 3). Introduce them in the body if you want them listed.
