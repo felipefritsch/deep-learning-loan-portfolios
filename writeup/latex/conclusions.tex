@@ -29,11 +29,11 @@ credit it is structurally simpler.
 
 The network's edge concentrates exactly where the exploratory evidence
 of Chapter~\ref{chap:data} located the curvature. The largest single
-gain is prepayment: the \emph{current}$\to$\emph{prepaid} discrimination
+gain is prepayment: the \emph{Current}$\to$\emph{Prepaid} discrimination
 rises from an AUC of $0.65$ under the logit to $0.75$ under the network,
 the refinancing S-curve that a linear-in-incentive form cannot bend to.
 The second is the sparse, highly nonlinear delinquency transitions the
-logit cannot even rank --- \emph{dpd\_90plus}$\to$\emph{foreclosure}
+logit cannot even rank --- \emph{90+\,DPD}$\to$\emph{Foreclosure}
 goes from an AUC of $0.48$ (below chance) to $0.62$. In the delinquent
 origin states the linear model sits at or below the covariate-free
 floor and the network is the only estimator that beats it, so the value
@@ -43,11 +43,12 @@ nonlinearly.
 Because the comparison is run on a rolling, expanding-window design
 rather than a single split, its output is itself a finding: a time
 series of the value of nonlinearity. The ordering
-$\text{empirical} < \text{logit} < \text{single network} \le
-\text{ensemble}$ holds in every regime --- the calm late-cycle years,
-the 2020 COVID forbearance window (by far the hardest, with likelihoods
-roughly twice the calm-year level for all models), and the 2022--23
-rate shock. The deep model's \emph{relative} edge over the logit
+$\text{empirical} < \text{logit} < \text{network}$ holds in every one of
+the eleven windows --- the calm late-cycle years, the 2020 COVID
+forbearance window (by far the hardest, with likelihoods roughly twice
+the calm-year level for all models), and the 2022--23 rate shock ---
+with the eight-network ensemble adding a marginal further gain on the
+five key windows where it was fit. The deep model's \emph{relative} edge over the logit
 survives even the COVID distribution shift that no model fully
 anticipates.
 
@@ -60,19 +61,33 @@ pools actually prices. Composing the frozen monthly models into
 twelve-month horizon predictions and running each pool's predicted
 prepayment-speed path through a pass-through cashflow engine yields
 errors in conditional prepayment rate (CPR), weighted-average life, and
-price. The headline here is not a flat ``nonlinearity wins'' but
-\emph{shock-type dependence}: which model prices a pool best depends on
-whether the shock lands in a channel the covariates encode. Under the
+price. The headline here is not a flat ``nonlinearity wins,'' but
+neither is it a symmetric ``it depends'': the gain is \emph{asymmetric
+in the shock} --- large when the shock lands in a channel the covariates
+encode, small when it does not. Under the
 rate and prepayment-incentive shock of 2022--24 --- precisely the
 channel the rate-incentive covariates capture --- the covariate-free
 empirical matrix is catastrophic (characteristic-bucket prepaid $R^2$
 of $-4.6$ and $-1.5$) and the ensemble is strongest, cutting the
 logit's mean absolute price error by $31\%$ and $48\%$. The 2020
-forbearance shock inverts the picture: the assumption-free empirical
-floor is the most robust estimator and the ensemble is the worst,
-because it bakes in hardest a pre-COVID prepayment signal that March
-2020 abruptly invalidates (a price-error change of $-1\%$ against the
-logit). These results are reported per anchor and never pooled: a
+forbearance shock inverts the \emph{accuracy} ordering --- the
+assumption-free empirical floor becomes the most robust estimator and
+the ensemble the worst by $R^2$, because the ensemble bakes in hardest a
+pre-COVID prepayment signal that March 2020 abruptly invalidates ---
+yet the \emph{price} cost of that inversion is slight: the ensemble
+trails the logit by only about $1\%$, against the $31$--$48\%$ it gains
+when the shock is in-channel.
+
+This inversion is a consequence of the loan-level result, not a
+contradiction of it. The loan-level edge is one-month accuracy
+\emph{conditional on the inputs}; the pool comparison composes twelve
+such steps with the macroeconomic block frozen at the anchor, so when
+those frozen $t_0$ covariates are themselves invalidated --- as the
+pre-COVID prepayment signal was in March 2020 --- the very sharpness of
+the deep model's conditional signal turns it into a sharper \emph{wrong}
+signal. The inversion therefore indicts the frozen-macro assumption of
+the roll-forward, not the model: the worth of flexibility is itself a
+function of the regime. These results are reported per anchor and never pooled: a
 single pooled number would average the COVID inversion into a
 misleading flat improvement, which is exactly the wrong conclusion. The
 aggregate magnitudes are economically modest --- fractions of a point
@@ -122,5 +137,5 @@ relaxing the frozen-$t_0$ assumption of Chapter~\ref{chap:methodology}.
 This would convert the 2020 inversion from a boundary condition into a
 testable forecast and turn the regime-conditional value of nonlinearity
 documented here into an operational stress test --- the natural next
-step for a model whose central empirical message is that the worth of
-flexibility is itself a function of the regime.
+step for a model whose edge, as this dissertation has shown, rises and
+falls with the regime.
