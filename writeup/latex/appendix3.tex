@@ -130,28 +130,6 @@ Section~\ref{sec:meth-design} clean (no train-time batch statistics
 leaking across the temporal split). This is a deliberate omission, not
 an oversight, and is noted here for completeness.
 
-\section{Why gradient descent works: non-convexity and the NTK}
-\label{sec:dlf-ntk}
-% SUGGESTED TRIM: COMPRESS (mostly textbook: non-convexity + NTK). Keep only the sentence tying NTK/initialisation to the seed/ensemble robustness checks; cut the rest if space is tight.
-
-The logit objective \eqref{eq:logit} is convex in its parameters, so
-its optimum is global and the comparison's lower rungs are free of
-optimisation ambiguity. The deep objective \eqref{eq:mlp} is
-non-convex, and there is no a~priori guarantee that gradient descent
-reaches a good minimiser. That the method nonetheless trains reliably
-is partly explained by the neural tangent kernel: in the
-wide-network limit, gradient-descent training of a suitably scaled
-network behaves like kernel regression with a fixed kernel determined
-at initialisation, a regime in which the training dynamics are
-effectively convex and converge to a global optimum
-\citep{jacot2018}. The NTK view does not describe finite networks
-exactly, but it offers a principled account of why the over-parameterised
-fits in Chapter~\ref{chap:methodology} optimise stably, and why
-sensible initialisation \citep{glorot2010} matters for conditioning the
-early dynamics. It is the theoretical counterpart to the empirical
-robustness checks (multiple seeds, ensemble averaging) that the
-methodology already runs.
-
 \section{Architectures beyond the feedforward network}
 \label{sec:dlf-arch}
 % SUGGESTED TRIM: KEEP the "why a plain feedforward net" argument (defends the Ch.2 Markov framing); COMPRESS the ResNet/LSTM/Transformer/GAN survey to a sentence.
@@ -224,9 +202,6 @@ Backpropagation / autodiff &
 SGD / minibatch SGD &
   Two-level shuffle over shards, Sec.~\ref{sec:meth-shards} &
   \citealp{robbins1951,bottou2018} \\
-Convex vs.\ non-convex &
-  Logit (convex) vs.\ deep net, App.~\ref{sec:dlf-ntk} &
-  \citealp{hastie2009} \\
 Adam / RMSprop &
   Optimiser for all fits, Sec.~\ref{subsec:meth-nn} &
   \citealp{kingma2015,tieleman2012} \\
@@ -236,12 +211,6 @@ $\ell_2$, dropout, ensembles &
 Batch / layer normalisation &
   Surveyed; not used (input standardisation instead), App.~\ref{sec:dlf-reg} &
   \citealp{ioffe2015,ba2016} \\
-Parameter initialisation &
-  Conditioning of training dynamics, App.~\ref{sec:dlf-ntk} &
-  \citealp{glorot2010} \\
-NTK / global convergence &
-  Why the non-convex fit trains reliably, App.~\ref{sec:dlf-ntk} &
-  \citealp{jacot2018} \\
 Residual / recurrent / attention &
   Surveyed alternatives not required by the Markov framing, App.~\ref{sec:dlf-arch} &
   \citealp{he2016,hochreiter1997,vaswani2017} \\

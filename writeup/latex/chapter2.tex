@@ -171,13 +171,6 @@ legible test-year effects rather than hinging on a single arbitrary
 cutoff.
 
 \paragraph{Class thinning with importance weights.}
-% TODO (Felipe -- choose): the alternative wording states the true
-% Current->Current *transition* figure rather than the state-occupancy share,
-% e.g. "Conditional on being Current, 98.08% of loan-months stay Current" --
-% but then cite the transition-probability table (T2.1), not tab:stateshares
-% (which is a state-share table). Note the document does not yet print T2.1 as
-% a labelled table. (Unconditional Current->Current share of all loan-months
-% is about 94.4%.)
 The \emph{Current} state accounts for $96.3\%$ of
 loan-months (Table~\ref{tab:stateshares}), and
 \emph{Current}$\to$\emph{Current} transitions are individually nearly
@@ -264,7 +257,7 @@ z^{(\ell)} = \sigma\!\left(W^{(\ell)} z^{(\ell-1)} + b^{(\ell)}\right),
 p_\theta(\cdot \mid x) =
 \operatorname{softmax}\!\left(W^{(L+1)} z^{(L)} + b^{(L+1)}\right),
 \end{equation}
-with rectified-linear activations $\sigma(u)=\max(u,0)$ and the
+with rectified-linear activations (ReLU) $\sigma(u)=\max(u,0)$ and the
 input map $\phi$ of Section~\ref{sec:meth-features}.  Depth is
 searched over $L\in\{1,3,5,7\}$ anchored at the five-layer geometry
 preferred by \citet{sirignano2021} (200 units, then 140 per layer);

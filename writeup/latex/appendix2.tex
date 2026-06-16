@@ -3,3 +3,5 @@
 
 % TODO: pipeline summary, run-folder/manifest conventions, hardware/software
 % (GPU models per session, torch 2.8.0), data snapshot dates.
+
+Network weights use the PyTorch defaults: linear layers are initialised by Kaiming-uniform sampling ($a=\sqrt{5}$, biases uniform on $\pm 1/\sqrt{\text{fan-in}}$) and categorical embeddings from the standard normal $\mathcal{N}(0,1)$; no custom initialiser is applied.
