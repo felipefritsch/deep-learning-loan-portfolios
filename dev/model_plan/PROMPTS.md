@@ -161,7 +161,7 @@ Read dev/model_plan/00_OVERVIEW.md, 03_POOL_LEVEL.md, and 04_TASKS.md. Phase 2 (
 Read dev/model_plan/04_TASKS.md and dev/model_plan/03_POOL_LEVEL.md. Tasks through M13 are complete and committed. Execute task M14 only. Verify every Accept criterion for M14 with evidence, then commit M14. Do not start M15. The SSD is mounted.
 ```
 
-### M15 — Phase-3 gate
+### M15 — Phase-3 gate ✅
 
 ```
 Read dev/model_plan/04_TASKS.md and dev/model_plan/03_POOL_LEVEL.md. Tasks through M14 are complete and committed. Execute task M15 only: the economic-translation exercise of 03_POOL_LEVEL §5 (cashflow engine with closed-form unit tests, CPR/WAL/price errors per pool × model × anchor, T5.1 + F5.2) and the pool memo with the contributions paragraph. The portfolio decile exercise is deferred — future-work note only, do not implement it. Then swap the remaining Phase-3 placeholders in writeup/latex/chapter4.tex §4.3 for the real artifacts (copy into writeup/latex/figs/, replace \figplaceholder/\tabplaceholder, recompile main.tex cleanly — requires the artifacts synced to the SSD, so run this part on the Mac if this session is on the GPU box). Verify every Accept criterion for M15 with evidence, then commit M15. The SSD is mounted.
@@ -177,7 +177,7 @@ Additionally: (1) reuse M14's pools — the same 5 key anchors (2014-12, 2018-12
 
 > All Mac, no pod. Run M15a → M15b → M15c, each in its own conversation, verifying/committing before the next. The frozen-t0 macro caveat and the per-anchor (never pooled-over-COVID) discipline propagate through all three.
 
-#### M15a — cashflow engine + monthly pool SMM paths (internal parallel block)
+#### M15a — cashflow engine + monthly pool SMM paths (internal parallel block) ✅
 
 ```
 Read dev/model_plan/04_TASKS.md (M15) and dev/model_plan/03_POOL_LEVEL.md §5. Tasks through M14 are complete and committed; this is the first of three M15 sub-sessions — execute M15a only, do not start M15b. Two pieces, run in parallel:
@@ -189,19 +189,21 @@ Read dev/model_plan/04_TASKS.md (M15) and dev/model_plan/03_POOL_LEVEL.md §5. T
 When (A) finishes, sanity-check the SMM paths (CPR in plausible ranges, model vs realized) and confirm the engine tests pass, then commit as "M15a: cashflow engine + monthly pool SMM paths". Do not compute error metrics or T5.1/F5.2 (that is M15b). The SSD is mounted.
 ```
 
-#### M15b — CPR/WAL/price errors + T5.1 + F5.2
+#### M15b — CPR/WAL/price errors + T5.1 + F5.2 ✅
 
 ```
 Read dev/model_plan/04_TASKS.md (M15) and 03_POOL_LEVEL.md §5. M15a (cashflow engine + monthly SMM paths) is complete and committed. Execute M15b only. Using the engine and the saved smm_paths_k*.parquet, compute per pool × model × anchor: CPR error (pp), WAL error (months), price error (per 100 face) — model-implied vs realized-SMM valuation, on the SAME 5 anchors / pools as M14. Produce T5.1 (mean |error| and signed bias by model × outcome × anchor; the headline is the ensemble-vs-logit reduction in mean |price error|) and F5.2 (price error by characteristic bucket — expect the linear model's errors to concentrate in high-incentive cells). Report the headline price-error reduction PER ANCHOR — do NOT collapse to a single pooled number that averages over the COVID-anchor inversion; expect the same regime signature as the counts (ensemble beats logit off-COVID, inverts at Dec-2019 under frozen-t0 macro). Verify T5.1/F5.2 exist for ensemble vs logit at ≥3 regime-spanning anchors with the headline reduction stated, then commit as "M15b: CPR/WAL/price errors + T5.1 + F5.2". Do not write the memo (M15c). The SSD is mounted.
 ```
 
-#### M15c — pool memo + §4.3 LaTeX swap (Phase-3 gate)
+#### M15c — pool memo + §4.3 LaTeX swap (Phase-3 gate) ✅
 
 ```
 Read dev/model_plan/04_TASKS.md (M15), 03_POOL_LEVEL.md §5–6, writeup/memos/02c_robustness_caveats.md §4, and dev/model/M14_NOTES.md §3. M15a and M15b are complete and committed. Execute M15c only. (1) Write writeup/memos/03_pool.md (~4 pages): roll-forward method with the covariate-freezing assumption stated; F4.1, T4.2 (incl. the by-anchor regime exhibit), F4.3, T5.1, F5.2; the frozen-t0 macro caveat paragraph; and a closing contributions paragraph naming what is original vs Sirignano et al. (prime conforming credit box; 2015–2025 test regimes incl. COVID forbearance and the 2022–23 rate shock; the rolling-window protocol; the CPR/WAL/price translation) — keep the narrative consistent with 02c §4 and M14_NOTES §3 (shock-type regime dependence). The portfolio-decile exercise is deferred: future-work note only, do not implement it. (2) Swap the remaining Phase-3 placeholders in writeup/latex/chapter4.tex §4.3 for the real artifacts (M11b pattern: copy into writeup/latex/figs/, replace \figplaceholder/\tabplaceholder, recompile main.tex with latexmk, zero undefined references). Verify every M15 Accept criterion with evidence (engine matches both closed forms to ~1e-8; T5.1/F5.2 for ensemble vs logit at ≥3 anchors with the headline |price-error| reduction; memo committed with all exhibits + caveat + contributions; §4.3 placeholders swapped and main.tex recompiles clean), then commit as "M15c: pool memo + §4.3 swap (Phase-3 gate)". The SSD is mounted.
+
+Additionally, in the memo prose: (1) wherever you state a headline ensemble-vs-logit price-error reduction (%), also give the absolute mean |price error| (per 100 face) for both models at that anchor — the % alone is ambiguous, so pair it with the absolute (read the real figures from T5.1) to make the economic magnitude concrete. (2) Add a short paragraph on why price is not a monotone function of average CPR: price depends on prepayment timing (the full SMM path + WAL), not just mean speed — note that the CPR-vs-price sign divergences occur only where |CPR error| is tiny. This pre-empts the "why isn't price just CPR?" question and shows the cashflow engine is doing real work.
 ```
 
-**→ You (after M15c): run `dev/tools/backup_ssd.sh`, then `git push`. Plan complete.**
+**→ You (after M15c): run `dev/tools/backup_ssd.sh`, then `git push`. Plan complete.** ✅
 
 ---
 
