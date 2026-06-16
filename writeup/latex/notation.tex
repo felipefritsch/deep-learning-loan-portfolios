@@ -1,0 +1,48 @@
+% ============================================================
+%  Notation — front-matter reference page (June 2026 skeleton pass).
+%  Included inside the romanpages block in main.tex, so it carries a
+%  roman folio and is excluded from the 40-page body count. Every
+%  symbol is rendered exactly as it appears in the body (chapters 1–5,
+%  appendices A–C) and points to its defining equation; forward
+%  \eqref references resolve into Chapters 1–2 after the usual reruns.
+% ============================================================
+\begin{alwayssingle}
+\thispagestyle{plain}
+\begin{center}
+\vspace*{1.5cm}
+{\Large \bfseries Notation}
+\end{center}
+\vspace{0.5cm}
+
+\noindent
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+Symbol & Meaning \\
+\midrule
+\multicolumn{2}{@{}l}{\textit{Indices and sets}}\\[2pt]
+$i,\ t$ & loan index; reporting (calendar) month \\
+$\mathcal{P}$ & a pool --- a characteristic bucket or a random pool of loans \\
+\addlinespace
+\multicolumn{2}{@{}l}{\textit{State space}}\\[2pt]
+$S_{i,t}\in\mathcal{S}$ & state of loan $i$ in month $t$; $|\mathcal{S}|=7$ states, four live origins (a $4\times7$ matrix) \\
+\addlinespace
+\multicolumn{2}{@{}l}{\textit{Model and estimation}}\\[2pt]
+$x_{i,t}\in\mathbb{R}^{d}$ & covariate vector: current state, loan fields, macro block, seasonality \\
+$p_\theta(j\mid x)$ & model's one-month transition probability, Eq.~\eqref{eq:object} \\
+$\widehat{P}_{uv}$ & Laplace-smoothed empirical transition matrix, Eq.~\eqref{eq:empirical} \\
+$w_i = 1/p$ & importance (Horvitz--Thompson) weight undoing class thinning, Eq.~\eqref{eq:weightednll} \\
+$L,\ K$ & hidden-layer count (network depth), Eq.~\eqref{eq:mlp}; ensemble size ($K=8$) \\
+$\mathrm{NLL}$ & out-of-sample mean negative log-likelihood, Eq.~\eqref{eq:nll} \\
+\addlinespace
+\multicolumn{2}{@{}l}{\textit{Derived covariates}}\\[2pt]
+$\mathrm{incentive}_{i,t}$ & refinancing incentive $r^{\mathrm{cur}}_{i,t}-m(t)$, Eq.~\eqref{eq:incentive} \\
+$\mathrm{ltv}^{\mathrm{mtm}}_{i,t}$ & mark-to-market LTV, Eq.~\eqref{eq:mtmltv} \\
+\addlinespace
+\multicolumn{2}{@{}l}{\textit{Backtest and roll-forward}}\\[2pt]
+$\mathrm{shard}(i)$ & loan-keyed hash partition $h(\mathrm{LoanID}_i)\bmod N$, $N=256$, Eq.~\eqref{eq:shard} \\
+$k$ & backtest window / test year, $k=2015,\dots,2025$; training cutoff $\mathrm{Dec}(k{-}2)$ \\
+$\rho_h,\ H$ & rolled-forward state distribution, Eq.~\eqref{eq:rollforward}; horizon $H=12$ \\
+$\widehat{C}_{\mathcal{P}},\ q_i$ & predicted pool event count, Eq.~\eqref{eq:poolcount}; per-loan horizon probability \\
+\bottomrule
+\end{tabularx}
+\end{alwayssingle}

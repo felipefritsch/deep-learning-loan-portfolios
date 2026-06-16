@@ -74,13 +74,15 @@
 \begin{romanpages}          % roman page numbering for front matter
 \tableofcontents
 \listoffigures
+\input{notation}            % notation reference page (front matter, roman folio)
 \end{romanpages}
 
 %chapters
 \include{chapter1}          % Introduction & contributions
 \include{chapter2}          % Methodology
 \include{chapter3}          % Data & exploratory evidence
-\include{chapter4}          % Results (partial — M10b/M11/Phase 3 pending)
+\include{chapter4}          % Loan-level results (tuning window + rolling backtest)
+\include{chapter5}          % Pool-level valuation (roll-forward + economic translation)
 \include{conclusions}
 
 %appendices
