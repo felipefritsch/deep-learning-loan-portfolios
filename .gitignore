@@ -68,6 +68,9 @@ reports/
 *.synctex.gz
 *.toc
 
+# Built PDF (regenerate with latexmk; not tracked, to avoid binary churn in history)
+writeup/latex/main.pdf
+
 
 # Local SSD backup mirror (small irreplaceable artifacts; not for git)
 ssd_mirror/

@@ -149,3 +149,91 @@ chapters.
 6. **Journal-title "The".** `gukellyxiu2020` and `fuster2022` keep the correct
    full titles ("The Review of Financial Studies", "The Journal of Finance") vs the
    shorthand in your ground-truth note; left as the correct official names.
+
+---
+
+# Structural pass (option 2 — no reorder) + intro scaffold — 2026-06-16
+
+Option 2 selected: **chapter order unchanged** (Methodology Ch. 2 before Data
+Ch. 3; no `\include` reorder; `chapter3.tex` eq-ref sentences ~222/231 left as
+correct backward refs). Scope: insert AI-assisted intro-draft blocks, remove the
+NTK appendix section, three small fixes. Surgical; build re-verified.
+
+## Build status (clean)
+`latexmk -pdf main.tex` from a cleaned tree: **exit 0**, **58 pages** (was 57),
+**0 `!` errors**, **0 undefined references/citations**, **0 bibtex warnings**
+(`main.blg` `warning$ -- 0`), **26 bib entries used** (was 28 — `jacot2018` and
+`glorot2010` removed, see PART 2).
+
+## §design — reverted; framing fix deferred
+An earlier run had rewritten §design (`sec:intro-design`) to resolve the
+exploratory-first framing. Per instruction that edit was **reverted to its
+original wording** (`git checkout chapter1.tex`); the framing fix is **deferred**
+to a later intro revision — see Needs Felipe #2.
+
+## PART A — intro-draft blocks inserted (AI-assisted scaffold, verbatim)
+Inserted verbatim; **no existing sentence altered**. Each insertion point is
+preceded by the marker `% DRAFT (AI-assisted) — intro additions, to be revised
+into final voice.` (placed at **both** locations, since the blocks land in two
+sections).
+
+| Block | Placement | Opening words | Cites |
+|---|---|---|---|
+| 1 Stakes/motivation | new ¶ at END of §object (`sec:intro-object`) | "Agency mortgage-backed securities are among the largest…" | — |
+| 2 Literature positioning | new ¶ after block 1, end of §object | "This study sits at the confluence of two literatures…" | `schwartz1989`, `deng2000`, `khandani2010`, `fuster2022`, `gukellyxiu2020`, `sirignano2021` |
+| 3 Research question | new ¶ after block 2, end of §object | "Two questions organise the work…" | — |
+| 4 Name the data | new ¶ within §design (`sec:intro-design`), existing sentences untouched | "These questions are answered on the Fannie Mae… 3.31 billion loan-months / 57.6M loans / 2000–2025…" | — |
+
+**No new bib keys introduced** — every key cited by the blocks already existed in
+`refs.bib` and was already cited elsewhere (entry count went 28→26 purely from the
+PART-2 removals, confirming `schwartz1989`/`deng2000` were already in use).
+
+## PART 2 — NTK section removed
+- Deleted `\section{Why gradient descent works: non-convexity and the NTK}`
+  (`sec:dlf-ntk`) — heading, prose, and its `% SUGGESTED TRIM` comment — from
+  `appendix3.tex`.
+- Crosswalk table `tab:dlcrosswalk`:
+  - **"NTK / global convergence"** row → **removed** (as instructed).
+  - **"Convex vs.\ non-convex"** row → **removed** (not re-pointed). The
+    optimisation sense of convexity survives in **no** section; the `convex` hits
+    in `chapter3.tex` are the geometric "convex decay" of the FICO hazard, a
+    different concept — nowhere to re-point.
+  - **"Parameter initialisation"** row → **removed** (not re-pointed).
+    Weight-initialisation / training-dynamics conditioning survives nowhere; the
+    remaining `initialised` mentions (`appendix3.tex` ensembling, `chapter2.tex`)
+    refer to *ensemble members independently initialised*, a different idea.
+- `refs.bib` removals (now orphaned): **`jacot2018`** (only in NTK prose + NTK
+  row) and **`glorot2010`** (only in NTK prose + Parameter-initialisation row).
+  `hastie2009` (in the removed convex row) is **kept** — still cited at the
+  "$\ell_2$, dropout, ensembles" row.
+- Verified: no `\ref{sec:dlf-ntk}` and no `\cite{jacot2018}`/`\cite{glorot2010}`
+  remain in any `.tex` source.
+
+## PART 3 — small fixes
+1. `chapter2.tex` — removed the 7-line `% TODO (Felipe -- choose): …` comment
+   above the class-thinning ¶; the occupancy-share sentence ("The \emph{Current}
+   state accounts for $96.3\%$ of loan-months…") is unchanged.
+2. `chapter1.tex:4–5` — removed the stale header note "Update the
+   results-dependent sentences as Phases 2–3 conclude (marked %RESULTS-DEPENDENT)."
+   ; the "Ported from … (June 2026)." line is retained. (Resolves Needs-Felipe #3
+   of the prior pass.)
+3. `chapter2.tex` — inserted "(ReLU)" once at first introduction of the
+   activation: "rectified-linear activations **(ReLU)** $\sigma(u)=\max(u,0)$".
+
+## Needs Felipe
+1. **Intro blocks are AI-assisted scaffold** — the four inserted blocks are marked
+   `% DRAFT (AI-assisted)` and need revision into your final voice before
+   submission.
+2. **§design exploratory-first contradiction is deferred (by design).** §design
+   still frames the study exploratory-first (Chapter `chap:data`, then models)
+   while the kept order is Methodology-before-Data. To be resolved in the later
+   intro revision, not this pass.
+3. **Glorot / initialisation note dropped with the NTK cut.** The document's only
+   parameter-initialisation mention left with the NTK section. If you want the
+   topic represented, add a one-line initialisation note elsewhere (e.g.
+   `appendix3.tex` §`sec:dlf-reg` or the methodology training paragraph); the
+   crosswalk no longer lists it.
+4. **Two crosswalk rows removed, not re-pointed.** "Convex vs. non-convex" and
+   "Parameter initialisation" were removed because neither concept survives in
+   another section (see PART 2). If you'd rather keep either, it needs a
+   destination section to point at.
