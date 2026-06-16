@@ -171,8 +171,16 @@ legible test-year effects rather than hinging on a single arbitrary
 cutoff.
 
 \paragraph{Class thinning with importance weights.}
-\emph{Current}-to-\emph{Current} transitions are $96.3\%$ of
-loan-months (Table~\ref{tab:stateshares}) and individually nearly
+% TODO (Felipe -- choose): the alternative wording states the true
+% Current->Current *transition* figure rather than the state-occupancy share,
+% e.g. "Conditional on being Current, 98.08% of loan-months stay Current" --
+% but then cite the transition-probability table (T2.1), not tab:stateshares
+% (which is a state-share table). Note the document does not yet print T2.1 as
+% a labelled table. (Unconditional Current->Current share of all loan-months
+% is about 94.4%.)
+The \emph{Current} state accounts for $96.3\%$ of
+loan-months (Table~\ref{tab:stateshares}), and
+\emph{Current}$\to$\emph{Current} transitions are individually nearly
 uninformative.  The training export therefore retains every row whose
 origin or destination is not \emph{Current}, but keeps
 \emph{Current}$\to$\emph{Current} rows only with probability $p$,

@@ -1,0 +1,257 @@
+% ============================================================
+%  Appendix C — Deep-Learning Foundations
+%
+%  DRAFT (AI-assisted, June 2026). This appendix grounds the
+%  deep-learning machinery applied in Chapter 2 in the theory and
+%  reading list of the MSc Deep Learning course. It is written as
+%  scaffolding: revise into your own voice, trim anything the examiner
+%  would consider textbook padding, and keep only what earns its place.
+%  Every claim is cited; cross-references point back to the methods in
+%  Chapter 2 so the appendix documents *why* each choice is principled
+%  rather than restating it.
+% ============================================================
+
+\chapter{Deep-Learning Foundations}
+\label{app:dlfoundations}
+% SUGGESTED TRIM: KEEP but tighten. Opening framing is fine; trim sentences that only announce "this appendix is background" rather than doing work.
+
+The methodology of Chapter~\ref{chap:methodology} applies a sequence of
+deep-learning tools --- a multilayer network trained by stochastic
+gradient descent, adaptive optimisation, dropout, $\ell_2$
+regularisation, early stopping, and ensembling --- as established
+technique, without pausing to justify them. This appendix supplies
+that justification, drawing on the standard references
+\citep{goodfellow2016,hastie2009}. It is deliberately background; the
+intent is to record the theoretical results that make each modelling
+choice in Chapter~\ref{chap:methodology} principled rather than
+heuristic, and to place the study in the lineage of machine learning
+applied to credit and asset-pricing problems.
+
+\section{Function classes and universal approximation}
+\label{sec:dlf-approx}
+% SUGGESTED TRIM: KEEP (defends a Ch.2 choice). Justifies the deep hypothesis class over the logit; compress the textbook universal-approximation exposition, retain the "logit = zero-hidden-layer boundary case" point.
+
+The estimand \eqref{eq:object} is a conditional distribution over next
+month's state, and the modelling question is how flexibly a candidate
+$p_\theta(\cdot\mid x)$ is allowed to depend on the covariates $x$. The
+multinomial logit \eqref{eq:logit} confines that dependence to a
+log-linear form; the deep network \eqref{eq:mlp} does not. The
+theoretical warrant for the latter is the universal approximation
+theorem: a feedforward network with a single hidden layer of
+sufficiently many units and a non-polynomial activation can approximate
+any continuous function on a compact set to arbitrary accuracy
+\citep{cybenko1989,hornik1991}. The result certifies that the
+hypothesis class of \eqref{eq:mlp} contains, in the limit of width, the
+true transition surface whose nonlinearity \citet{sirignano2021} claim
+is economically material --- so a deep model's empirical edge over the
+logit reflects a representable feature of the data, not an artefact.
+The theorem is, however, existential and says nothing about whether a
+finite network can be \emph{found} by training, nor how much data the
+search needs; depth (searched over $L\in\{1,3,5,7\}$ in
+Section~\ref{subsec:meth-nn}) is the practically more economical route
+to the same expressive power, building the interaction hierarchy ---
+incentive$\times$credit-score and the like --- through composition
+rather than width. The logit is then exactly the zero-hidden-layer
+boundary case of the same class (Section~\ref{subsec:meth-logit}),
+which is what makes the model hierarchy a controlled comparison.
+
+\section{Training: backpropagation and stochastic gradient descent}
+\label{sec:dlf-sgd}
+% SUGGESTED TRIM: KEEP core (defends the two-level shuffle + Horvitz-Thompson weights = unbiased minibatch gradient). Compress the backprop / Robbins-Monro / Bottou history.
+
+Fitting \eqref{eq:mlp} means minimising the weighted negative
+log-likelihood \eqref{eq:weightednll} over the parameters $\theta$.
+The gradient $\nabla_\theta\widehat{\mathcal L}$ is computed by
+backpropagation --- reverse-mode automatic differentiation, the
+reverse accumulation of the chain rule through the network's
+computational graph \citep{rumelhart1986} --- which yields all partial
+derivatives at the cost of a constant multiple of one forward
+evaluation, and is what PyTorch's autograd implements. Because the
+objective is an average over $\sim$$10^{9}$ loan-months, full-batch
+gradients are infeasible, and the parameters are updated on minibatch
+estimates: stochastic gradient descent, whose convergence under
+decreasing step sizes traces to the stochastic-approximation theory of
+\citet{robbins1951} and is treated for the modern large-scale setting
+by \citet{bottou2018}. SGD's guarantees rest on minibatch gradients
+being \emph{unbiased} estimates of the full-data gradient. Two design
+choices in Chapter~\ref{chap:methodology} exist precisely to protect
+that property: the loan-keyed two-level shuffle of
+Section~\ref{sec:meth-shards}, which keeps each minibatch an
+approximately uniform cross-section despite vintage-grouped storage,
+and the Horvitz--Thompson inverse-probability weights in
+\eqref{eq:weightednll}, which keep the thinned-sample loss --- and
+hence its gradient --- an unbiased estimate of the full-sample loss.
+
+\section{Adaptive optimisers}
+\label{sec:dlf-adam}
+% SUGGESTED TRIM: KEEP (defends a Ch.2 choice: Adam used identically for the logit control, so the comparison varies architecture alone). Already short.
+
+Plain SGD with a single global step size is sensitive to feature
+scaling and curvature anisotropy, both severe here given embeddings and
+heavy-tailed balances. The training runs therefore use Adam
+\citep{kingma2015}, which maintains per-parameter exponential moving
+averages of the gradient and its square and rescales each update by the
+latter, combining the per-coordinate adaptivity of RMSprop
+\citep{tieleman2012} with momentum. This is the optimiser referenced in
+the loan-level model plan (Adam, learning rate $\sim$$10^{-3}$ with
+decay-on-plateau), and it is used identically for the logit control of
+Section~\ref{subsec:meth-logit}, so that the network-versus-logit
+comparison varies architecture alone and not the optimisation
+procedure.
+
+\section{Regularisation, ensembling, and normalisation}
+\label{sec:dlf-reg}
+% SUGGESTED TRIM: MIXED. KEEP the batch/layer-norm OMISSION defence (justifies a Ch.2 design choice); COMPRESS the textbook ridge / dropout / bagging recap.
+
+A width-200, several-layer network has ample capacity to overfit rare
+credit events, and Section~\ref{subsec:meth-nn} deploys four classical
+controls. The $\ell_2$ penalty (weight decay) is ridge regularisation
+in the sense of \citet{hastie2009}, shrinking parameters toward zero and
+trading a little bias for reduced variance. Dropout
+\citep{dropout} randomly zeroes hidden units during training, which
+acts as an implicit ensemble over subnetworks and a stochastic
+regulariser. Early stopping on the window's validation likelihood halts
+the fit before it specialises to training noise --- a form of
+regularisation through optimisation budget. The headline ensemble, an
+average of $K{=}8$ independently initialised networks, is bagging-style
+variance reduction \citep{hastie2009}: averaging quasi-independent
+predictors lowers the variance component of generalisation error, which
+for high-capacity models fit by a stochastic procedure is substantial.
+
+Normalisation layers --- batch normalisation \citep{ioffe2015} and layer
+normalisation \citep{ba2016} --- are part of the standard deep-learning
+toolkit and are covered in the course, but the loan-level model does
+\emph{not} use them. For this tabular network the per-window
+standardisation of continuous covariates described in
+Section~\ref{sec:meth-features} supplies the input conditioning that
+batch normalisation would otherwise provide, and avoiding
+batch-statistic layers keeps the strictly out-of-sample design of
+Section~\ref{sec:meth-design} clean (no train-time batch statistics
+leaking across the temporal split). This is a deliberate omission, not
+an oversight, and is noted here for completeness.
+
+\section{Why gradient descent works: non-convexity and the NTK}
+\label{sec:dlf-ntk}
+% SUGGESTED TRIM: COMPRESS (mostly textbook: non-convexity + NTK). Keep only the sentence tying NTK/initialisation to the seed/ensemble robustness checks; cut the rest if space is tight.
+
+The logit objective \eqref{eq:logit} is convex in its parameters, so
+its optimum is global and the comparison's lower rungs are free of
+optimisation ambiguity. The deep objective \eqref{eq:mlp} is
+non-convex, and there is no a~priori guarantee that gradient descent
+reaches a good minimiser. That the method nonetheless trains reliably
+is partly explained by the neural tangent kernel: in the
+wide-network limit, gradient-descent training of a suitably scaled
+network behaves like kernel regression with a fixed kernel determined
+at initialisation, a regime in which the training dynamics are
+effectively convex and converge to a global optimum
+\citep{jacot2018}. The NTK view does not describe finite networks
+exactly, but it offers a principled account of why the over-parameterised
+fits in Chapter~\ref{chap:methodology} optimise stably, and why
+sensible initialisation \citep{glorot2010} matters for conditioning the
+early dynamics. It is the theoretical counterpart to the empirical
+robustness checks (multiple seeds, ensemble averaging) that the
+methodology already runs.
+
+\section{Architectures beyond the feedforward network}
+\label{sec:dlf-arch}
+% SUGGESTED TRIM: KEEP the "why a plain feedforward net" argument (defends the Ch.2 Markov framing); COMPRESS the ResNet/LSTM/Transformer/GAN survey to a sentence.
+
+The course surveys architectures this study does not use ---
+residual networks \citep{he2016}, recurrent networks such as the LSTM
+\citep{hochreiter1997}, attention-based transformers
+\citep{vaswani2017}, and generative adversarial networks
+\citep{goodfellow2014gan} --- and it is worth stating why a plain
+feedforward network is the right tool here. The modelling object
+\eqref{eq:object} is a \emph{one-month} conditional transition given
+the current state and covariates; the Markov framing of
+Section~\ref{sec:meth-model} already encodes the loan's dynamics
+through the state feature and loan age, so the temporal dependence that
+would motivate a recurrent or attention model is handled by the
+state-space construction rather than by the network. Residual
+connections and normalisation address optimisation pathologies of very
+deep networks that do not arise at depths $L\le 7$. The feedforward
+choice is thus a consequence of the problem's structure, made against
+the full menu of alternatives rather than by default.
+
+\section{Machine learning in credit and asset pricing}
+\label{sec:dlf-lineage}
+% SUGGESTED TRIM: KEEP (literature positioning, not padding). The Gu-Kelly-Xiu "levels not ranks" link to the pool-level pricing exercise earns its place.
+
+The study sits in an established line of work applying flexible
+machine learning to financial prediction. \citet{sirignano2021} ---
+the paper this dissertation tests on a cleaner dataset --- is the
+direct antecedent for deep learning of mortgage transition risk.
+Earlier, \citet{khandani2010} showed machine-learning models improve
+consumer credit-risk forecasts, and \citet{fuster2022} examine the
+distributional consequences of machine learning in credit markets,
+both relevant to the credit-event side of the transition model.
+\citet{gukellyxiu2020} establish the value of nonlinear machine
+learning for the levels of expected returns in empirical asset
+pricing --- the methodological cousin of the pool-level pricing
+exercise in Section~\ref{sec:meth-pool}, where prediction levels (not
+merely rankings) are what the valuation consumes. Reinforcement
+learning, surveyed for finance by \citet{bai2025} and developed in
+\citet{suttonbarto2018}, lies outside this study's supervised framing
+but is the natural setting for the sequential decision problems
+(prepayment-option exercise, dynamic hedging of a pool position) that
+the transition model's outputs would feed.
+
+\section{Course-to-dissertation crosswalk}
+\label{sec:dlf-crosswalk}
+% SUGGESTED TRIM: KEEP (crosswalk table, explicitly retained). The course-to-dissertation map is the appendix's load-bearing exhibit.
+
+Table~\ref{tab:dlcrosswalk} maps each topic from the Deep Learning
+course to where it is used in this dissertation and to the supporting
+reading.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}lXl@{}}
+\toprule
+\textbf{Course topic} & \textbf{Where it is used in this dissertation} & \textbf{Reading} \\
+\midrule
+Fully-connected networks &
+  Loan-level transition model, Eq.~\eqref{eq:mlp}, Sec.~\ref{subsec:meth-nn} &
+  \citealp{goodfellow2016} \\
+Universal approximation &
+  Justifies the deep hypothesis class over the logit, App.~\ref{sec:dlf-approx} &
+  \citealp{cybenko1989,hornik1991} \\
+Backpropagation / autodiff &
+  Gradient of the weighted NLL, Eq.~\eqref{eq:weightednll} &
+  \citealp{rumelhart1986} \\
+SGD / minibatch SGD &
+  Two-level shuffle over shards, Sec.~\ref{sec:meth-shards} &
+  \citealp{robbins1951,bottou2018} \\
+Convex vs.\ non-convex &
+  Logit (convex) vs.\ deep net, App.~\ref{sec:dlf-ntk} &
+  \citealp{hastie2009} \\
+Adam / RMSprop &
+  Optimiser for all fits, Sec.~\ref{subsec:meth-nn} &
+  \citealp{kingma2015,tieleman2012} \\
+$\ell_2$, dropout, ensembles &
+  Three regularisers + $K{=}8$ ensemble, Sec.~\ref{subsec:meth-nn} &
+  \citealp{hastie2009,dropout} \\
+Batch / layer normalisation &
+  Surveyed; not used (input standardisation instead), App.~\ref{sec:dlf-reg} &
+  \citealp{ioffe2015,ba2016} \\
+Parameter initialisation &
+  Conditioning of training dynamics, App.~\ref{sec:dlf-ntk} &
+  \citealp{glorot2010} \\
+NTK / global convergence &
+  Why the non-convex fit trains reliably, App.~\ref{sec:dlf-ntk} &
+  \citealp{jacot2018} \\
+Residual / recurrent / attention &
+  Surveyed alternatives not required by the Markov framing, App.~\ref{sec:dlf-arch} &
+  \citealp{he2016,hochreiter1997,vaswani2017} \\
+ML in finance &
+  Lineage of the study, App.~\ref{sec:dlf-lineage} &
+  \citealp{sirignano2021,gukellyxiu2020,khandani2010,fuster2022} \\
+\bottomrule
+\end{tabularx}
+\caption[Deep Learning course topics mapped to dissertation methods]{Each
+Deep Learning course topic, the place it is used in this dissertation,
+and the supporting reading.}
+\label{tab:dlcrosswalk}
+\end{table}
