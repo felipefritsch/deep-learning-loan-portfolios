@@ -1,7 +1,5 @@
 % ============================================================
 %  Chapter 1 — Introduction
-%  Ported from writeup/methodology/methodology_overview.tex §1, §1.1
-%  (June 2026).
 % ============================================================
 
 \chapter{Introduction}
@@ -48,7 +46,6 @@ misspecification compounds when loan-level probabilities are
 aggregated to pool-level cashflows --- the level at which
 mortgage-backed securities are priced.
 
-% DRAFT (AI-assisted) — intro additions, to be revised into final voice.
 Agency mortgage-backed securities are among the largest fixed-income markets in the world, and their value rests entirely on how the underlying loans move between paying, delinquency, default, and prepayment. For the investor, mispricing the speed of prepayment misstates both the timing of returned principal and the value of the embedded call; for the lender and the regulator, mispricing the path into default misstates capital and provisions. The stakes of the conditional transition distribution in \eqref{eq:object} are therefore not incidental to the modelling --- they are why a more faithful estimator is worth the effort.
 
 This study sits at the confluence of two literatures. The first is the option-theoretic tradition in mortgage modelling, which treats prepayment and default as the exercise of embedded options driven by borrower incentives \citep{schwartz1989, deng2000}. The second is the turn to flexible machine learning in credit and asset pricing: that such models sharpen consumer credit-risk forecasts \citep{khandani2010}, that their flexibility carries distributional consequences in mortgage markets \citep{fuster2022}, and that nonlinear methods materially improve the measurement of expected returns where linear models fail \citep{gukellyxiu2020}. \citet{sirignano2021} bring these together for mortgage risk specifically, and it is their central claim --- that transition risk depends on covariates nonlinearly and interactively --- that this dissertation tests on a cleaner, fully reproducible dataset.
@@ -72,7 +69,6 @@ predictions and compared at the pool level --- predicted versus
 realised prepayment and delinquency counts, and their translation
 into valuation units (Chapter~\ref{chap:results}).
 
-% DRAFT (AI-assisted) — intro additions, to be revised into final voice.
 These questions are answered on the Fannie Mae Single-Family Loan Performance dataset --- 3.31 billion loan-month observations across 57.6 million loans, 2000--2025 --- under a rolling, strictly out-of-sample design spanning the eleven test years 2015--2025.
 
 \section{Contributions}

@@ -1,7 +1,111 @@
+% ============================================================
+%  Appendix B — Reproducibility
+%
+%  Scaffolded from the training manifests (processed/training/{dev,full}/manifest.json), the
+%  per-fit run records (models/**/metrics.json), and the pipeline
+%  HOWTO. Resolves the forward reference at the end of the Methodology
+%  reproducibility section. 
+% ============================================================
+
 \chapter{Reproducibility}
 \label{app:reproducibility}
 
-% TODO: pipeline summary, run-folder/manifest conventions, hardware/software
-% (GPU models per session, torch 2.8.0), data snapshot dates.
+This appendix records the computing environment and the data-snapshot
+and run-record conventions referenced in
+Section~\ref{sec:meth-repro}. The guiding principle is that every
+number reported in Chapter~\ref{chap:results} can be traced from the
+exhibit back to the exact code revision and data slice that produced
+it.
 
-Network weights use the PyTorch defaults: linear layers are initialised by Kaiming-uniform sampling ($a=\sqrt{5}$, biases uniform on $\pm 1/\sqrt{\text{fan-in}}$) and categorical embeddings from the standard normal $\mathcal{N}(0,1)$; no custom initialiser is applied.
+\section{Pipeline summary}
+\label{sec:repro-pipeline}
+
+The estimation panel is built from the Fannie Mae Single-Family Loan
+Performance dataset --- roughly one hundred quarterly vintage files
+spanning 2000--2025, about 800\,GB of raw CSV. The pipeline never loads
+a full quarter into memory: every stage streams through DuckDB, Polars,
+and PyArrow, transforming the immutable \texttt{raw/} tree into
+\texttt{interim/} and then \texttt{processed/} artifacts on the external
+data drive, and each stage is idempotent and runs per quarter so a
+build can be resumed exactly where it stopped. The result is a monthly
+seven-state panel of 3.31 billion loan-months across 57.6 million
+loans. For estimation, the dominant \emph{current}$\to$\emph{current}
+transition is class-thinned at a keep rate of $0.05$ and the surviving
+rows carry Horvitz--Thompson inverse-probability weights, so the thinned
+loss remains an unbiased estimate of the full-sample loss; loans are
+hashed into 256 shards to support the loan-keyed two-level shuffle of
+Section~\ref{sec:meth-shards}.
+
+\section{Run records and manifest conventions}
+\label{sec:repro-records}
+
+The training export writes a \texttt{manifest.json} recording the
+design variant, the Git commit, the construction parameters, and the
+per-pool row counts together with a content hash of the train and eval
+pools. Table~\ref{tab:repro-manifest} summarises the full-design
+export. Every subsequent model fit --- empirical, logit, network, and
+ensemble --- writes its own \texttt{metrics.json} run record carrying
+the Git commit, the random seed, the window identity, the architecture,
+the out-of-sample metrics, and the content hashes of the train and eval
+pools it consumed. Because the run record stores the pool content
+hashes alongside the code commit, any reported figure resolves to a
+single \{commit, data-slice, window, seed\} tuple, and a re-run on the
+same manifest reproduces it.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Field} & \textbf{Full-design value} \\
+\midrule
+Design variant            & \texttt{full} \\
+Training rows (weighted)  & 74{,}419{,}387 \;(814{,}236{,}181 weighted) \\
+Evaluation rows           & 90{,}515{,}851 \\
+\emph{Current}$\to$\emph{current} keep rate & $0.05$ \\
+Shards                    & 256 \\
+Test years                & 2015--2025 (eleven rolling windows) \\
+Earliest evaluation label & 2014-01 \\
+Train / eval content hash & \texttt{2431062504781155411} / \texttt{11013400236033171726} \\
+\bottomrule
+\end{tabularx}
+\caption[Full-design training-export manifest]{Key fields of the
+full-design training-export manifest
+(\texttt{processed/training/full/manifest.json}). The content hashes are
+recorded in every downstream run record, anchoring the
+exhibit-to-data trace.}
+\label{tab:repro-manifest}
+\end{table}
+
+\section{Computing environment}
+\label{sec:repro-env}
+
+Work was split across two kinds of machine. The full-scale neural
+networks were fit on a rented GPU node --- an NVIDIA RTX~A4500 (20\,GB),
+PyTorch \texttt{2.8.0+cu128} on CUDA~12.8 and cuDNN~9.10, with automatic
+mixed precision --- as recorded in the \texttt{environment} block of
+each network run record; an earlier dev-scale fit used an RTX~4090. The
+data pipeline, the exploratory analysis, the logit and empirical
+baselines, and the entire pool-level Phase~3 (roll-forward, cashflow
+engine, and economic translation) ran on the project's local Mac on
+CPU. Network weights use the PyTorch defaults: linear layers are
+initialised by Kaiming-uniform sampling ($a=\sqrt{5}$, biases uniform on
+$\pm 1/\sqrt{\text{fan-in}}$) and categorical embeddings from the
+standard normal $\mathcal{N}(0,1)$; no custom initialiser is applied.
+
+\section{Data snapshot}
+\label{sec:repro-snapshot}
+
+All vintage files share a single Fannie Mae release cut-off, verified at
+the inventory stage before any conversion
+% [CONFIRM Felipe] — record the exact SFLP release label/date of the download.
+(release captured 2025). The processed panel underlying the results was
+built on the dates stamped in the manifests: 2026-06-11 for the
+dev-design export and 2026-06-12 for the full-design export. The
+macroeconomic covariates --- the 30-year primary mortgage rate, the
+10-year Treasury yield and 2s10s slope, national and state unemployment,
+the rate incentive, mark-to-market LTV, and twelve-month house-price
+change --- are merged from the public series in \texttt{processed/macro}
+and are taken at final revision rather than as real-time vintages, the
+limitation noted in Chapter~\ref{chap:conclusions}.

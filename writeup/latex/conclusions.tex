@@ -1,6 +1,126 @@
+% ============================================================
+%  Conclusions
+% ============================================================
+
 \chapter{Conclusions}
 \label{chap:conclusions}
 
-% TODO after Phase 3: headline NLL/AUC results, regime stability, pool-level
-% economic translation, limitations (frozen macro, state-level granularity,
-% final-revision series), future work (portfolio sorts, macro scenarios).
+\section{Summary of findings}
+\label{sec:concl-findings}
+
+This dissertation set out to test the central claim of
+\citet{sirignano2021} --- that the conditional transition distribution
+\eqref{eq:object} depends on the covariates nonlinearly and
+interactively --- on a cleaner, prime conforming testbed and across
+regimes the original sample did not reach. The loan-level answer is
+unambiguous. On a strictly out-of-sample rolling backtest over the
+eleven test years 2015--2025, comprising 84.5 million frozen test
+loan-months, the deep transition model beats both the covariate-free
+empirical floor and the multinomial logit in \emph{every} window and
+\emph{every} origin state. Pooled, the network lowers negative
+log-likelihood by $6.3\%$ over the logit and $9.0\%$ over the floor;
+since the logit itself recovers only $2.9\%$ over the floor, the
+nonlinearity supplies roughly two-thirds of the achievable
+improvement. One structural difference from the paper emerges
+immediately: the architecture search at full scale selects \emph{three}
+hidden layers rather than the five preferred on the subprime-heavy
+private-label data --- the nonlinearity premium is real, but in prime
+credit it is structurally simpler.
+
+The network's edge concentrates exactly where the exploratory evidence
+of Chapter~\ref{chap:data} located the curvature. The largest single
+gain is prepayment: the \emph{current}$\to$\emph{prepaid} discrimination
+rises from an AUC of $0.65$ under the logit to $0.75$ under the network,
+the refinancing S-curve that a linear-in-incentive form cannot bend to.
+The second is the sparse, highly nonlinear delinquency transitions the
+logit cannot even rank --- \emph{dpd\_90plus}$\to$\emph{foreclosure}
+goes from an AUC of $0.48$ (below chance) to $0.62$. In the delinquent
+origin states the linear model sits at or below the covariate-free
+floor and the network is the only estimator that beats it, so the value
+of the covariates there is inseparable from modelling them
+nonlinearly.
+
+Because the comparison is run on a rolling, expanding-window design
+rather than a single split, its output is itself a finding: a time
+series of the value of nonlinearity. The ordering
+$\text{empirical} < \text{logit} < \text{single network} \le
+\text{ensemble}$ holds in every regime --- the calm late-cycle years,
+the 2020 COVID forbearance window (by far the hardest, with likelihoods
+roughly twice the calm-year level for all models), and the 2022--23
+rate shock. The deep model's \emph{relative} edge over the logit
+survives even the COVID distribution shift that no model fully
+anticipates.
+
+\section{From likelihood to price: the pool-level translation}
+\label{sec:concl-pool}
+
+The dissertation's main contribution beyond replication is to carry the
+comparison from log-likelihood into the units an investor in mortgage
+pools actually prices. Composing the frozen monthly models into
+twelve-month horizon predictions and running each pool's predicted
+prepayment-speed path through a pass-through cashflow engine yields
+errors in conditional prepayment rate (CPR), weighted-average life, and
+price. The headline here is not a flat ``nonlinearity wins'' but
+\emph{shock-type dependence}: which model prices a pool best depends on
+whether the shock lands in a channel the covariates encode. Under the
+rate and prepayment-incentive shock of 2022--24 --- precisely the
+channel the rate-incentive covariates capture --- the covariate-free
+empirical matrix is catastrophic (characteristic-bucket prepaid $R^2$
+of $-4.6$ and $-1.5$) and the ensemble is strongest, cutting the
+logit's mean absolute price error by $31\%$ and $48\%$. The 2020
+forbearance shock inverts the picture: the assumption-free empirical
+floor is the most robust estimator and the ensemble is the worst,
+because it bakes in hardest a pre-COVID prepayment signal that March
+2020 abruptly invalidates (a price-error change of $-1\%$ against the
+logit). These results are reported per anchor and never pooled: a
+single pooled number would average the COVID inversion into a
+misleading flat improvement, which is exactly the wrong conclusion. The
+aggregate magnitudes are economically modest --- fractions of a point
+per 100 of face, as expected when the discount curve is held fixed and
+pools diversify idiosyncratic timing --- so the contribution lies in
+\emph{where} the mispricing concentrates (the high-incentive cells of
+the bucket-level error map in Chapter~\ref{chap:results}), not in the
+pooled level.
+
+\section{Limitations}
+\label{sec:concl-limits}
+
+The roll-forward freezes the entire macroeconomic block --- rate
+incentive, unemployment, house-price-derived features --- at the anchor
+date, so every pool-level prediction is conditional on the $t_0$
+environment and there is no macro forecasting. This is a deliberate,
+assumption-light choice, but it has a boundary, and the COVID anchor is
+built to expose it: at December 2019 every model under-predicts the
+realised $33\%$ CPR by about 17 percentage points, blind to the
+March-2020 rate collapse and refinancing wave that no $t_0$ covariate
+could anticipate. Four further limitations bound the reading of the
+results. The macroeconomic covariates are drawn from final-revision
+series rather than real-time vintages, so the backtest inherits a small
+amount of revision look-ahead in the macro block. Unemployment enters
+at state rather than local granularity, coarser than the loan's actual
+geography. Credit terminations enter the cashflow engine's first pass
+as zero-recovery events, with a recovery haircut left as an unrun
+sensitivity. And the width sweep that confirms the inherited network
+widths leave no accuracy on the table is a dev-scale completeness check
+generalised to the full-scale deployed network. None of these
+overturns the loan-level ranking, which is stable across all eleven
+windows; each is a point a careful reader could otherwise press.
+
+\section{Future work}
+\label{sec:concl-future}
+
+Two extensions follow directly. The first, deferred deliberately, is
+the portfolio-decile sort of the original paper --- ranking pools and
+forming best/worst portfolios. A sort tests only the \emph{ranking} of
+the same per-loan probabilities, which is already tested upstream by the
+AUC discrimination and the reliability diagrams, whereas the pricing
+exercise tests their \emph{levels}, which is what a valuation consumes;
+a sort would therefore duplicate the information in the bucket-level
+mispricing map without the dollar magnitudes. The second, and the more
+substantial, is to attach macro scenario paths to the roll-forward,
+relaxing the frozen-$t_0$ assumption of Chapter~\ref{chap:methodology}.
+This would convert the 2020 inversion from a boundary condition into a
+testable forecast and turn the regime-conditional value of nonlinearity
+documented here into an operational stress test --- the natural next
+step for a model whose central empirical message is that the worth of
+flexibility is itself a function of the regime.
