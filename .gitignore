@@ -75,3 +75,9 @@ ssd_mirror/
 # Miscellaneous
 misc/
 
+# External reference material (copyrighted textbooks/papers; keep local only — never in git)
+docs/bib_refs/
+
+# Scratch/temp files
+*.tmp
+
