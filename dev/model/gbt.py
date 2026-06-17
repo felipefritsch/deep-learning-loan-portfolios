@@ -42,6 +42,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
+import os
 import platform
 import time
 from pathlib import Path
@@ -457,15 +458,30 @@ def _base_metrics(variant: str, k: int, win: dict, acc: dict, *, smoke: bool, wa
 def write_run_folder(run_dir: Path, booster: lgb.Booster, vocab: F.Vocab,
                      names: list[str], cat_idx: list[int], metrics: dict) -> None:
     """Self-describing run folder (``00_OVERVIEW §6.6``): the booster, the window vocab, the
-    feature layout (so the predict adapter / M19 seam can rebuild ``X``), and metrics.json."""
+    feature layout (so the predict adapter / M19 seam can rebuild ``X``), and metrics.json.
+
+    **Atomic** writes: every artifact goes to a ``.tmp`` sibling and is ``os.replace``d into
+    place (an atomic rename on the SSD filesystem), with ``metrics.json`` renamed **last**.
+    Because ``metrics.json`` is the (window, config) idempotency *completion marker*, this
+    ordering guarantees it can only appear after the model + vocab + layout are fully on disk —
+    an SSD disconnect mid-write leaves at most a stray ``.tmp`` (ignored), never a truncated
+    ``metrics.json`` that a later run would mistake for a complete fit and skip."""
     run_dir.mkdir(parents=True, exist_ok=True)
-    booster.save_model(str(run_dir / "model.txt"), num_iteration=booster.best_iteration)
-    (run_dir / "vocab.json").write_text(json.dumps(vocab.to_dict(), indent=2))
-    (run_dir / "feature_layout.json").write_text(json.dumps(
+
+    def _atomic_text(path: Path, text: str) -> None:
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(text)
+        os.replace(tmp, path)                       # atomic rename on the same filesystem
+
+    model_tmp = run_dir / "model.txt.tmp"
+    booster.save_model(str(model_tmp), num_iteration=booster.best_iteration)
+    os.replace(model_tmp, run_dir / "model.txt")
+    _atomic_text(run_dir / "vocab.json", json.dumps(vocab.to_dict(), indent=2))
+    _atomic_text(run_dir / "feature_layout.json", json.dumps(
         {"feature_name": names, "categorical_index": cat_idx,
          "n_continuous": len(F.CONTINUOUS), "n_categorical": len(vocab.cols),
          "n_binary": len(F.BINARY)}, indent=2))
-    (run_dir / "metrics.json").write_text(json.dumps(metrics, indent=2))
+    _atomic_text(run_dir / "metrics.json", json.dumps(metrics, indent=2))   # LAST = completion marker
 
 
 def run_dir_for(variant: str, k: int, smoke: bool = False) -> Path:
@@ -528,7 +544,10 @@ def fit_window_frozen(variant: str, k: int, cfg: dict, n_threads: int, *,
     run_dir = run_dir_for(variant, k, smoke=max_rows is not None)
     mpath = run_dir / "metrics.json"
     if mpath.exists() and not fresh:
-        prev = json.loads(mpath.read_text()).get("selection", {}).get("selected")
+        try:
+            prev = json.loads(mpath.read_text()).get("selection", {}).get("selected")
+        except (json.JSONDecodeError, OSError):
+            prev = None     # corrupt/partial metrics.json ⇒ treat as incomplete ⇒ refit
         if prev == cfg:
             print(f"[gbt k={k}] already complete at this config — skipping ({run_dir.name})")
             return run_dir

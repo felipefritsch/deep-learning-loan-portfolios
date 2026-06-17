@@ -204,6 +204,20 @@ NN_ENSEMBLE_MEMBERS = 8                                           # paper Fig 7
 # credible flexible learner the net still edges by ~1.3e-3 here (a 06 §7 finding, reported
 # not tuned). best_iteration is a reference; M17 re-runs early stopping per window.
 # Evidence: models/gbt/dev/k2015/metrics.json.
-GBT_SELECTED = {"num_leaves": 31, "learning_rate": 0.05, "min_sum_hessian_in_leaf": 100.0,
-                "feature_fraction": 1.0, "lambda_l2": 0.0}  # k=2015 DEV val argmin (M16)
-GBT_TUNING_BEST_ITERATION = 291                              # reference; per-window early stopping in M17
+#
+# M17 full-scale reconfirm (k=2015 FULL export, 33.5 M train rows = 10.6× dev) — the M10b
+# depth-check analogue. min_sum_hessian_in_leaf is an ABSOLUTE summed-leaf-Hessian threshold,
+# and the full slice carries ~10× the summed Hessian of the dev slice, so the dev-calibrated
+# msh=100 is ~10× too weak at scale. Re-checking the frozen cell vs scaled-up neighbours on
+# the 2014 VAL NLL:
+#     msh=100  (dev winner)   val 0.097324  test 0.103798  best_iter 951
+#     msh=1000 (×10)          val 0.096968  test 0.103597  best_iter 1208   <- val argmin (FROZEN)
+#     nl63 @ msh=100          val 0.097273  test —          best_iter 905
+# The winner MOVES to min_sum_hessian_in_leaf=1000 (better on val AND test; the capacity
+# neighbour nl63 did not move it) — exactly the scale-shift the M10b protocol catches, so the
+# dev config is NOT forced through. test 0.103597 is still HEALTHY (below the full empirical
+# floor 0.11287 / bucketed 0.10939 / logit 0.10825) and ~ties the full NN (0.103125, +5e-4).
+# Evidence: models/gbt/full/k2015_reconfirm/metrics.json; backtest.py loops THIS config.
+GBT_SELECTED = {"num_leaves": 31, "learning_rate": 0.05, "min_sum_hessian_in_leaf": 1000.0,
+                "feature_fraction": 1.0, "lambda_l2": 0.0}  # k=2015 FULL-scale val argmin (M17 reconfirm)
+GBT_TUNING_BEST_ITERATION = 1208                            # reference (full msh=1000); per-window early stopping in M17
