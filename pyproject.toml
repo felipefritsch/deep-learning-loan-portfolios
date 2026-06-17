@@ -1,0 +1,7 @@
+# Test-runner configuration only — the project is run as scripts under dev/, not
+# packaged/installed. This makes `python -m pytest` discover the whole hermetic
+# suite as one command instead of running each test file by hand.
+[tool.pytest.ini_options]
+testpaths = ["dev"]
+python_files = ["test_*.py"]
+addopts = "-q"
