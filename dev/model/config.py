@@ -178,3 +178,32 @@ VARIANTS: dict[str, dict] = {
 # models/nn/full/k2015_d{3,5}_do0.2_wd{0,1e-05}/metrics.json; logs/m10b/depth_check.log.
 NN_SELECTED = {"depth": 3, "dropout": 0.2, "weight_decay": 1e-5}  # k=2015 FULL-scale val argmin (M10b)
 NN_ENSEMBLE_MEMBERS = 8                                           # paper Fig 7
+
+# ---------------------------------------------------------------------------
+# Frozen GBT config (06_GBT_BASELINE §3) — LightGBM multiclass softmax (M16)
+# ---------------------------------------------------------------------------
+# The pruned dev-scale grid (gbt.tune: a min_sum_hessian calibration → num_leaves×lr plane
+# → feature_fraction/lambda_l2 sweeps, 13 cells) ran once on the tuning window k=2015 (DEV
+# export, 3.15 M train rows) and selected on that window's 2014 VAL multi_logloss.
+#
+# The decisive axis was min_sum_hessian_in_leaf, exactly as 06 §3 anticipated: the HT
+# importance weights (Σw=31.1 M over 3.15 M rows ⇒ mean ≈ 9.9) inflate the *summed* leaf
+# Hessians, so LightGBM's default 1e-3 is miscalibrated and overfits within ~3 rounds. The
+# stage-1 calibration sweep is monotone in the fix —
+#     min_sum_hessian_in_leaf  1e-3    1e-1    1       10       100
+#     val_nll                  0.1390  0.1361  0.1296  0.10173  0.09871
+# — so the plane ran at min_sum_hessian=100, where num_leaves=31, lr=0.05 won (shallow trees
+# + heavy leaf regularisation generalise best under the weighted objective):
+#     val_nll 0.097488  test_nll 0.104486  best_iteration 291
+# feature_fraction=0.7 and lambda_l2=1 did not beat the anchor (0.098265 / 0.097580).
+#
+# M16 Accept (all pass, zone=HEALTHY): probs sum to 1 / no NaN; LightGBM multi_logloss ==
+# evaluate._nll to 9e-16; base-rate QA max|Δ|=0.0050<0.01; impossible-cell mass 3.6e-4<1e-3;
+# dev test NLL 0.104486 sits below the empirical floor (0.11266) and the bucketed matrix
+# (0.10925)/logit (0.10943) — between the bucketed matrix and the best dev NN (0.10319), a
+# credible flexible learner the net still edges by ~1.3e-3 here (a 06 §7 finding, reported
+# not tuned). best_iteration is a reference; M17 re-runs early stopping per window.
+# Evidence: models/gbt/dev/k2015/metrics.json.
+GBT_SELECTED = {"num_leaves": 31, "learning_rate": 0.05, "min_sum_hessian_in_leaf": 100.0,
+                "feature_fraction": 1.0, "lambda_l2": 0.0}  # k=2015 DEV val argmin (M16)
+GBT_TUNING_BEST_ITERATION = 291                              # reference; per-window early stopping in M17
