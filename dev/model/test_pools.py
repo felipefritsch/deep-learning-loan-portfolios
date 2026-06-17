@@ -14,6 +14,13 @@ from __future__ import annotations
 import numpy as np
 import polars as pl
 
+try:  # pools.py pulls in pool.py, which imports torch at module load
+    import torch  # noqa: F401
+except ImportError:
+    import pytest
+
+    pytest.skip("torch not installed", allow_module_level=True)
+
 import pools as M
 
 
