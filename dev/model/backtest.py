@@ -50,6 +50,7 @@ import argparse
 import copy
 import datetime
 import json
+import os
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -84,6 +85,11 @@ LOGIT_PATIENCE = 4
 def _frozen() -> dict:
     """The frozen NN config looped over every window (M9 + M10b depth check)."""
     return dict(config.NN_SELECTED)
+
+
+def _gbt_frozen() -> dict:
+    """The frozen GBT config looped over every window (M16 dev tuning + M17 full reconfirm)."""
+    return dict(config.GBT_SELECTED)
 
 
 def _nn_tag(k: int, cfg: dict) -> str:
@@ -314,6 +320,20 @@ def fit_ensemble(k: int, cfg: dict, device_name: str, amp: bool, device) -> Path
 
 
 # ===========================================================================
+# Model E — GBT baseline (06_GBT_BASELINE / M17) — via gbt.fit_window_frozen
+# ===========================================================================
+def fit_gbt(k: int, cfg: dict, n_threads: int, *, fresh: bool = False) -> Path:
+    """Per-window GBT at the frozen config — per-window vocab + HT-weighted train + early
+    stopping on that window's val, scored on the frozen test slice (``06 §5``). The
+    window/masking logic is untouched; the fit/QA/run-folder lives in
+    :func:`gbt.fit_window_frozen`, which shares the export/loader/evaluator path with every
+    other model. Idempotent on (window, config). ``gbt`` is imported lazily to avoid the
+    import cycle (``gbt`` → ``evaluate`` → ``backtest``)."""
+    import gbt as G
+    return G.fit_window_frozen(VARIANT, k, cfg, n_threads, fresh=fresh)
+
+
+# ===========================================================================
 # Base-rate QA (§7) — importance-weighting + impossible-transition checks
 # ===========================================================================
 # Structural transition rule (02_LOAN_LEVEL §1; Sirignano-style monotone delinquency):
@@ -412,6 +432,19 @@ def _read_ensemble(k: int) -> dict | None:
             "best_member_by_test_nll": s.get("best_single_test_nll")}
 
 
+def _read_gbt(k: int) -> dict | None:
+    p = config.MODELS / "gbt" / VARIANT / f"k{k}" / "metrics.json"
+    if not p.exists():
+        return None
+    m = json.loads(p.read_text())
+    return {"val_nll": m["gbt"]["val_nll"], "test_nll": m["gbt"]["test_nll"],
+            "best_iteration": m["selection"]["best_iteration"],
+            "selected": m["selection"]["selected"],
+            "base_rate_passed": m["base_rate_qa"]["passed"],
+            "impossible_passed": m["impossible_transitions"]["passed"],
+            "leakage": m.get("leakage")}
+
+
 def build_summary(device=None, with_qa: bool = True) -> dict:
     """Assemble the Table-B-style per-window NLL matrix + (optional) base-rate QA on the key
     windows, into ``models/nn/full/backtest_summary.json``."""
@@ -419,7 +452,8 @@ def build_summary(device=None, with_qa: bool = True) -> dict:
     windows = {}
     for k in config.TEST_YEARS:
         windows[str(k)] = {"logit": _read_logit(k), "nn": _read_nn(k, cfg),
-                           "ensemble": _read_ensemble(k) if k in KEY_WINDOWS else None}
+                           "ensemble": _read_ensemble(k) if k in KEY_WINDOWS else None,
+                           "gbt": _read_gbt(k)}
     qa = {}
     if with_qa and device is not None:
         for k in KEY_WINDOWS:
@@ -516,7 +550,36 @@ def verify(device=None) -> None:
     else:
         print("  [skip] QA needs --device (ensemble inference); run without --verify-only or pass --device")
 
-    print(f"\n{'ALL M10 ACCEPT CRITERIA PASS' if ok else 'SOME CHECKS FAILED'} (variant={VARIANT})")
+    print("\n[6] M17 GBT — wiring correctness (run folders, val-only, no leakage, base-rate QA)")
+    gbt_runs = {k: _read_gbt(k) for k in config.TEST_YEARS}
+    if not any(gbt_runs.values()):
+        print("  [skip] no GBT run folders yet — run the M17 sweep (gbt fit per window)")
+    else:
+        gbt_cfg = _gbt_frozen()
+        for k in config.TEST_YEARS:
+            g = gbt_runs[k]
+            check(f"k={k} GBT run folder + base-rate/impossible QA",
+                  g is not None and g["base_rate_passed"] and g["impossible_passed"])
+            if g is None:
+                continue
+            lk = g.get("leakage") or {}
+            check(f"k={k} GBT val-selected best_iteration={g['best_iteration']} & masks disjoint "
+                  f"(val UNK {lk.get('val_unk_rate', 0):.2%}, test UNK {lk.get('test_unk_rate', 0):.2%})",
+                  g["best_iteration"] >= 1 and bool(lk.get("masks_disjoint")))
+        cfgs = [tuple(sorted(g["selected"].items())) for g in gbt_runs.values() if g]
+        check("GBT frozen config identical across all fitted windows (frozen, never re-tuned)",
+              len(set(cfgs)) == 1 and dict(cfgs[0]) == {kk: gbt_cfg[kk] for kk in gbt_cfg})
+        # Reported, NOT gated (06 §7 / standing rule 4): GBT vs logit / best NN per window.
+        print("       reported (not gated) — GBT vs logit / best NN test NLL per window:")
+        for k in config.TEST_YEARS:
+            g, lo, n = gbt_runs[k], _read_logit(k), _read_nn(k, cfg)
+            if g and lo and n:
+                print(f"         k={k}: GBT {g['test_nll']:.6f}  vs logit {lo['test_nll']:.6f} "
+                      f"({g['test_nll'] - lo['test_nll']:+.6f})  vs NN {n['test_nll']:.6f} "
+                      f"({g['test_nll'] - n['test_nll']:+.6f})")
+
+    label = "ALL ACCEPT CRITERIA PASS (M10 NN + M17 GBT)" if ok else "SOME CHECKS FAILED"
+    print(f"\n{label} (variant={VARIANT})")
     if not ok:
         raise SystemExit(1)
 
@@ -531,6 +594,10 @@ def main() -> None:
     ap.add_argument("--skip-logit", action="store_true")
     ap.add_argument("--skip-nn", action="store_true")
     ap.add_argument("--skip-ensemble", action="store_true")
+    ap.add_argument("--skip-gbt", action="store_true", help="skip the M17 GBT fit in the loop")
+    ap.add_argument("--gbt-only", action="store_true",
+                    help="fit only GBT (implies --skip-logit/nn/ensemble; CPU, no GPU needed)")
+    ap.add_argument("--gbt-threads", type=int, default=0, help="LightGBM num_threads (0 = all cores)")
     ap.add_argument("--verify-only", action="store_true",
                     help="Accept checks on existing outputs (pass --device for the QA pass)")
     args = ap.parse_args()
@@ -543,17 +610,25 @@ def main() -> None:
         return
 
     cfg = _frozen()
+    gbt_cfg = _gbt_frozen()
+    gbt_threads = args.gbt_threads or (os.cpu_count() or 1)
+    skip_logit = args.skip_logit or args.gbt_only
+    skip_nn = args.skip_nn or args.gbt_only
+    skip_ensemble = args.skip_ensemble or args.gbt_only
+    skip_gbt = args.skip_gbt and not args.gbt_only
     windows = args.windows or config.TEST_YEARS
-    print(f"=== M10 backtest loop  windows={list(windows)}  frozen={cfg}  "
-          f"device={device} amp={use_amp} ===")
+    print(f"=== M10/M17 backtest loop  windows={list(windows)}  nn_frozen={cfg}  "
+          f"gbt_frozen={gbt_cfg}  device={device} amp={use_amp} gbt_threads={gbt_threads} ===")
     for k in windows:
         t0 = time.perf_counter()
-        if not args.skip_logit:
+        if not skip_logit:
             fit_logit(k, device, use_amp)
-        if not args.skip_nn:
+        if not skip_nn:
             fit_nn_single(k, cfg, args.device, use_amp)
-        if not args.skip_ensemble and k in KEY_WINDOWS:
+        if not skip_ensemble and k in KEY_WINDOWS:
             fit_ensemble(k, cfg, args.device, use_amp, device)
+        if not skip_gbt:
+            fit_gbt(k, gbt_cfg, gbt_threads)
         print(f"=== window k={k} done in {(time.perf_counter()-t0)/60:.1f} min ===\n")
 
     verify(device=device if device.type == "cuda" else None)
