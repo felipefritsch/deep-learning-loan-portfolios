@@ -14,7 +14,7 @@ dropped. This is the sanity check that the seven-state target derivation is righ
 the 2003 and 2020–21 refi waves and the 2008–11 default wave must be visible
 (`04_TASKS.md` M2 Accept), and the 2022–23 prepay collapse should appear too.
 
-Run:  python dev/analysis/f2_2_transition_rates.py
+Run:  python -m floan.analysis.f2_2_transition_rates
 """
 
 from __future__ import annotations

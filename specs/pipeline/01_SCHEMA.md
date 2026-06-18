@@ -1,6 +1,6 @@
 # 01 — Schema, Dtypes & Modelling Target
 
-> Single source of truth for the column layout, types, categorical code maps, date parsing, and the Sirignano seven-state target. Claude Code must translate this into `dev/pipeline/schema.py`.
+> Single source of truth for the column layout, types, categorical code maps, date parsing, and the Sirignano seven-state target. Claude Code must translate this into `src/floan/pipeline/schema.py`.
 
 ---
 

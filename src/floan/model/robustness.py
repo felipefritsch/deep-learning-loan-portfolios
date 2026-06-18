@@ -30,8 +30,8 @@ Steps (subcommands; ``all`` runs them in order):
   (the seed/ranking/k2019 narrative + the stability paragraph) and the width-sweep table.
 
 Run:
-    .venv/bin/python dev/model/robustness.py all --device cuda --amp
-    .venv/bin/python dev/model/robustness.py report          # aggregate only (no training)
+    .venv/bin/python -m floan.model.robustness all --device cuda --amp
+    .venv/bin/python -m floan.model.robustness report          # aggregate only (no training)
 """
 
 from __future__ import annotations

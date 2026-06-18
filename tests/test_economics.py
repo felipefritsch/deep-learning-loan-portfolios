@@ -9,7 +9,7 @@ The engine itself is pinned by ``test_pool.py``'s closed-form suite; here we pin
     (wal_err > 0), and shows a negative CPR error;
   * the T5.1 ``aggregate`` mean|err| / signed-bias / headline-reduction arithmetic.
 
-Run:  .venv/bin/python dev/model/test_economics.py     (or python -m pytest)
+Run:  .venv/bin/python -m floan.model.test_economics     (or python -m pytest)
 """
 from __future__ import annotations
 

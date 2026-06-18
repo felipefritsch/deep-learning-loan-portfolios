@@ -5,7 +5,7 @@ quantifies the class imbalance (``current`` is ~95%+ of rows) that motivates the
 stratified sampling and importance weighting used in Phase 2. Null ``state``
 (XX/blank, unusable label) is shown as the level ``(null)``.
 
-Run:  python dev/analysis/t1_3_state_dist.py
+Run:  python -m floan.analysis.t1_3_state_dist
 """
 
 from __future__ import annotations

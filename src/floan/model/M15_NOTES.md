@@ -45,7 +45,7 @@ every anchor. Null Remaining-Months on ≈0.3% of current loans (M14 only drops 
 fico/rate/ltv) are kept in the pool (0-weight / excluded from the WAM mean only — they don't touch
 the SMM path).
 
-**Run:** `nohup caffeinate -i .venv/bin/python -u dev/model/smm_paths.py --models
+**Run:** `nohup caffeinate -i .venv/bin/python -u -m floan.model.smm_paths --models
 empirical,ensemble --device cpu` (CPU background; ~20 min, 5 anchors), log
 `logs/m15/smm_paths.log`. Models scored: **empirical + ensemble + realized** in the first pass;
 **logit merged later** from the recovered M14 checkpoints (`--add-logit`, see below) — all four

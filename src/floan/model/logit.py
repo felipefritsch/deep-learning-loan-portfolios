@@ -31,9 +31,9 @@ What this script does
    provenance + window id).
 
 Run:
-    .venv/bin/python dev/model/logit.py --smoke          # CPU pipeline check (≤100k rows)
-    .venv/bin/python dev/model/logit.py                  # full dev run, window k=2015
-    .venv/bin/python dev/model/logit.py --verify-only    # re-run Accept checks on output
+    .venv/bin/python -m floan.model.logit --smoke          # CPU pipeline check (≤100k rows)
+    .venv/bin/python -m floan.model.logit                  # full dev run, window k=2015
+    .venv/bin/python -m floan.model.logit --verify-only    # re-run Accept checks on output
 """
 
 from __future__ import annotations

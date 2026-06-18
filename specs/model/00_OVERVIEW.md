@@ -1,6 +1,6 @@
 # Modelling Master Plan — Transition Models on the Fannie Mae Panel
 
-> **Purpose of this folder.** The data pipeline (`dev/pipeline/`) is built: the SSD holds a cleaned loan-month panel with the seven-state target (`state`, `state_next`, `censored`), leakage-safe calendar columns (`period_ym`, `orig_ym`), a loan-keyed `shard` for minibatch randomization, and train-only scaler discipline. This folder specifies the **analysis and modelling** that sits on top of it, a lot of it based on replicating Sirignano, Sadhwani & Giesecke (*Deep Learning for Mortgage Risk*, JFEC 2021) on this dataset. Read order: this file → `01_EDA.md` → `02_LOAN_LEVEL.md` → `03_POOL_LEVEL.md` → `04_TASKS.md` (sequenced tasks with acceptance criteria). The invariants in the root `CLAUDE.md` and `dev/pipeline/CLAUDE.md` continue to bind.
+> **Purpose of this folder.** The data pipeline (`src/floan/pipeline/`) is built: the SSD holds a cleaned loan-month panel with the seven-state target (`state`, `state_next`, `censored`), leakage-safe calendar columns (`period_ym`, `orig_ym`), a loan-keyed `shard` for minibatch randomization, and train-only scaler discipline. This folder specifies the **analysis and modelling** that sits on top of it, a lot of it based on replicating Sirignano, Sadhwani & Giesecke (*Deep Learning for Mortgage Risk*, JFEC 2021) on this dataset. Read order: this file → `01_EDA.md` → `02_LOAN_LEVEL.md` → `03_POOL_LEVEL.md` → `04_TASKS.md` (sequenced tasks with acceptance criteria). The invariants in the root `CLAUDE.md` and `src/floan/pipeline/CLAUDE.md` continue to bind.
 
 ---
 
@@ -40,11 +40,11 @@ Phase 3 depends on Phase 2's frozen models. Phases 1 and 2 can overlap partially
 
 ## 5. Repository layout this plan creates
 
-(`dev/analysis/`, `dev/model/`, `writeup/memos/` exist with placeholder READMEs; the module files below are created by their tasks in `04_TASKS.md` — absence before then is expected.)
+(`src/floan/analysis/`, `src/floan/model/`, `writeup/memos/` exist with placeholder READMEs; the module files below are created by their tasks in `04_TASKS.md` — absence before then is expected.)
 
 ```
-dev/
-├── model_plan/            # these spec docs
+specs/model/               # these spec docs
+src/floan/
 ├── analysis/              # Phase 1 EDA scripts (one figure/table per script, saved to outputs/figures)
 └── model/                 # Phases 2–3 code
     ├── config.py          # split cutoffs, sample sizes, paths (imports pipeline config ROOT)
@@ -59,6 +59,7 @@ dev/
     ├── backtest.py        # THE main harness: loops train.py/ensemble.py over the 11 rolling windows
     └── pool.py            # Phase 3: pool construction, 12-month roll-forward, pool metrics
 
+tests/                     # model unit tests (test_features.py, test_pool.py, test_economics.py, …)
 writeup/memos/             # short interim write-ups (markdown), figures referenced from outputs/figures
 models/                    # (SSD) one run-folder per fit: config.json, scaler.json, checkpoint, metrics.json
 processed/training/        # (SSD) exported training shards per split design
@@ -80,7 +81,7 @@ The SSD is a single point of failure only for **small** artifacts; protect those
 | Tier | What | Protection |
 |---|---|---|
 | Code, specs, memos, writeup | this repo | git + GitHub (push after every milestone) |
-| Trained models, run configs, scalers, metrics, QA reports, figures, tables, `mkt_rate`, export manifests | SSD `models/ outputs/ logs/ processed/macro/` + manifests | `dev/tools/backup_ssd.sh` → `ssd_mirror/` on the internal disk (gitignored). **Run after every milestone gate** — it's in the standing rules. |
+| Trained models, run configs, scalers, metrics, QA reports, figures, tables, `mkt_rate`, export manifests | SSD `models/ outputs/ logs/ processed/macro/` + manifests | `scripts/backup_ssd.sh` → `ssd_mirror/` on the internal disk (gitignored). **Run after every milestone gate** — it's in the standing rules. |
 | Parquet lakes (`interim/`, `processed/`) | SSD | not backed up — rebuildable from `raw/` by re-running the pipeline (~days, no thought) |
 | `raw/` (~800 GB) | SSD | not backed up — re-downloadable from Fannie Mae; Stage 1 manifest (in `outputs/`, hence mirrored) provides checksums/row counts to verify a re-download |
 

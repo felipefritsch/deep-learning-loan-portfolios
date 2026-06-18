@@ -22,9 +22,9 @@ from a single vintage". The full-scale loop (M10) swaps this preload for the str
 ``data.WindowLoader`` (same batch-dict contract, same training loop).
 
 Run:
-    .venv/bin/python dev/model/train.py --smoke                 # CPU pipeline check (≤100k rows)
-    .venv/bin/python dev/model/train.py --smoke --verify-only   # Accept checks on the smoke run
-    .venv/bin/python dev/model/train.py --device cuda --amp     # GPU dev-export fit (M8 GPU session)
+    .venv/bin/python -m floan.model.train --smoke                 # CPU pipeline check (≤100k rows)
+    .venv/bin/python -m floan.model.train --smoke --verify-only   # Accept checks on the smoke run
+    .venv/bin/python -m floan.model.train --device cuda --amp     # GPU dev-export fit (M8 GPU session)
 """
 
 from __future__ import annotations

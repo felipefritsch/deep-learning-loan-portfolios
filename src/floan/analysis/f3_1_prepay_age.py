@@ -10,7 +10,7 @@ One DuckDB pass emits prepaid/at-risk counts per integer loan age over ``current
 loan-months with an observed next month; ``eda.hazard_curve`` then collapses ages
 into 40 equal-population buckets and attaches Wilson 95% CIs.
 
-Run:  python dev/analysis/f3_1_prepay_age.py
+Run:  python -m floan.analysis.f3_1_prepay_age
 """
 
 from __future__ import annotations

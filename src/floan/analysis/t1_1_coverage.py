@@ -11,7 +11,7 @@ that the last reporting period is uniformly the release cut-off.
 loan's final observed month when that month is in a non-absorbing state (see
 ``s4_panel.py``), so ``count(*) FILTER (WHERE censored)`` counts censored loans.
 
-Run:  python dev/analysis/t1_1_coverage.py
+Run:  python -m floan.analysis.t1_1_coverage
 """
 
 from __future__ import annotations

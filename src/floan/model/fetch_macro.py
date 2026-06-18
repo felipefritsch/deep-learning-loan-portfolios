@@ -17,7 +17,7 @@ This is the one deliberate, documented exception to raw/ immutability
 (``05_MACRO_DATA.md`` §2): we may write *only* into a new dated snapshot folder;
 ``raw/Performance_All/`` is never touched.
 
-Run:  .venv/bin/python dev/model/fetch_macro.py [--snapshot YYYY-MM-DD]
+Run:  .venv/bin/python -m floan.model.fetch_macro [--snapshot YYYY-MM-DD]
 """
 
 from __future__ import annotations

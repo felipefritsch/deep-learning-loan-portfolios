@@ -28,9 +28,9 @@ Reproducibility: every quantity is an integer ``GROUP BY`` count or a determinis
 edge, summed in a fixed cell order, so the NLLs are bit-for-bit stable across runs.
 
 Run:
-    .venv/bin/python dev/model/benchmarks.py                 # dev variant (default)
-    .venv/bin/python dev/model/benchmarks.py --variant dev
-    .venv/bin/python dev/model/benchmarks.py --verify-only   # re-run Accept checks on existing output
+    .venv/bin/python -m floan.model.benchmarks                 # dev variant (default)
+    .venv/bin/python -m floan.model.benchmarks --variant dev
+    .venv/bin/python -m floan.model.benchmarks --verify-only   # re-run Accept checks on existing output
 """
 
 from __future__ import annotations

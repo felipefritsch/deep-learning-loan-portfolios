@@ -2,7 +2,7 @@
 
 > **Goal:** establish (a) the scope and quality of the assembled panel, (b) the base rates of the seven-state transitions, and (c) *visual evidence of nonlinearity and variable interactions* — the motivation for deep learning over linear models, mirroring the argument in Sirignano et al. §1 and their Figures on variable interactions. Everything here runs out-of-core via the Stage-5 DuckDB views; no model fitting yet.
 
-All figures go to `outputs/figures/eda/` (PNG + PDF), all tables to `outputs/tables/eda/` (CSV + LaTeX via `to_latex`), each produced by one script in `dev/analysis/` so regeneration is one command. The memo (`writeup/memos/01_eda.md`) embeds the highlights.
+All figures go to `outputs/figures/eda/` (PNG + PDF), all tables to `outputs/tables/eda/` (CSV + LaTeX via `to_latex`), each produced by one script in `src/floan/analysis/` so regeneration is one command. The memo (`writeup/memos/01_eda.md`) embeds the highlights.
 
 ---
 
@@ -50,4 +50,4 @@ The macro set (PMMS, unemployment nat+state, FMHPI nat+state, 10y Treasury) is d
 
 `writeup/memos/01_eda.md`, ~3–4 pages: dataset scope paragraph (with the public-subset caveat from `00_OVERVIEW §4`), the imbalance table, F2.2, F3.1/F3.2/F3.4 with one paragraph each, the incentive-proxy validation, and a closing paragraph stating the modelling hypothesis: *transition risk depends on covariates nonlinearly and interactively; linear models should underfit prepayment most severely.* This memo seeds the dissertation's Data and Motivation chapters.
 
-**Acceptance for Phase 1:** every table/figure regenerates from `dev/analysis/` scripts against the DuckDB views in bounded memory; `mkt_rate.parquet` exists and is validated; memo committed.
+**Acceptance for Phase 1:** every table/figure regenerates from `src/floan/analysis/` scripts against the DuckDB views in bounded memory; `mkt_rate.parquet` exists and is validated; memo committed.

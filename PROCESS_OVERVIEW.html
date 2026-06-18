@@ -174,7 +174,7 @@ the model forward to pool-level prepayment/delinquency counts and translating th
 <div class="node"><div class="dot">3</div>
 <div class="card">
   <h3>Data pipeline — six stages, S1–S6 <span class="badge b-done">DONE</span></h3>
-  <div class="meta">dev/pipeline/ · spec: dev/pipeline_plan/ · stack: DuckDB + Polars + PyArrow + Parquet(zstd)</div>
+  <div class="meta">src/floan/pipeline/ · spec: specs/pipeline/ · stack: DuckDB + Polars + PyArrow + Parquet(zstd)</div>
   <p>Converts the raw CSVs — one quarter at a time, never fully in RAM — into a compressed columnar lake, then
   derives the seven-state transition panel that everything downstream consumes. Idempotent, per-quarter,
   resumable; the one hard rule is <b>never load a full quarter into memory</b>.</p>
@@ -203,7 +203,7 @@ cleaned loan-month panel: 3.31 B rows / 57.6 M loans / 104 partitions</div>
 <div class="node"><div class="dot">4</div>
 <div class="card">
   <h3>Macro data block — MD1–MD4 <span class="badge b-done">DONE</span></h3>
-  <div class="meta">spec: dev/model_plan/05_MACRO_DATA.md · code: fetch_macro.py, build_macro.py, macro_features.py · = task M2b</div>
+  <div class="meta">spec: specs/model/05_MACRO_DATA.md · code: fetch_macro.py, build_macro.py, macro_features.py · = task M2b</div>
   <p>A June-2026 decision reversed the original "macro out of scope" call: a small fixed set of macro series
   enters as two thin time-keyed Parquet tables joined <b>at export time</b> — the 800 GB lakes are never
   reprocessed. This unlocks the true refi <b>incentive</b> (vs PMMS) and <b>mark-to-market LTV</b>, the paper's
@@ -229,7 +229,7 @@ cleaned loan-month panel: 3.31 B rows / 57.6 M loans / 104 partitions</div>
 <div class="node"><div class="dot">5</div>
 <div class="card">
   <h3>Phase 1 — EDA &amp; motivation (M1–M3) <span class="badge b-done">DONE — Phase-1 gate passed</span></h3>
-  <div class="meta">dev/analysis/ (one script per figure/table) · memo: writeup/memos/01_eda.md · outputs/figures|tables/eda/</div>
+  <div class="meta">src/floan/analysis/ (one script per figure/table) · memo: writeup/memos/01_eda.md · outputs/figures|tables/eda/</div>
   <p>Model-free evidence that transition risk is <b>nonlinear and interactive</b> — the empirical case for deep
   nets before any model is fit. Every exhibit is a bounded-memory DuckDB aggregation over the full 3.31 B-row
   panel, with Wilson CIs on rare rates.</p>
@@ -256,7 +256,7 @@ cleaned loan-month panel: 3.31 B rows / 57.6 M loans / 104 partitions</div>
 <div class="node"><div class="dot">6</div>
 <div class="card">
   <h3>Phase 2 — Loan-level models (M4–M12) <span class="badge b-prog">IN PROGRESS — M10a done, M10b next</span></h3>
-  <div class="meta">dev/model/ · spec: 02_LOAN_LEVEL.md · compute: Mac (exports, benchmarks) + cloud GPU (RTX 4090 class, training)</div>
+  <div class="meta">src/floan/model/ · spec: 02_LOAN_LEVEL.md · compute: Mac (exports, benchmarks) + cloud GPU (RTX 4090 class, training)</div>
   <p>The model ladder — empirical 4×7 matrix → multinomial logit (0-layer net in PyTorch, shared loss/eval path)
   → MLPs with categorical embeddings (depth grid, dropout/L2, ensemble of 8) — compared on frozen out-of-sample
   test slices by mean NLL, per-transition AUC and calibration. All tuning happens once on window k=2015, then the
@@ -264,7 +264,7 @@ cleaned loan-month panel: 3.31 B rows / 57.6 M loans / 104 partitions</div>
   <details open><summary>Milestone tracker</summary>
     <table>
       <tr><th style="width:88px">Milestone</th><th>What</th><th style="width:110px">Status</th></tr>
-      <tr><td>M4</td><td>dev/model scaffolding + export: shared <b>train pool</b> (current→current thinned, p_keep, weight 1/p_keep) + <b>eval pool</b> (unthinned, fixed loan-disjoint shard block); window masks applied at load time</td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>M4</td><td>src/floan/model scaffolding + export: shared <b>train pool</b> (current→current thinned, p_keep, weight 1/p_keep) + <b>eval pool</b> (unthinned, fixed loan-disjoint shard block); window masks applied at load time</td><td><span class="badge b-done">DONE</span></td></tr>
       <tr><td>M5</td><td>Empirical matrix benchmark, all 11 windows (Laplace α=0.5), bit-for-bit reproducible NLLs</td><td><span class="badge b-done">DONE</span></td></tr>
       <tr><td>M6</td><td>features.py (train-only scalers, embedding vocab + UNK) + data.py shard-streaming loader; unit-tested</td><td><span class="badge b-done">DONE</span></td></tr>
       <tr><td>M7</td><td>Logit benchmark (k=2015), sklearn cross-check to ~1e-3, beats empirical matrix</td><td><span class="badge b-done">DONE</span></td></tr>
@@ -292,7 +292,7 @@ cleaned loan-month panel: 3.31 B rows / 57.6 M loans / 104 partitions</div>
 <div class="node"><div class="dot">7</div>
 <div class="card">
   <h3>Phase 3 — Pool-level analysis (M13–M15) <span class="badge b-pend">PENDING</span></h3>
-  <div class="meta">dev/model/pool.py (to be written) · spec: 03_POOL_LEVEL.md · consumes frozen Phase-2 models only</div>
+  <div class="meta">src/floan/model/pool.py (to be written) · spec: 03_POOL_LEVEL.md · consumes frozen Phase-2 models only</div>
   <p>The economic punchline: roll each window's frozen model forward 12 months by <b>composing monthly transition
   matrices</b> (deterministic, no Monte Carlo; terminal states absorbing; first-passage trick for "ever 60+ DPD"),
   aggregate to pools, and compare predicted vs realized counts — then translate counts into <b>CPR, WAL and price
@@ -333,7 +333,7 @@ cleaned loan-month panel: 3.31 B rows / 57.6 M loans / 104 partitions</div>
 <div class="node"><div class="dot">9</div>
 <div class="card">
   <h3>Cross-cutting: infrastructure, backup &amp; working method <span class="badge b-done">STANDING</span></h3>
-  <div class="meta">dev/tools/backup_ssd.sh · CLAUDE.md invariants · PROMPTS.md task protocol</div>
+  <div class="meta">scripts/backup_ssd.sh · CLAUDE.md invariants · PROMPTS.md task protocol</div>
   <p>Three machines, one discipline: the <b>Mac</b> runs everything that touches the panel lake (pipeline, EDA,
   exports, evaluation); a rented <b>GPU pod</b> runs training on rsynced compact exports (2.7 GB, not 800 GB);
   the <b>SSD</b> holds data + models. Work proceeds one milestone at a time via scripted prompts, each verified
@@ -399,7 +399,7 @@ pooled all-years NLL = every 2015–2025 test row predicted exactly once by a mo
 </table>
 
 <footer>
-  Generated 12 June 2026 from the repository's planning specs (<span class="mono">dev/pipeline_plan/</span>, <span class="mono">dev/model_plan/</span>),
+  Generated 12 June 2026 from the repository's planning specs (<span class="mono">specs/pipeline/</span>, <span class="mono">specs/model/</span>),
   the EDA memo (<span class="mono">writeup/memos/01_eda.md</span>), <span class="mono">PROMPTS.md</span> task records, the git history, and <span class="mono">writeup/latex/main.tex</span>.
   Statuses reflect committed work as of that date; regenerate after each milestone gate.
 </footer>

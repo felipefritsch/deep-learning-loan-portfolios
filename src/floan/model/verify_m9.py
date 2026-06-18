@@ -17,7 +17,7 @@ Asserts, against the committed run artifacts (no recompute — pure reads of
   bit-for-bit (determinism of the shared pipeline).
 
 Run:
-    .venv/bin/python dev/model/verify_m9.py
+    .venv/bin/python -m floan.model.verify_m9
 """
 
 from __future__ import annotations

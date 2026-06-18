@@ -81,21 +81,22 @@ Everything lives under `/Volumes/SSD Felipe/dissertation/`, so there is plenty o
 ## 6. Repository layout the pipeline should create
 
 ```
-dissertation/
-├── dev/
-│   ├── pipeline_plan/         # these spec docs (input to Claude Code)
-│   └── pipeline/              # the code Claude Code writes
-│       ├── CLAUDE.md          # symlink or copy of the conventions file
-│       ├── config.py          # single ROOT + named subpaths, memory/chunk knobs, require_drive()
-│       ├── schema.py          # the 113-col layout, dtypes, code maps (from 01_SCHEMA.md)
-│       ├── s1_inventory.py    # Stage 1: manifest + integrity audit
-│       ├── s2_to_parquet.py   # Stage 2: streaming CSV → Parquet
-│       ├── s3_clean.py        # Stage 3: standardise dtypes/dates/categoricals
-│       ├── s4_panel.py        # Stage 4: transition panel (state_t, state_next)
-│       ├── s5_sample.py       # Stage 5: DuckDB views + stratified sampling
-│       ├── s6_qa.py           # Stage 6: reconciliation + null/target audits
-│       └── run.py             # CLI orchestrator (per-stage, per-quarter)
-└── reports/                   # lake.duckdb only — disposable catalog (internal disk)
+<repo root>/
+├── pyproject.toml            # installable package — `pip install -e .`
+├── specs/pipeline/           # these spec docs (input to Claude Code)
+├── src/floan/pipeline/       # the code Claude Code writes
+│   ├── CLAUDE.md             # the binding conventions file
+│   ├── config.py             # single ROOT + named subpaths, memory/chunk knobs, require_drive()
+│   ├── schema.py             # the 113-col layout, dtypes, code maps (from 01_SCHEMA.md)
+│   ├── s1_inventory.py       # Stage 1: manifest + integrity audit
+│   ├── s2_to_parquet.py      # Stage 2: streaming CSV → Parquet
+│   ├── s3_clean.py           # Stage 3: standardise dtypes/dates/categoricals
+│   ├── s4_panel.py           # Stage 4: transition panel (state_t, state_next)
+│   ├── s5_sample.py          # Stage 5: DuckDB views + stratified sampling
+│   ├── s6_qa.py              # Stage 6: reconciliation + null/target audits
+│   └── run.py                # CLI orchestrator: `python -m floan.pipeline.run`
+├── tests/                    # test_schema.py
+└── reports/                  # lake.duckdb only — disposable catalog (internal disk)
 
 /Volumes/SSD Felipe/dissertation/   # EXTERNAL DRIVE — this is ROOT in config.py
 ├── raw/Performance_All/*.csv        # original CSVs — IMMUTABLE, never written
@@ -111,8 +112,8 @@ dissertation/
 ## 7. How to use these docs with Claude Code
 
 0. **Connect the `SSD Felipe` drive first** and confirm it is mounted at `/Volumes/SSD Felipe/`. Every stage should fail fast with a clear message if the drive is absent.
-1. Open Claude Code in the `dissertation/` root so it picks up `dev/pipeline/CLAUDE.md`.
-2. Point it at this plan: *"Read `dev/pipeline_plan/00_OVERVIEW.md` through `03_CLAUDE_CODE_TASKS.md`, then execute the tasks in order."*
+1. Open Claude Code in the `dissertation/` root so it picks up `src/floan/pipeline/CLAUDE.md`.
+2. Point it at this plan: *"Read `specs/pipeline/00_OVERVIEW.md` through `03_CLAUDE_CODE_TASKS.md`, then execute the tasks in order."*
 3. Work **one task at a time** from `03_CLAUDE_CODE_TASKS.md`; each task has explicit acceptance criteria. Do not let it skip Stage 1.
 4. Stages are idempotent and per-quarter, so a crash mid-run is recoverable — re-running skips quarters already converted.
 

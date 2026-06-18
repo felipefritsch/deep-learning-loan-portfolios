@@ -17,7 +17,7 @@ on the dev k=2015 slice and confirm the selected-config test NLL matches.
 Runs on CPU at dev scale in a couple of minutes (no GPU needed; leaves the box's GPU for the
 depth check). Writes ``models/logit/logit_equiv_receipt.json``.
 
-    .venv/bin/python dev/model/verify_logit_equiv.py
+    .venv/bin/python -m floan.model.verify_logit_equiv
 """
 
 from __future__ import annotations

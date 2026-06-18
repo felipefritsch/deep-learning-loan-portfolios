@@ -1,11 +1,11 @@
 # 04 — Sequenced Tasks (execute one at a time, verify Accept before advancing)
 
-> Same contract as `pipeline_plan/03_CLAUDE_CODE_TASKS.md`: each task is small, has explicit acceptance criteria, and is committed before the next begins. Specs: `01_EDA.md` (M-tasks 1–3), `02_LOAN_LEVEL.md` (4–12), `03_POOL_LEVEL.md` (13–15), `06_GBT_BASELINE.md` (16–19).
+> Same contract as `specs/pipeline/03_CLAUDE_CODE_TASKS.md`: each task is small, has explicit acceptance criteria, and is committed before the next begins. Specs: `01_EDA.md` (M-tasks 1–3), `02_LOAN_LEVEL.md` (4–12), `03_POOL_LEVEL.md` (13–15), `06_GBT_BASELINE.md` (16–19).
 
 ---
 
 ### M1 — EDA scaffolding + coverage & state tables
-Create `dev/analysis/` with a shared helper (DuckDB connection to the panel views, figure/table save conventions). Produce T1.1–T1.3.
+Create `src/floan/analysis/` with a shared helper (DuckDB connection to the panel views, figure/table save conventions). Produce T1.1–T1.3.
 **Accept:** tables regenerate with one command each, in bounded memory; T1.3 shows the expected `current` dominance; outputs land in `outputs/tables/eda/`.
 
 ### M2 — Transition-structure figures
@@ -20,7 +20,7 @@ Execute `05_MACRO_DATA.md` (standalone spec): fetch the series snapshot, build `
 `mkt_rate.parquet` (proxy) built; F4.1 proxy-vs-PMMS validation; hazard curves F3.1–F3.3 (F3.2 on the PMMS-based incentive); interaction heatmaps F3.4–F3.5; vintage F3.6; shard checks F5.1–F5.2; write `writeup/memos/01_eda.md`.
 **Accept:** proxy-vs-PMMS tracking error reported; F3.1 shows the seasoning hump and F3.4 a visible FICO×LTV interaction; memo committed. **Phase-1 gate.**
 
-### M4 — `dev/model/` scaffolding + export
+### M4 — `src/floan/model/` scaffolding + export
 `config.py` (the 11 rolling windows k = 2015…2025 with train/val/test label-month masks, `p_keep`, eval shard block, paths), `export.py` per `02 §3`: one shared **train pool** (thinned, weighted, all years) + **eval pool** (unthinned, fixed shard block, label years ≥ 2014). Dev-scale variant first (~5–10 M train-pool rows).
 **Accept:** `manifest.json` row counts per label year reconcile with direct DuckDB counts; eval pool is loan-disjoint-by-shard and contains zero thinned rows; window masks from `config.py` slice both pools correctly (spot-check k=2015 and k=2025); macro columns joined with correct per-variable lags (spot-check one loan-month against the source tables) and `unrate_fallback` indicator present; export re-runs idempotently.
 
@@ -96,4 +96,4 @@ Add **one model-agnostic predictor seam** to `pool.py` — a callable returning 
 2. Anything touching the SSD goes through `require_drive()` and the existing config-derived paths.
 3. GPU code must keep a `--smoke` CPU path (≤100k rows) so every task is testable locally before spending GPU time.
 4. When a result contradicts the paper (possible — different dataset/credit box), record it in the memo rather than tuning until it agrees.
-5. **After every milestone gate (M3, M12, M15) and every GPU session:** run `dev/tools/backup_ssd.sh` and `git push`. Checkpoints on a rented GPU box are synced back to `models/` before teardown — never the only copy.
+5. **After every milestone gate (M3, M12, M15) and every GPU session:** run `scripts/backup_ssd.sh` and `git push`. Checkpoints on a rented GPU box are synced back to `models/` before teardown — never the only copy.

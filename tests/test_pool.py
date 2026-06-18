@@ -9,7 +9,7 @@ functions, exercised with no SSD, no GPU, and no model artifacts. Covers the Acc
   * the first-passage variant (``absorb_rows`` + compose) equals an independent
     brute-force path enumeration of "ever reaches the target within H steps".
 
-Run:  .venv/bin/python dev/model/test_pool.py     (or python -m pytest)
+Run:  .venv/bin/python -m floan.model.test_pool     (or python -m pytest)
 """
 
 from __future__ import annotations

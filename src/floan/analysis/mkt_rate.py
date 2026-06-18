@@ -16,7 +16,7 @@ the newest vintage's trailing months) give noisy means, so they are forward-fill
 (back-filled for any leading thin months) from the nearest well-populated month and
 flagged (``ff_flag``). The raw mean and loan count are retained for transparency.
 
-Run:  python dev/analysis/mkt_rate.py
+Run:  python -m floan.analysis.mkt_rate
 """
 
 from __future__ import annotations
