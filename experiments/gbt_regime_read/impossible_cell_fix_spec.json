@@ -1,0 +1,138 @@
+{
+  "spec": "impossible_cell_fix",
+  "status": "PRELIMINARY \u2014 5 of 11 regime windows; filler-window confirmation pending",
+  "schema": {
+    "states_order": [
+      "current",
+      "dpd_30",
+      "dpd_60",
+      "dpd_90plus",
+      "foreclosure",
+      "REO",
+      "prepaid"
+    ],
+    "cells": "(origin, destination) string pairs in the canonical state names"
+  },
+  "mask_permit_cells": [
+    {
+      "origin": "current",
+      "destination": "dpd_60",
+      "tag": "reporting-gap-legal",
+      "rationale": "occurs in real test data (loan genuinely advanced past a missed monthly snapshot); the mask over-flags it as impossible",
+      "realized_count": {
+        "2015": 230,
+        "2019": 155,
+        "2020": 218,
+        "2023": 237,
+        "2025": 305
+      }
+    },
+    {
+      "origin": "current",
+      "destination": "dpd_90plus",
+      "tag": "reporting-gap-legal",
+      "rationale": "occurs in real test data (loan genuinely advanced past a missed monthly snapshot); the mask over-flags it as impossible",
+      "realized_count": {
+        "2015": 107,
+        "2019": 41,
+        "2020": 226,
+        "2023": 87,
+        "2025": 86
+      }
+    },
+    {
+      "origin": "dpd_30",
+      "destination": "dpd_90plus",
+      "tag": "reporting-gap-legal",
+      "rationale": "occurs in real test data (loan genuinely advanced past a missed monthly snapshot); the mask over-flags it as impossible",
+      "realized_count": {
+        "2015": 96,
+        "2019": 72,
+        "2020": 116,
+        "2023": 82,
+        "2025": 142
+      }
+    },
+    {
+      "origin": "dpd_90plus",
+      "destination": "REO",
+      "tag": "reporting-gap-legal",
+      "rationale": "occurs in real test data (loan genuinely advanced past a missed monthly snapshot); the mask over-flags it as impossible",
+      "realized_count": {
+        "2015": 1063,
+        "2019": 265,
+        "2020": 120,
+        "2023": 82,
+        "2025": 102
+      }
+    }
+  ],
+  "zero_cells": [
+    {
+      "origin": "current",
+      "destination": "foreclosure",
+      "tag": "mechanically-impossible / data-error",
+      "rationale": "a performing loan cannot reach foreclosure/REO in one month even across a reporting gap; the few realized instances are data errors",
+      "note": "high-LGD loss state \u2014 the ~1e-5 predicted mass is severity-amplified in pricing, so zero-and-renormalize this cell before the M19 pool roll",
+      "realized_count": {
+        "2015": 5,
+        "2019": 7,
+        "2020": 0,
+        "2023": 0,
+        "2025": 10
+      }
+    },
+    {
+      "origin": "current",
+      "destination": "REO",
+      "tag": "mechanically-impossible / data-error",
+      "rationale": "a performing loan cannot reach foreclosure/REO in one month even across a reporting gap; the few realized instances are data errors",
+      "note": "high-LGD loss state \u2014 the ~1e-5 predicted mass is severity-amplified in pricing, so zero-and-renormalize this cell before the M19 pool roll",
+      "realized_count": {
+        "2015": 1,
+        "2019": 1,
+        "2020": 2,
+        "2023": 0,
+        "2025": 0
+      }
+    }
+  ],
+  "threshold_unchanged": true,
+  "threshold_note": "After the (b) permit, the residual (genuinely-impossible) mean mass is ~1e-5 per window and all 5 regime windows clear the 1e-3 mean gate WITHOUT moving the threshold. Residual = exact_mean_mass \u2212 permitted-cell mass.",
+  "residual_after_permit_per_window": {
+    "2015": 3.72e-06,
+    "2019": 3.042e-05,
+    "2020": 4.083e-05,
+    "2023": 1.06e-05,
+    "2025": 8.63e-06
+  },
+  "exact_mean_mass_per_window": {
+    "2015": 0.0003466611677971776,
+    "2019": 0.0018614873859188143,
+    "2020": 0.0015558647896249543,
+    "2023": 0.0009138576531709237,
+    "2025": 0.0014291695212535669
+  },
+  "gate_pass_before_fix": {
+    "2015": true,
+    "2019": false,
+    "2020": false,
+    "2023": true,
+    "2025": false
+  },
+  "provenance": {
+    "source": "experiments/gbt_regime_read/forensics_calib_results.json",
+    "derivation": "experiments/gbt_regime_read/make_fix_spec.py",
+    "windows": [
+      2015,
+      2019,
+      2020,
+      2023,
+      2025
+    ],
+    "structural_mask": "floan.model.backtest._structural_allow",
+    "realized_counts": "EXACT (full-slice scan); predicted contributions rescaled from a 20% subsample to the committed exact mean (\u00d70.99\u20131.006)",
+    "location_rationale": "co-located with provenance under experiments/gbt_regime_read/ rather than a permanent config home because it is PRELIMINARY (5/11 windows); the permanent fix is the eventual _structural_allow code edit + M19 config promotion once all 11 windows confirm",
+    "status": "PRELIMINARY \u2014 filler-window confirmation pending"
+  }
+}

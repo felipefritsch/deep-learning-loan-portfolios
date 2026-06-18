@@ -1,0 +1,677 @@
+{
+  "2015": {
+    "n": 6180351,
+    "n_sub": 1234547,
+    "test_key_hash": 15501122299040338077,
+    "best_iteration": 1208,
+    "exact_mean_mass": 0.0003466611677971776,
+    "exact_max_row": 0.4219669666970253,
+    "sub_mean_mass": 0.0003462924989279792,
+    "realized_imp_mean": 0.00024399908678325875,
+    "gate_pass": true,
+    "by_origin": {
+      "current": {
+        "n_sub": 1205930,
+        "pred_mean_mass_in_origin": 4.746835548941373e-05,
+        "contrib_share_of_total": 0.13389845706142714
+      },
+      "dpd_30": {
+        "n_sub": 13008,
+        "pred_mean_mass_in_origin": 0.0015722162427904804,
+        "contrib_share_of_total": 0.047837898625871705
+      },
+      "dpd_60": {
+        "n_sub": 3249,
+        "pred_mean_mass_in_origin": 0.0005607113099058605,
+        "contrib_share_of_total": 0.0042612627601691915
+      },
+      "dpd_90plus": {
+        "n_sub": 12360,
+        "pred_mean_mass_in_origin": 0.02815515467690847,
+        "contrib_share_of_total": 0.8140023815525321
+      }
+    },
+    "cells": [
+      {
+        "origin": "dpd_90plus",
+        "dest": "REO",
+        "pred_mean_in_origin": 0.02815515467690847,
+        "share_of_impossible": 0.8140023815525322,
+        "est_exact_contrib": 0.0002821830161786845,
+        "realized_count_full": 1063,
+        "realized_rate_in_origin_full": 0.017241379310344827,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "current",
+        "dest": "dpd_60",
+        "pred_mean_in_origin": 2.913398717889161e-05,
+        "share_of_impossible": 0.08218097911925719,
+        "est_exact_contrib": 2.848895419219716e-05,
+        "realized_count_full": 230,
+        "realized_rate_in_origin_full": 3.809703646466127e-05,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "current",
+        "dest": "dpd_90plus",
+        "pred_mean_in_origin": 1.6692349424548655e-05,
+        "share_of_impossible": 0.04708568075790466,
+        "est_exact_contrib": 1.6322777078060323e-05,
+        "realized_count_full": 107,
+        "realized_rate_in_origin_full": 1.772340392051633e-05,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "dpd_30",
+        "dest": "dpd_90plus",
+        "pred_mean_in_origin": 0.0015122317391622901,
+        "share_of_impossible": 0.046012747272266834,
+        "est_exact_contrib": 1.595083270296042e-05,
+        "realized_count_full": 96,
+        "realized_rate_in_origin_full": 0.0014767413241447206,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "dpd_60",
+        "dest": "foreclosure",
+        "pred_mean_in_origin": 0.00044111762878440035,
+        "share_of_impossible": 0.003352381325621369,
+        "est_exact_contrib": 1.1621404252413538e-06,
+        "realized_count_full": 1,
+        "realized_rate_in_origin_full": 6.070171178827243e-05,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "current",
+        "dest": "REO",
+        "pred_mean_in_origin": 9.156519413166001e-07,
+        "share_of_impossible": 0.0025828655929514156,
+        "est_exact_contrib": 8.953792027156872e-07,
+        "realized_count_full": 1,
+        "realized_rate_in_origin_full": 1.6563928897678813e-07,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "current",
+        "dest": "foreclosure",
+        "pred_mean_in_origin": 7.26366944656861e-07,
+        "share_of_impossible": 0.0020489315913138654,
+        "est_exact_contrib": 7.102850181813939e-07,
+        "realized_count_full": 5,
+        "realized_rate_in_origin_full": 8.281964448839407e-07,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "dpd_30",
+        "dest": "foreclosure",
+        "pred_mean_in_origin": 5.0137751470688984e-05,
+        "share_of_impossible": 0.0015255437559447737,
+        "est_exact_contrib": 5.288467799615076e-07,
+        "realized_count_full": 3,
+        "realized_rate_in_origin_full": 4.614816637952252e-05,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "dpd_60",
+        "dest": "REO",
+        "pred_mean_in_origin": 0.00011959368112146011,
+        "share_of_impossible": 0.0009088814345478227,
+        "est_exact_contrib": 3.1507389948952224e-07,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      },
+      {
+        "origin": "dpd_30",
+        "dest": "REO",
+        "pred_mean_in_origin": 9.84675215750117e-06,
+        "share_of_impossible": 0.00029960759766008735,
+        "est_exact_contrib": 1.0386231968575279e-07,
+        "realized_count_full": 2,
+        "realized_rate_in_origin_full": 3.076544425301501e-05,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      }
+    ]
+  },
+  "2019": {
+    "n": 7287022,
+    "n_sub": 1457054,
+    "test_key_hash": 6255204342588424342,
+    "best_iteration": 130,
+    "exact_mean_mass": 0.0018614873859188143,
+    "exact_max_row": 0.9999282247734038,
+    "sub_mean_mass": 0.0018585889177194649,
+    "realized_imp_mean": 7.479049740758296e-05,
+    "gate_pass": false,
+    "by_origin": {
+      "current": {
+        "n_sub": 1432780,
+        "pred_mean_mass_in_origin": 0.001747889627299995,
+        "contrib_share_of_total": 0.9247716873191213
+      },
+      "dpd_30": {
+        "n_sub": 14303,
+        "pred_mean_mass_in_origin": 0.00815108652112111,
+        "contrib_share_of_total": 0.04305104036049606
+      },
+      "dpd_60": {
+        "n_sub": 3481,
+        "pred_mean_mass_in_origin": 0.000529147170501043,
+        "contrib_share_of_total": 0.000680176324095672
+      },
+      "dpd_90plus": {
+        "n_sub": 6490,
+        "pred_mean_mass_in_origin": 0.013142706456675299,
+        "contrib_share_of_total": 0.03149709599628763
+      }
+    },
+    "cells": [
+      {
+        "origin": "current",
+        "dest": "dpd_90plus",
+        "pred_mean_in_origin": 0.0010796153939669469,
+        "share_of_impossible": 0.5712018275872254,
+        "est_exact_contrib": 0.0010632849968673936,
+        "realized_count_full": 41,
+        "realized_rate_in_origin_full": 5.721226139696156e-06,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "current",
+        "dest": "dpd_60",
+        "pred_mean_in_origin": 0.0006417113967375476,
+        "share_of_impossible": 0.3395160208425671,
+        "est_exact_contrib": 0.0006320047901157879,
+        "realized_count_full": 155,
+        "realized_rate_in_origin_full": 2.1629025650070832e-05,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "dpd_30",
+        "dest": "dpd_90plus",
+        "pred_mean_in_origin": 0.007846506515847305,
+        "share_of_impossible": 0.04144236082236755,
+        "est_exact_contrib": 7.714443191353325e-05,
+        "realized_count_full": 72,
+        "realized_rate_in_origin_full": 0.001015944687455905,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "dpd_90plus",
+        "dest": "REO",
+        "pred_mean_in_origin": 0.013142706456675299,
+        "share_of_impossible": 0.03149709599628763,
+        "est_exact_contrib": 5.863144689016342e-05,
+        "realized_count_full": 265,
+        "realized_rate_in_origin_full": 0.008165654947154346,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "current",
+        "dest": "foreclosure",
+        "pred_mean_in_origin": 1.3573051419361787e-05,
+        "share_of_impossible": 0.007181216403544722,
+        "est_exact_contrib": 1.3367743750751774e-05,
+        "realized_count_full": 7,
+        "realized_rate_in_origin_full": 9.767947067773924e-07,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "current",
+        "dest": "REO",
+        "pred_mean_in_origin": 1.2989785176137965e-05,
+        "share_of_impossible": 0.006872622485783687,
+        "est_exact_contrib": 1.2793300065468339e-05,
+        "realized_count_full": 1,
+        "realized_rate_in_origin_full": 1.395421009681989e-07,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "dpd_30",
+        "dest": "foreclosure",
+        "pred_mean_in_origin": 0.00024064192136003746,
+        "share_of_impossible": 0.0012709821006136714,
+        "est_exact_contrib": 2.3659171480209467e-06,
+        "realized_count_full": 3,
+        "realized_rate_in_origin_full": 4.233102864399605e-05,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "dpd_60",
+        "dest": "foreclosure",
+        "pred_mean_in_origin": 0.00043797308209928384,
+        "share_of_impossible": 0.0005629793328632297,
+        "est_exact_contrib": 1.0479789266578917e-06,
+        "realized_count_full": 1,
+        "realized_rate_in_origin_full": 5.746135723725794e-05,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "dpd_30",
+        "dest": "REO",
+        "pred_mean_in_origin": 6.39380839137665e-05,
+        "share_of_impossible": 0.00033769743751483944,
+        "est_exact_contrib": 6.286195201909806e-07,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      },
+      {
+        "origin": "dpd_60",
+        "dest": "REO",
+        "pred_mean_in_origin": 9.117408840175909e-05,
+        "share_of_impossible": 0.00011719699123244222,
+        "est_exact_contrib": 2.1816072084682908e-07,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      }
+    ]
+  },
+  "2020": {
+    "n": 7639066,
+    "n_sub": 1526296,
+    "test_key_hash": 2113475050104146160,
+    "best_iteration": 1919,
+    "exact_mean_mass": 0.0015558647896249543,
+    "exact_max_row": 0.999812183354737,
+    "sub_mean_mass": 0.0015722333961513994,
+    "realized_imp_mean": 8.92779300506109e-05,
+    "gate_pass": false,
+    "by_origin": {
+      "current": {
+        "n_sub": 1473121,
+        "pred_mean_mass_in_origin": 0.00113801177786653,
+        "contrib_share_of_total": 0.6986013079399154
+      },
+      "dpd_30": {
+        "n_sub": 19562,
+        "pred_mean_mass_in_origin": 0.009470122640511553,
+        "contrib_share_of_total": 0.07719924887359593
+      },
+      "dpd_60": {
+        "n_sub": 9319,
+        "pred_mean_mass_in_origin": 0.0003439433760528836,
+        "contrib_share_of_total": 0.0013356740196966868
+      },
+      "dpd_90plus": {
+        "n_sub": 24294,
+        "pred_mean_mass_in_origin": 0.022013861363902716,
+        "contrib_share_of_total": 0.2228637691667923
+      }
+    },
+    "cells": [
+      {
+        "origin": "current",
+        "dest": "dpd_90plus",
+        "pred_mean_in_origin": 0.0006092035087679903,
+        "share_of_impossible": 0.3739771207155454,
+        "est_exact_contrib": 0.0005818578342466382,
+        "realized_count_full": 226,
+        "realized_rate_in_origin_full": 3.065247176920913e-05,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "current",
+        "dest": "dpd_60",
+        "pred_mean_in_origin": 0.0004924314721173558,
+        "share_of_impossible": 0.302293242638399,
+        "est_exact_contrib": 0.00047032741236263794,
+        "realized_count_full": 218,
+        "realized_rate_in_origin_full": 2.9567428520741552e-05,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "dpd_90plus",
+        "dest": "REO",
+        "pred_mean_in_origin": 0.022013861363902716,
+        "share_of_impossible": 0.22286376916679232,
+        "est_exact_contrib": 0.0003467458913297157,
+        "realized_count_full": 120,
+        "realized_rate_in_origin_full": 0.0009936571551595647,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "dpd_30",
+        "dest": "dpd_90plus",
+        "pred_mean_in_origin": 0.009153978057162213,
+        "share_of_impossible": 0.07462207798611241,
+        "est_exact_contrib": 0.00011610186366723971,
+        "realized_count_full": 116,
+        "realized_rate_in_origin_full": 0.001179784994355339,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "current",
+        "dest": "REO",
+        "pred_mean_in_origin": 2.5906884866955105e-05,
+        "share_of_impossible": 0.015903687470294622,
+        "est_exact_contrib": 2.4743987360230963e-05,
+        "realized_count_full": 2,
+        "realized_rate_in_origin_full": 2.71260812116895e-07,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "current",
+        "dest": "foreclosure",
+        "pred_mean_in_origin": 1.0469912114228602e-05,
+        "share_of_impossible": 0.006427257115676277,
+        "est_exact_contrib": 9.999943040147163e-06,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      },
+      {
+        "origin": "dpd_30",
+        "dest": "foreclosure",
+        "pred_mean_in_origin": 0.00016588440876949786,
+        "share_of_impossible": 0.0013522688399053328,
+        "est_exact_contrib": 2.1039474741156915e-06,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      },
+      {
+        "origin": "dpd_30",
+        "dest": "REO",
+        "pred_mean_in_origin": 0.0001502601745798417,
+        "share_of_impossible": 0.0012249020475781898,
+        "est_exact_contrib": 1.9057819665664158e-06,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      },
+      {
+        "origin": "dpd_60",
+        "dest": "foreclosure",
+        "pred_mean_in_origin": 0.000253478337318669,
+        "share_of_impossible": 0.0009843609538228255,
+        "est_exact_contrib": 1.5315325483345697e-06,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      },
+      {
+        "origin": "dpd_60",
+        "dest": "REO",
+        "pred_mean_in_origin": 9.046503873421463e-05,
+        "share_of_impossible": 0.00035131306587386123,
+        "est_exact_contrib": 5.465956293283329e-07,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      }
+    ]
+  },
+  "2023": {
+    "n": 8768239,
+    "n_sub": 1751728,
+    "test_key_hash": 2410566893488284273,
+    "best_iteration": 429,
+    "exact_mean_mass": 0.0009138576531709237,
+    "exact_max_row": 0.9570537304544192,
+    "sub_mean_mass": 0.0009088870528578317,
+    "realized_imp_mean": 5.5655417239425154e-05,
+    "gate_pass": true,
+    "by_origin": {
+      "current": {
+        "n_sub": 1726034,
+        "pred_mean_mass_in_origin": 0.0007767623404481614,
+        "contrib_share_of_total": 0.8420946712710002
+      },
+      "dpd_30": {
+        "n_sub": 13969,
+        "pred_mean_mass_in_origin": 0.006586551709533128,
+        "contrib_share_of_total": 0.05778922020986645
+      },
+      "dpd_60": {
+        "n_sub": 3438,
+        "pred_mean_mass_in_origin": 0.00027654196580264835,
+        "contrib_share_of_total": 0.0005971594773434083
+      },
+      "dpd_90plus": {
+        "n_sub": 8287,
+        "pred_mean_mass_in_origin": 0.019119874223065454,
+        "contrib_share_of_total": 0.09951894904178944
+      }
+    },
+    "cells": [
+      {
+        "origin": "current",
+        "dest": "dpd_90plus",
+        "pred_mean_in_origin": 0.00041231896539924455,
+        "share_of_impossible": 0.44699850333417074,
+        "est_exact_contrib": 0.00040849300322788064,
+        "realized_count_full": 87,
+        "realized_rate_in_origin_full": 1.0071001719710363e-05,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "current",
+        "dest": "dpd_60",
+        "pred_mean_in_origin": 0.0003551265105834451,
+        "share_of_impossible": 0.3849956757904141,
+        "est_exact_contrib": 0.00035183124475878164,
+        "realized_count_full": 237,
+        "realized_rate_in_origin_full": 2.7434797788176506e-05,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "dpd_90plus",
+        "dest": "REO",
+        "pred_mean_in_origin": 0.019119874223065454,
+        "share_of_impossible": 0.09951894904178944,
+        "est_exact_contrib": 9.094615321736645e-05,
+        "realized_count_full": 82,
+        "realized_rate_in_origin_full": 0.0019182183961822775,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "dpd_30",
+        "dest": "dpd_90plus",
+        "pred_mean_in_origin": 0.0064833474008887055,
+        "share_of_impossible": 0.05688372416552093,
+        "est_exact_contrib": 5.1983626669525124e-05,
+        "realized_count_full": 82,
+        "realized_rate_in_origin_full": 0.001176470588235294,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "current",
+        "dest": "REO",
+        "pred_mean_in_origin": 6.2703618788977805e-06,
+        "share_of_impossible": 0.006797752736202617,
+        "est_exact_contrib": 6.21217836234235e-06,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      },
+      {
+        "origin": "current",
+        "dest": "foreclosure",
+        "pred_mean_in_origin": 3.046502586574068e-06,
+        "share_of_impossible": 0.003302739410212886,
+        "est_exact_contrib": 3.018233686452269e-06,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      },
+      {
+        "origin": "dpd_30",
+        "dest": "foreclosure",
+        "pred_mean_in_origin": 7.30644963599946e-05,
+        "share_of_impossible": 0.0006410547515416083,
+        "est_exact_contrib": 5.858327907978838e-07,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      },
+      {
+        "origin": "dpd_60",
+        "dest": "foreclosure",
+        "pred_mean_in_origin": 0.00023665519240124568,
+        "share_of_impossible": 0.0005110287351677538,
+        "est_exact_contrib": 4.67007520623309e-07,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      },
+      {
+        "origin": "dpd_30",
+        "dest": "REO",
+        "pred_mean_in_origin": 3.013981228442643e-05,
+        "share_of_impossible": 0.00026444129280391206,
+        "est_exact_contrib": 2.4166169924326816e-07,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      },
+      {
+        "origin": "dpd_60",
+        "dest": "REO",
+        "pred_mean_in_origin": 3.9886773401402705e-05,
+        "share_of_impossible": 8.613074217565461e-05,
+        "est_exact_contrib": 7.871123791051364e-08,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      }
+    ]
+  },
+  "2025": {
+    "n": 8723591,
+    "n_sub": 1746954,
+    "test_key_hash": 4465313196582975770,
+    "best_iteration": 555,
+    "exact_mean_mass": 0.0014291695212535669,
+    "exact_max_row": 0.9352284833285222,
+    "sub_mean_mass": 0.001420837034971264,
+    "realized_imp_mean": 7.405207328037272e-05,
+    "gate_pass": false,
+    "by_origin": {
+      "current": {
+        "n_sub": 1718061,
+        "pred_mean_mass_in_origin": 0.0012952400974796047,
+        "contrib_share_of_total": 0.8965264808030148
+      },
+      "dpd_30": {
+        "n_sub": 15940,
+        "pred_mean_mass_in_origin": 0.010336496850961467,
+        "contrib_share_of_total": 0.06637980243696907
+      },
+      "dpd_60": {
+        "n_sub": 4130,
+        "pred_mean_mass_in_origin": 0.00022426429814010324,
+        "contrib_share_of_total": 0.0003731508668191662
+      },
+      "dpd_90plus": {
+        "n_sub": 8823,
+        "pred_mean_mass_in_origin": 0.010330440113298707,
+        "contrib_share_of_total": 0.03672056589319569
+      }
+    },
+    "cells": [
+      {
+        "origin": "current",
+        "dest": "dpd_90plus",
+        "pred_mean_in_origin": 0.0007397214151385222,
+        "share_of_impossible": 0.5120130533167098,
+        "est_exact_contrib": 0.000731753450284219,
+        "realized_count_full": 86,
+        "realized_rate_in_origin_full": 1.0024154716067566e-05,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "current",
+        "dest": "dpd_60",
+        "pred_mean_in_origin": 0.0005482759460938763,
+        "share_of_impossible": 0.3795002219410724,
+        "est_exact_contrib": 0.0005423701505071449,
+        "realized_count_full": 305,
+        "realized_rate_in_origin_full": 3.555078126047218e-05,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "dpd_30",
+        "dest": "dpd_90plus",
+        "pred_mean_in_origin": 0.010234673124435734,
+        "share_of_impossible": 0.06572590209262315,
+        "est_exact_contrib": 9.393345602767303e-05,
+        "realized_count_full": 142,
+        "realized_rate_in_origin_full": 0.0017889538399516226,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "dpd_90plus",
+        "dest": "REO",
+        "pred_mean_in_origin": 0.010330440113298707,
+        "share_of_impossible": 0.03672056589319569,
+        "est_exact_contrib": 5.2479913577738535e-05,
+        "realized_count_full": 102,
+        "realized_rate_in_origin_full": 0.002296056185845489,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "current",
+        "dest": "foreclosure",
+        "pred_mean_in_origin": 4.688972356813868e-06,
+        "share_of_impossible": 0.003245566512198831,
+        "est_exact_contrib": 4.638464738435812e-06,
+        "realized_count_full": 10,
+        "realized_rate_in_origin_full": 1.165599385589252e-06,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "current",
+        "dest": "REO",
+        "pred_mean_in_origin": 2.5537638903936286e-06,
+        "share_of_impossible": 0.0017676390330345429,
+        "est_exact_contrib": 2.5262558305910955e-06,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      },
+      {
+        "origin": "dpd_30",
+        "dest": "foreclosure",
+        "pred_mean_in_origin": 9.0276508095546e-05,
+        "share_of_impossible": 0.0005797454261812478,
+        "est_exact_contrib": 8.285544931843991e-07,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      },
+      {
+        "origin": "dpd_60",
+        "dest": "foreclosure",
+        "pred_mean_in_origin": 0.00020126241966484556,
+        "share_of_impossible": 0.0003348782975217142,
+        "est_exact_contrib": 4.785978561473178e-07,
+        "realized_count_full": 1,
+        "realized_rate_in_origin_full": 4.874719703617042e-05,
+        "verdict": "RARE-BUT-LEGAL (occurs in full test data)"
+      },
+      {
+        "origin": "dpd_30",
+        "dest": "REO",
+        "pred_mean_in_origin": 1.1547218430185799e-05,
+        "share_of_impossible": 7.415491816465496e-05,
+        "est_exact_contrib": 1.0597994889197736e-07,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      },
+      {
+        "origin": "dpd_60",
+        "dest": "REO",
+        "pred_mean_in_origin": 2.300187847525769e-05,
+        "share_of_impossible": 3.8272569297451956e-05,
+        "est_exact_contrib": 5.469798953998337e-08,
+        "realized_count_full": 0,
+        "realized_rate_in_origin_full": 0.0,
+        "verdict": "no realized instances"
+      }
+    ]
+  }
+}
