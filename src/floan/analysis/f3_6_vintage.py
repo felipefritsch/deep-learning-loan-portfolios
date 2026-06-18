@@ -10,7 +10,7 @@ not reducible to the contemporaneous covariates.
 One DuckDB pass emits dpd_30/at-risk counts per origination year over ``current``
 loan-months aged 12–36; Wilson 95% CIs come from ``eda.wilson_ci``.
 
-Run:  python dev/analysis/f3_6_vintage.py
+Run:  python -m floan.analysis.f3_6_vintage
 """
 
 from __future__ import annotations

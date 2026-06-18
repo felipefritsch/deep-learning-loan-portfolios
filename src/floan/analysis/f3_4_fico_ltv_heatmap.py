@@ -11,7 +11,7 @@ One DuckDB pass emits dpd_30plus/at-risk counts per (integer FICO, rounded LTV) 
 over ``current`` loan-months; the grid is then built with equal-population octile
 edges per axis (``eda.equal_pop_edges``) so every cell carries comparable mass.
 
-Run:  python dev/analysis/f3_4_fico_ltv_heatmap.py
+Run:  python -m floan.analysis.f3_4_fico_ltv_heatmap
 """
 
 from __future__ import annotations

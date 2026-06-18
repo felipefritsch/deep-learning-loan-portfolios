@@ -11,7 +11,7 @@ One DuckDB pass joins ``macro_national`` (PMMS) on ``period_ym`` and emits
 prepaid/at-risk counts per 5 bp incentive bin over ``current`` loan-months;
 ``eda.hazard_curve`` collapses to 25 equal-population buckets with Wilson 95% CIs.
 
-Run:  python dev/analysis/f3_2_prepay_incentive.py
+Run:  python -m floan.analysis.f3_2_prepay_incentive
 """
 
 from __future__ import annotations

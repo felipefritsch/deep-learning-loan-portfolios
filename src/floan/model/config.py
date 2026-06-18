@@ -1,6 +1,6 @@
 """Phase 2-3 model configuration — the rolling backtest windows + export knobs.
 
-Single source of truth for the modelling code (``dev/model/``), layered on top of
+Single source of truth for the modelling code (``src/floan/model/``), layered on top of
 the pipeline's ``config.py`` (which owns ``ROOT`` and the lake paths). Everything
 storage-related still derives from the pipeline ``ROOT`` on the external SSD.
 

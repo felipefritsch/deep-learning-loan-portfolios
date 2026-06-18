@@ -21,9 +21,9 @@ WHERE skips all non-matching row groups: the dev export reads ~3% of the lake in
 seconds. Processing one shard at a time bounds memory for the macro join.
 
 Run:
-    .venv/bin/python dev/model/export.py                 # dev variant (default)
-    .venv/bin/python dev/model/export.py --variant dev
-    .venv/bin/python dev/model/export.py --verify-only   # re-run Accept checks on existing output
+    .venv/bin/python -m floan.model.export                 # dev variant (default)
+    .venv/bin/python -m floan.model.export --variant dev
+    .venv/bin/python -m floan.model.export --verify-only   # re-run Accept checks on existing output
 """
 
 from __future__ import annotations

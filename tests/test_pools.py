@@ -6,7 +6,7 @@ membership is seeded-reproducible and within-pool replacement-free; predicted co
 Poisson-binomial normal interval match Σp / Σp(1−p); realized counts reconcile exactly between
 the characteristic partition and a direct total; R²/RMSE match closed form.
 
-Run:  .venv/bin/python dev/model/test_pools.py     (or python -m pytest)
+Run:  .venv/bin/python -m floan.model.test_pools     (or python -m pytest)
 """
 
 from __future__ import annotations

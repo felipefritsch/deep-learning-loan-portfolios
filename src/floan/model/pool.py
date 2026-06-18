@@ -29,9 +29,9 @@ composition reproduces ``evaluate.py``'s per-row probabilities bit-for-bit (the 
 M14 consumes :func:`roll_forward` to build pools and predicted counts.
 
 Run (GPU box; the full eval pool lives there):
-    .venv/bin/python dev/model/pool.py --k 2020 --device cuda            # full window
-    .venv/bin/python dev/model/pool.py --k 2020 --device cuda --verify   # + h=1 == evaluate
-    .venv/bin/python dev/model/pool.py --k 2020 --max-loans 50000        # quick smoke
+    .venv/bin/python -m floan.model.pool --k 2020 --device cuda            # full window
+    .venv/bin/python -m floan.model.pool --k 2020 --device cuda --verify   # + h=1 == evaluate
+    .venv/bin/python -m floan.model.pool --k 2020 --max-loans 50000        # quick smoke
 """
 
 from __future__ import annotations

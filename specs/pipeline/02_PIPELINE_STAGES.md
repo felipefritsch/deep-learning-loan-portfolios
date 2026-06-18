@@ -264,7 +264,7 @@ Emit a single `outputs/qa_report.md`. **Acceptance:** all reconciliations pass f
 
 ## Orchestration (`run.py`)
 
-A thin CLI: `python run.py <stage> [--quarter 2020Q4] [--all] [--delete-raw] [--include-quarantined]`. Stages run independently and per-quarter so you can process the ~800 GB incrementally and resume after interruption. Log to `logs/run.log` with per-quarter timing and peak memory.
+A thin CLI: `python -m floan.pipeline.run <stage> [--quarter 2020Q4] [--all] [--delete-raw] [--include-quarantined]`. Stages run independently and per-quarter so you can process the ~800 GB incrementally and resume after interruption. Log to `logs/run.log` with per-quarter timing and peak memory.
 
 ---
 

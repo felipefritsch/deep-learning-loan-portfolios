@@ -2,7 +2,7 @@
 
 You are building a memory-safe ingestion/cleaning/analysis pipeline for the Fannie Mae
 Single-Family Loan Performance dataset. **Read the full spec before coding:**
-`../pipeline_plan/00_OVERVIEW.md`, `01_SCHEMA.md`, `02_PIPELINE_STAGES.md`, `03_CLAUDE_CODE_TASKS.md`.
+`specs/pipeline/00_OVERVIEW.md`, `01_SCHEMA.md`, `02_PIPELINE_STAGES.md`, `03_CLAUDE_CODE_TASKS.md`.
 Execute the tasks in `03_CLAUDE_CODE_TASKS.md` in order, one at a time.
 
 ## Part 1: Project-specific key instructions (crucial)
@@ -56,7 +56,7 @@ only, per backtest window, at model time. **Rolling-backtest mask is strict**
 cut-off is **derived** (max observed `period`), never hardcoded — added vintages extend it.
 
 ### Layout
-Code in `dev/pipeline/`. On the SSD under `/Volumes/SSD Felipe/dissertation/`:
+Code in `src/floan/pipeline/`. On the SSD under `/Volumes/SSD Felipe/dissertation/`:
 `interim/{perf,clean}/acq_quarter=YYYYQn/` and `processed/{panel,samples}/`; manifests/QA in
 `outputs/`, logs in `logs/`. Raw CSVs at `raw/Performance_All/` (read-only — never modify).
 Only `lake.duckdb` lives in the repo's internal-disk `reports/`.

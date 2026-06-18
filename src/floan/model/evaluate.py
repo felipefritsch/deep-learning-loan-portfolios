@@ -39,8 +39,8 @@ Outputs:
   ``models/nn/full/evaluate_summary.json``                    all numbers + Accept evidence
 
 Run (the GPU box; the full eval pool lives there):
-    .venv/bin/python dev/model/evaluate.py --device cuda
-    .venv/bin/python dev/model/evaluate.py --device cuda --windows 2015 2020   # subset (dev)
+    .venv/bin/python -m floan.model.evaluate --device cuda
+    .venv/bin/python -m floan.model.evaluate --device cuda --windows 2015 2020   # subset (dev)
 """
 
 from __future__ import annotations

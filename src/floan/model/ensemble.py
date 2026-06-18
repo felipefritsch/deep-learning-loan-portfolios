@@ -22,8 +22,8 @@ full-scale ensemble's job (where data subsetting actually bites); the averaging 
 here is identical, so M10 reuses it unchanged.
 
 Run:
-    .venv/bin/python dev/model/ensemble.py --device cuda --amp           # train 8 + curve
-    .venv/bin/python dev/model/ensemble.py --device cuda --amp --curve-only  # curve from done members
+    .venv/bin/python -m floan.model.ensemble --device cuda --amp           # train 8 + curve
+    .venv/bin/python -m floan.model.ensemble --device cuda --amp --curve-only  # curve from done members
 """
 
 from __future__ import annotations

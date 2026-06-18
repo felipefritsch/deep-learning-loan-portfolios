@@ -1,6 +1,6 @@
 """Unit tests for schema.py — the positional layout and the seven-state target.
 
-Run with: ``python -m pytest test_schema.py``  (or ``python test_schema.py``).
+Run with: ``python -m pytest test_schema.py``  (or ``python -m pytest tests/test_schema.py``).
 """
 
 from __future__ import annotations

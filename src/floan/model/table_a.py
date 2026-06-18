@@ -28,7 +28,7 @@ overfitting ablation that exhibits the dropout-depth interaction.
 Writes ``outputs/tables/loan_level/{table_a,grid}.{csv,md,tex}``.
 
 Run:
-    .venv/bin/python dev/model/table_a.py --device cuda
+    .venv/bin/python -m floan.model.table_a --device cuda
 """
 
 from __future__ import annotations

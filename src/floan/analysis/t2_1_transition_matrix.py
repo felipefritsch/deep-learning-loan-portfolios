@@ -13,7 +13,7 @@ Honest conditional distribution: only rows with an *observed* next month enter
 distribution that sums to 1. The three absorbing states never appear as an origin
 (they have no transitions out), hence 4 origin rows, not 7.
 
-Run:  python dev/analysis/t2_1_transition_matrix.py
+Run:  python -m floan.analysis.t2_1_transition_matrix
 """
 
 from __future__ import annotations

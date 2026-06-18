@@ -10,7 +10,7 @@ Origination rates run a little above the PMMS survey rate (points/credit, the ag
 book), so a small positive mean gap with a high correlation and low RMSE is the
 expected, reassuring result. Reads only the two tiny time-keyed tables — no panel scan.
 
-Run:  python dev/analysis/f4_1_mkt_rate_validation.py
+Run:  python -m floan.analysis.f4_1_mkt_rate_validation
 """
 
 from __future__ import annotations

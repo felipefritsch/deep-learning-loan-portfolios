@@ -23,7 +23,7 @@ if that passes do we fit the other four windows and **merge** logit's SMM path i
 the operator falls back to a GPU-pod re-fit (the standard ``backtest.fit_logit``).
 
 Run (detached background job — no session held open):
-    nohup caffeinate -i .venv/bin/python -u dev/model/refit_logit.py --device cpu \
+    nohup caffeinate -i .venv/bin/python -u -m floan.model.refit_logit --device cpu \
         > "/Volumes/SSD Felipe/dissertation/logs/m15/refit_logit.log" 2>&1 &
 """
 

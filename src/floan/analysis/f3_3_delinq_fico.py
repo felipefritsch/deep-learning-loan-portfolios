@@ -9,7 +9,7 @@ One DuckDB pass emits dpd_30/at-risk counts per integer FICO over ``current``
 loan-months with an observed next month; ``eda.hazard_curve`` collapses to 20
 equal-population buckets with Wilson 95% CIs.
 
-Run:  python dev/analysis/f3_3_delinq_fico.py
+Run:  python -m floan.analysis.f3_3_delinq_fico
 """
 
 from __future__ import annotations

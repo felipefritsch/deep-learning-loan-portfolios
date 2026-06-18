@@ -8,7 +8,7 @@ to a tight band. That spread is the motivation for *state-level* macro joins rat
 national-only (MD4 Accept). National values (the FMHPI/UNRATE ``US`` series) are overlaid
 as reference markers.
 
-Run:  python dev/analysis/f4_3_state_dispersion.py
+Run:  python -m floan.analysis.f4_3_state_dispersion
 """
 
 from __future__ import annotations

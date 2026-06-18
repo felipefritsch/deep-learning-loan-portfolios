@@ -1,4 +1,4 @@
-"""Shared helpers for Phase-1 EDA scripts (``dev/model_plan/01_EDA.md``).
+"""Shared helpers for Phase-1 EDA scripts (``specs/model/01_EDA.md``).
 
 One read-only DuckDB connection to the Stage-4 transition panel plus the table /
 figure save conventions, so every EDA script regenerates its artifact with a
@@ -16,7 +16,7 @@ Conventions
   as ``<name>.png`` (300 dpi) and ``<name>.pdf`` (used from M2 onwards).
 
 Paths and the schema/feature spec come from the pipeline's single source of truth
-(``dev/pipeline/{config,schema}.py``), re-exported here so EDA scripts import once.
+(``src/floan/pipeline/{config,schema}.py``), re-exported here so EDA scripts import once.
 """
 
 from __future__ import annotations

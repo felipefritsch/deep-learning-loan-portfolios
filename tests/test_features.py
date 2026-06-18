@@ -10,7 +10,7 @@ a temp dir; no SSD, no torch):
     with the window's period_ym mask honoured;
   * weights present and correct (current→current carries 1/p_keep).
 
-Run:  .venv/bin/python dev/model/test_features.py     (or python -m pytest)
+Run:  .venv/bin/python -m floan.model.test_features     (or python -m pytest)
 """
 
 from __future__ import annotations

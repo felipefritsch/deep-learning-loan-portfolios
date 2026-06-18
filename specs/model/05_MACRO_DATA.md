@@ -1,6 +1,6 @@
 # 05 — Macro Data: Sources, Download & Integration Spec (standalone)
 
-> **How to use this file.** Self-contained and executable: hand it to Claude Code with *"Read `dev/model_plan/05_MACRO_DATA.md` and execute its tasks MD1–MD4 in order."* It does not require reading the rest of the plan. §1–§2 are for Felipe (where the data comes from, what to click/run); §3–§6 are the build/join/QA contract for Claude Code.
+> **How to use this file.** Self-contained and executable: hand it to Claude Code with *"Read `specs/model/05_MACRO_DATA.md` and execute its tasks MD1–MD4 in order."* It does not require reading the rest of the plan. §1–§2 are for Felipe (where the data comes from, what to click/run); §3–§6 are the build/join/QA contract for Claude Code.
 >
 > **Design (from `00_OVERVIEW §3.4`):** macro enters as two tiny time-keyed Parquet tables joined at **export time** — the 800 GB lakes and the pipeline stages are never touched or re-run.
 
@@ -35,7 +35,7 @@ Create a dated snapshot directory on the SSD first: `/Volumes/SSD Felipe/dissert
 
 ## 3. Build spec — two output tables
 
-Built by `dev/model/build_macro.py` (idempotent; reads the newest snapshot under `raw/macro/`, or a `--snapshot` argument) into:
+Built by `src/floan/model/build_macro.py` (idempotent; reads the newest snapshot under `raw/macro/`, or a `--snapshot` argument) into:
 
 **`processed/macro/macro_national.parquet`** — one row per month, 2000-01 → snapshot end:
 
@@ -70,7 +70,7 @@ Rules: store values **by observation month** (lags are applied at join time, not
 ## 5. Tasks for Claude Code (execute in order)
 
 ### MD1 — Fetch script + snapshot
-`dev/model/fetch_macro.py`: loop the FRED CSV endpoint over `[MORTGAGE30US, DGS10, DGS2, UNRATE] + [f"{p}UR" for p in 50 states + DC]` with a ~1 s sleep, writing raw CSVs to `raw/macro/<today>/fred/`; verify the FMHPI master file is already present in the snapshot (manual step — fail with a clear message if absent). Record a `snapshot_manifest.json` (file list, sizes, sha256, fetch date).
+`src/floan/model/fetch_macro.py`: loop the FRED CSV endpoint over `[MORTGAGE30US, DGS10, DGS2, UNRATE] + [f"{p}UR" for p in 50 states + DC]` with a ~1 s sleep, writing raw CSVs to `raw/macro/<today>/fred/`; verify the FMHPI master file is already present in the snapshot (manual step — fail with a clear message if absent). Record a `snapshot_manifest.json` (file list, sizes, sha256, fetch date).
 **Accept:** 55 FRED CSVs present, each parsing to ≥ 300 monthly rows (≥ 26 yrs) after aggregation; manifest written; re-run into the same dated folder is a no-op.
 
 ### MD2 — `build_macro.py` → the two Parquet tables
@@ -78,12 +78,12 @@ Per §3. Defensive parsing; FMHPI schema asserted on load (expect Year/Month, GE
 **Accept:** `macro_national` has one gap-free row per month 1998-01→snapshot end; `macro_state` covers 50 states + DC + `US` rows with both series, gap-free per state (from each series' start, no later than 1998-11); spot-check 3 known values against the sources (e.g. UNRATE 2009-10 = 10.0, PMMS ~2.65–2.7 around 2021-01, NV HPI drawdown ≈ −50%+ peak-to-trough 2006→2012).
 
 ### MD3 — Macro join/features module (standalone; export wiring lands in M4/M6)
-Implement §4 as a self-contained **`dev/model/macro_features.py`**: the single-source lag-config dict, the national/state join logic with fallback indicators, and the derived features (`incentive`, `ltv_mtm`, `hpi_chg_12m`) plus the `feature_spec` additions — with unit tests (synthetic loan: known UPBs/LTV/HPI path → exact `ltv_mtm`; lag correctness: a loan-month at `period_ym = 202001` gets `unrate` of 2019-12 and `hpi` of 2019-11). `export.py` (M4) and `features.py` (M6) import this module rather than reimplementing it.
+Implement §4 as a self-contained **`src/floan/model/macro_features.py`**: the single-source lag-config dict, the national/state join logic with fallback indicators, and the derived features (`incentive`, `ltv_mtm`, `hpi_chg_12m`) plus the `feature_spec` additions — with unit tests (synthetic loan: known UPBs/LTV/HPI path → exact `ltv_mtm`; lag correctness: a loan-month at `period_ym = 202001` gets `unrate` of 2019-12 and `hpi` of 2019-11). `export.py` (M4) and `features.py` (M6) import this module rather than reimplementing it.
 **Accept:** unit tests pass. *(The end-to-end check — a 100k-row dev export with zero null **joined** macro columns (pmms30/unemployment/HPI; the derived `incentive` may inherit `current_rate` missingness from the panel, handled by the existing missingness indicators) and join-rate stats logged — is deferred to M4, whose Accept criteria already include the macro-join spot-check.)*
 
 ### MD4 — EDA validation figures
 F4.2 macro small-multiples and F4.3 state-dispersion (`01_EDA §4`), saved to `outputs/figures/eda/`.
-**Accept:** figures regenerate from `dev/analysis/` scripts; series shapes match known history (2008–09 unemployment spike, 2012 & 2021 rate troughs, 2006→12 HPI bust).
+**Accept:** figures regenerate from `src/floan/analysis/` scripts; series shapes match known history (2008–09 unemployment spike, 2012 & 2021 rate troughs, 2006→12 HPI bust).
 
 ## 6. Acceptance block (the whole of M2b in `04_TASKS.md`)
 

@@ -1,7 +1,7 @@
 """Schema, dtypes, code maps and the seven-state target.
 
 Single source of truth in code for the positional 113-column Fannie Mae
-loan-performance layout (see ``dev/pipeline_plan/01_SCHEMA.md``). The CSVs have
+loan-performance layout (see ``specs/pipeline/01_SCHEMA.md``). The CSVs have
 **no header** — column identity is positional, so the order of ``COLUMNS`` *is*
 the contract. Positions 0-109 are stable in the modern layout; 110-112 vary by
 release and are carried as opaque strings (``extra_11x``) until reconciled

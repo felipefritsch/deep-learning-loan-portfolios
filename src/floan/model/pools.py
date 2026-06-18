@@ -42,9 +42,9 @@ Realized-outcome window = ``config.test_bounds(k) = [Dec(k−1), Dec(k))`` — e
 monthly transitions composed by the roll-forward, so predicted and realized are horizon-aligned.
 
 Run (GPU box; the full eval pool lives there):
-    .venv/bin/python dev/model/pools.py --device cuda                 # all 5 anchors
-    .venv/bin/python dev/model/pools.py --k 2020 --device cuda        # one anchor
-    .venv/bin/python dev/model/pools.py --k 2020 --max-loans 50000    # quick smoke
+    .venv/bin/python -m floan.model.pools --device cuda                 # all 5 anchors
+    .venv/bin/python -m floan.model.pools --k 2020 --device cuda        # one anchor
+    .venv/bin/python -m floan.model.pools --k 2020 --max-loans 50000    # quick smoke
 Hermetic unit tests (no SSD/GPU): ``test_pools.py``.
 """
 

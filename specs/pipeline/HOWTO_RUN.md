@@ -1,6 +1,6 @@
 # HOWTO — Running this plan with Claude Code
 
-Everything Claude Code needs is in `dev/`. The workflow is: open it in the project, give it the kickoff prompt, then work through `03_CLAUDE_CODE_TASKS.md` one task at a time.
+Everything Claude Code needs is in `specs/pipeline/` (these specs) and `src/floan/pipeline/` (the code). The workflow is: open it in the project, give it the kickoff prompt, then work through `03_CLAUDE_CODE_TASKS.md` one task at a time.
 
 ---
 
@@ -11,7 +11,7 @@ cd "/Users/felipefritsch/Documents/Masters MCF Oxford/Dissertation/Dissertation 
 claude
 ```
 
-Launch from the project root so Claude Code sees both `dev/pipeline_plan/` (specs) and `dev/pipeline/CLAUDE.md` (conventions). It auto-loads a `CLAUDE.md` from the working directory; since yours is in `dev/pipeline/`, either `cd dev/pipeline` before launching or just reference it in the kickoff prompt — both work.
+Launch from the project root so Claude Code sees both `specs/pipeline/` (specs) and `src/floan/pipeline/CLAUDE.md` (conventions). It auto-loads a `CLAUDE.md` from the working directory; since yours is in `src/floan/pipeline/`, either `cd src/floan/pipeline` before launching or just reference it in the kickoff prompt — both work.
 
 ## 2. Connect the SSD first
 
@@ -21,11 +21,11 @@ Make sure `SSD Felipe` is mounted at `/Volumes/SSD Felipe/dissertation/` before 
 
 ```
 Read these files in full before doing anything:
-- dev/pipeline/CLAUDE.md   (the hard rules — follow them exactly)
-- dev/pipeline_plan/00_OVERVIEW.md
-- dev/pipeline_plan/01_SCHEMA.md
-- dev/pipeline_plan/02_PIPELINE_STAGES.md
-- dev/pipeline_plan/03_CLAUDE_CODE_TASKS.md
+- src/floan/pipeline/CLAUDE.md   (the hard rules — follow them exactly)
+- specs/pipeline/00_OVERVIEW.md
+- specs/pipeline/01_SCHEMA.md
+- specs/pipeline/02_PIPELINE_STAGES.md
+- specs/pipeline/03_CLAUDE_CODE_TASKS.md
 
 Then summarise the plan back to me in ~8 bullets and confirm you understand
 the no-full-load rule and the immutable-raw layout. Do NOT write any code yet.

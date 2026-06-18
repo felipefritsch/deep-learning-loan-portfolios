@@ -1,12 +1,12 @@
 # 03 — Claude Code Build Order (sequenced tasks)
 
-> Copy-paste these prompts into Claude Code **one at a time, in order**. Each has acceptance criteria — do not advance until they pass. All code goes in `dev/pipeline/`. Read `00_OVERVIEW.md`, `01_SCHEMA.md`, `02_PIPELINE_STAGES.md` first.
+> Copy-paste these prompts into Claude Code **one at a time, in order**. Each has acceptance criteria — do not advance until they pass. All code goes in `src/floan/pipeline/`. Read `00_OVERVIEW.md`, `01_SCHEMA.md`, `02_PIPELINE_STAGES.md` first.
 > Execute every task per the Karpathy guidelines in `../pipeline/CLAUDE.md` (think before coding, simplicity first, surgical changes, verify against each task's **Accept** criteria).
 
 ---
 
 ### Task 0 — Scaffold & config
-> "Create the `dev/pipeline/` package per `00_OVERVIEW.md §6`. Write `config.py` exactly as in `02_PIPELINE_STAGES.md`: a single `ROOT = /Volumes/SSD Felipe/dissertation` with named subpaths (`RAW`, `INTERIM`, `PROCESSED`, `MODELS`, `OUTPUTS`, `LOGS`) and derived dirs (`RAW_DIR=RAW/'Performance_All'`, `PERF_DIR`, `CLEAN_DIR`, `PANEL_DIR`, `SAMPLE_DIR`), `DUCKDB_PATH` on the internal disk, the memory/chunk/zstd knobs, and a `require_drive()` guard. No scattered absolute paths — everything derives from `ROOT`. Add `requirements.txt` (duckdb, polars, pyarrow, tqdm). Create the SSD subdirs (`raw/ interim/ processed/ models/ outputs/ logs/`) and the internal `reports/`. **Never write to `raw/`.** Don't process data yet."
+> "Create the `src/floan/pipeline/` package per `00_OVERVIEW.md §6`. Write `config.py` exactly as in `02_PIPELINE_STAGES.md`: a single `ROOT = /Volumes/SSD Felipe/dissertation` with named subpaths (`RAW`, `INTERIM`, `PROCESSED`, `MODELS`, `OUTPUTS`, `LOGS`) and derived dirs (`RAW_DIR=RAW/'Performance_All'`, `PERF_DIR`, `CLEAN_DIR`, `PANEL_DIR`, `SAMPLE_DIR`), `DUCKDB_PATH` on the internal disk, the memory/chunk/zstd knobs, and a `require_drive()` guard. No scattered absolute paths — everything derives from `ROOT`. Add `requirements.txt` (duckdb, polars, pyarrow, tqdm). Create the SSD subdirs (`raw/ interim/ processed/ models/ outputs/ logs/`) and the internal `reports/`. **Never write to `raw/`.** Don't process data yet."
 
 **Accept:** package imports cleanly; `require_drive()` raises a clear error when the SSD is absent and passes when mounted; all subpaths derive from `ROOT`; `raw/` is treated as read-only; no data touched.
 
@@ -62,9 +62,9 @@
 ---
 
 ### Task 8 — Orchestrator & docs
-> "Finalise `run.py` (per-stage, per-quarter, `--all`, `--delete-raw`, `--include-quarantined`, logging to `logs/run.log`). Write a short `dev/pipeline/README.md` with the run sequence and the resumability/disk-discipline notes."
+> "Finalise `run.py` (per-stage, per-quarter, `--all`, `--delete-raw`, `--include-quarantined`, logging to `logs/run.log`). Write a short `src/floan/pipeline/README.md` with the run sequence and the resumability/disk-discipline notes."
 
-**Accept:** `python run.py --help` lists all stages; a full pipeline run on one quarter end-to-end succeeds and is resumable.
+**Accept:** `python -m floan.pipeline.run --help` lists all stages; a full pipeline run on one quarter end-to-end succeeds and is resumable.
 
 ---
 

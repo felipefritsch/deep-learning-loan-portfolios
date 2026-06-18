@@ -11,7 +11,7 @@ National HPI is the FMHPI ``US`` row carried in ``macro_state``; state dispersio
 excludes that pseudo-state. HPI is rebased per state to 2000-01=100 so cumulative
 growth is comparable across states (raw index *levels* are not).
 
-Run:  python dev/analysis/f4_2_macro_panel.py
+Run:  python -m floan.analysis.f4_2_macro_panel
 """
 
 from __future__ import annotations

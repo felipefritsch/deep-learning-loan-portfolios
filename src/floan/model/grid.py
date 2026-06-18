@@ -29,8 +29,8 @@ Both are written to ``models/nn/<variant>/grid_summary.json`` for :mod:`ensemble
 :mod:`table_a`, and the ``config.py`` freeze.
 
 Run:
-    .venv/bin/python dev/model/grid.py --device cuda --amp            # the 14-cell sweep
-    .venv/bin/python dev/model/grid.py --device cuda --amp --select-only   # re-pick from done runs
+    .venv/bin/python -m floan.model.grid --device cuda --amp            # the 14-cell sweep
+    .venv/bin/python -m floan.model.grid --device cuda --amp --select-only   # re-pick from done runs
 """
 
 from __future__ import annotations

@@ -24,7 +24,7 @@ COVID handling decision (M2 Accept — documented here and carried to memo 01):
   F2.2 / F2.4); the empirical-matrix benchmark in that window absorbs the same
   artifact, so model-vs-benchmark comparison stays fair.
 
-Run:  python dev/analysis/f2_3_covid_check.py
+Run:  python -m floan.analysis.f2_3_covid_check
 """
 
 from __future__ import annotations

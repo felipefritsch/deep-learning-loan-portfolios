@@ -22,7 +22,7 @@ variant the masked train slice's feature columns fit in RAM; the full variant (M
 should swap the fit to streaming moments + DuckDB quantiles (the loader API is unchanged).
 
 Run the smoke check (needs the SSD + the dev export):
-    .venv/bin/python dev/model/data.py --variant dev --k 2015
+    .venv/bin/python -m floan.model.data --variant dev --k 2015
 Companion tests (hermetic, synthetic parquet): ``test_features.py``.
 """
 

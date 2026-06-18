@@ -28,7 +28,7 @@ Artifacts:
   ``models/nn/full/pool_m15b_summary.json``.
 
 Run (Mac, SSD mounted; seconds — pure post-processing of the parquet, no GPU/torch):
-  ``.venv/bin/python dev/model/economics.py``            # all 5 anchors → T5.1 + F5.2 + summary
+  ``.venv/bin/python -m floan.model.economics``            # all 5 anchors → T5.1 + F5.2 + summary
 """
 from __future__ import annotations
 

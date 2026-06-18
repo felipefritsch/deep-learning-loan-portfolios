@@ -9,7 +9,7 @@ Two tables:
     categorical column. Not produced by Stage 6, so computed here with one
     ``GROUP BY`` per column over the panel (nulls shown as the level ``(null)``).
 
-Run:  python dev/analysis/t1_2_covariates.py
+Run:  python -m floan.analysis.t1_2_covariates
 """
 
 from __future__ import annotations

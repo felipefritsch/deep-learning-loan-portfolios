@@ -33,9 +33,9 @@ engine-ready ``wac`` (annual **decimal**, UPB-weighted Current Interest Rate), `
 ``upb`` (face $), ``n_loans``.
 
 Run (CPU background job — the roll-forward scoring is the slow piece, ~1–2 h for all 5 anchors):
-    .venv/bin/python -u dev/model/smm_paths.py --device cpu            # all 5 key anchors
-    .venv/bin/python -u dev/model/smm_paths.py --k 2020 --device cpu   # one anchor
-    .venv/bin/python    dev/model/smm_paths.py --k 2020 --max-loans 40000 --device cpu  # smoke
+    .venv/bin/python -u -m floan.model.smm_paths --device cpu            # all 5 key anchors
+    .venv/bin/python -u -m floan.model.smm_paths --k 2020 --device cpu   # one anchor
+    .venv/bin/python    -m floan.model.smm_paths --k 2020 --max-loans 40000 --device cpu  # smoke
 Hermetic engine tests live in ``test_pool.py``; this driver needs the SSD + frozen models.
 """
 
