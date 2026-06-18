@@ -1,0 +1,44 @@
+name: tests
+
+# Run the hermetic unit suite (dev/**/test_*.py) on every push and PR. The suite is
+# synthetic-data only — no external SSD, no GPU, no network — so it runs entirely on a
+# standard GitHub-hosted runner. See writeup/memos/test_coverage_review.md for scope.
+# Gate every PR, and keep the default branch green. Restricting the push trigger to
+# main (rather than all branches) avoids running CI twice on a same-repo PR branch;
+# feature branches still get CI via their pull request.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same branch/PR cancels an in-flight run.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: dev/pipeline/requirements.txt
+
+      - name: Install runtime deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest numpy
+          pip install -r dev/pipeline/requirements.txt   # duckdb, polars, pyarrow, tqdm
+
+      - name: Install CPU-only PyTorch
+        # pool.py/economics.py import torch at module load; the CPU wheel lets the
+        # pure-NumPy cashflow/composition tests run instead of skipping. Without this
+        # step those three files skip cleanly (the suite still passes).
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Run unit suite
+        run: python -m pytest   # config in pyproject.toml (testpaths = dev)
