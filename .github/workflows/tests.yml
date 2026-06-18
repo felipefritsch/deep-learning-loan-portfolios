@@ -29,13 +29,15 @@ jobs:
           cache-dependency-path: pyproject.toml
 
       - name: Install CPU-only PyTorch
-        # Install the CPU torch wheel first so the package's torch==2.8.0 pin is satisfied
-        # by it (PEP 440: ==2.8.0 matches 2.8.0+cpu) and the heavy CUDA wheel is never
-        # pulled. pool.py/economics.py import torch at module load; with the CPU wheel
-        # those tests run instead of skipping (the suite passes either way).
+        # Install the CPU torch wheel FIRST, pinned to the same version as pyproject's
+        # torch==2.8.0, so the next step's `pip install -e .` sees the requirement already
+        # satisfied (2.8.0+cpu matches ==2.8.0) and never re-resolves it to the multi-GB
+        # CUDA build — which otherwise fills the runner disk (No space left on device).
+        # pool.py/economics.py import torch at module load; the CPU wheel lets those tests
+        # run instead of skipping (the suite passes either way).
         run: |
           python -m pip install --upgrade pip
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
 
       - name: Install package + test deps
         # Editable install pulls the rest of the deps from pyproject (duckdb, polars,
