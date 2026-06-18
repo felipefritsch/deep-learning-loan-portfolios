@@ -60,13 +60,13 @@ import polars as pl
 import torch
 import torch.nn as nn
 
-import config
-import data as D
-import ensemble as E
-import features as F
-import net as N
-import torch_common as tc
-import train as T
+from floan.model import config
+from floan.model import data as D
+from floan.model import ensemble as E
+from floan.model import features as F
+from floan.model import net as N
+from floan.model import torch_common as tc
+from floan.model import train as T
 
 KEY_WINDOWS = (2015, 2019, 2020, 2023, 2025)   # §6: ensemble only on these 5
 VARIANT = "full"

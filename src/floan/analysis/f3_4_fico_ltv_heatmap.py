@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
 
-import eda_common as eda
+from floan.analysis import eda_common as eda
 
 config = eda.config
 NX = 8  # FICO octiles

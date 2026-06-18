@@ -45,8 +45,8 @@ import duckdb
 import numpy as np
 import polars as pl
 
-import config  # dev/model/config.py — also puts dev/pipeline on sys.path
-import schema  # pipeline schema — canonical STATES order (single source of truth)
+from floan.model import config
+from floan.pipeline import schema  # pipeline schema — canonical STATES order (single source of truth)
 
 _REPO = Path(__file__).resolve().parents[2]
 

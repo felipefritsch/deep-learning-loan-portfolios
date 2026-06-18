@@ -34,9 +34,8 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-import config  # noqa: F401 — side effect: puts dev/pipeline on sys.path for `schema`
-import macro_features as mf
-import schema  # pipeline feature spec + canonical STATES order (single source of truth)
+from floan.model import macro_features as mf
+from floan.pipeline import schema  # pipeline feature spec + canonical STATES order (single source of truth)
 
 # ---------------------------------------------------------------------------
 # Feature membership — sourced from the pipeline + macro specs (no drift).

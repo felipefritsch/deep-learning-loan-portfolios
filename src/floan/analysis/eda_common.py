@@ -21,7 +21,6 @@ Paths and the schema/feature spec come from the pipeline's single source of trut
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import duckdb
@@ -30,12 +29,7 @@ import polars as pl
 
 # The pipeline package is the single source of truth for paths (ROOT, OUTPUTS,
 # PANEL_DIR, require_drive) and the schema / feature spec — import it directly.
-_PIPELINE = Path(__file__).resolve().parents[1] / "pipeline"
-if str(_PIPELINE) not in sys.path:
-    sys.path.insert(0, str(_PIPELINE))
-
-import config  # noqa: E402
-import schema  # noqa: E402
+from floan.pipeline import config, schema
 
 TABLES_DIR = config.OUTPUTS / "tables" / "eda"
 FIGURES_DIR = config.OUTPUTS / "figures" / "eda"

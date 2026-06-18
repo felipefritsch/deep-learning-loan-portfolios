@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Mirror the small, irreplaceable SSD directories to the internal disk.
 # Everything else on the SSD (raw/, interim/, processed/ lakes) is rebuildable:
-# raw/ re-downloads from Fannie Mae; the lakes re-derive from raw/ via dev/pipeline.
+# raw/ re-downloads from Fannie Mae; the lakes re-derive from raw/ via floan.pipeline.
 #
-# Usage: dev/tools/backup_ssd.sh        (run after every milestone gate)
+# Usage: scripts/backup_ssd.sh          (run after every milestone gate)
 # Destination: <repo-root>/ssd_mirror/  (gitignored; rides iCloud/Time Machine with the Mac)
 set -euo pipefail
 
 SRC="/Volumes/SSD Felipe/dissertation"
-REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="$REPO_ROOT/ssd_mirror"
 
 [ -d "$SRC" ] || { echo "ERROR: SSD not mounted at $SRC"; exit 1; }
