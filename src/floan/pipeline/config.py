@@ -29,9 +29,12 @@ CLEAN_DIR  = INTERIM / "clean"         # Stage 3: typed + standardised Parquet
 PANEL_DIR  = PROCESSED / "panel"       # Stage 4: transition panel
 SAMPLE_DIR = PROCESSED / "samples"     # Stage 5: stratified samples
 
+# Repository root (config.py lives in <repo>/src/floan/pipeline/config.py) — the
+# single anchor for repo-internal paths, so no module hand-counts parents[N].
+REPO_ROOT = Path(__file__).resolve().parents[3]
+
 # Disposable DuckDB catalog — kept on the fast internal disk (repo reports/).
-# parents[2] = repository root (config.py lives in <repo>/dev/pipeline/).
-DUCKDB_PATH = Path(__file__).resolve().parents[2] / "reports" / "lake.duckdb"
+DUCKDB_PATH = REPO_ROOT / "reports" / "lake.duckdb"
 
 # ---------------------------------------------------------------------------
 # Resource knobs
