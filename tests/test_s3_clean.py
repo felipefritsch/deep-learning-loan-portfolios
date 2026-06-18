@@ -1,7 +1,7 @@
 """Unit tests for s3_clean.py — the per-batch type/standardisation transform.
 
 Hermetic (a synthetic string-typed batch; no SSD, no torch). Run with:
-    .venv/bin/python dev/pipeline/test_s3_clean.py   (or python -m pytest)
+    python -m pytest tests/test_s3_clean.py
 
 The Stage-3 transform takes the faithful, string-typed perf lake (``KEEP_COLS``) and
 produces the typed clean lake (``OUTPUT_COLS``). This pins the conversions that are
@@ -12,23 +12,12 @@ missingness indicators.
 
 from __future__ import annotations
 
-import sys
 from datetime import date
-from pathlib import Path
 
-# See test_s4_panel.py: avoid the dev/model vs dev/pipeline ``config`` name clash.
-_PIPELINE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_PIPELINE))
-for _m in ("config", "s3_clean"):
-    _c = sys.modules.get(_m)
-    if _c is not None and not str(getattr(_c, "__file__", "")).startswith(str(_PIPELINE)):
-        del sys.modules[_m]
+import polars as pl
 
-import polars as pl  # noqa: E402
-
-import config  # noqa: E402  (pipeline config — this dir now leads sys.path)
-import schema  # noqa: E402
-import s3_clean as S3  # noqa: E402
+from floan.pipeline import config, schema
+from floan.pipeline import s3_clean as S3
 
 
 def _raw_batch() -> pl.DataFrame:

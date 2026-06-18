@@ -1,7 +1,7 @@
 """Unit tests for s1_inventory.py — the pure inventory helpers + cross-file checks.
 
 Hermetic (synthetic manifest rows; no SSD, no torch). Run with:
-    .venv/bin/python dev/pipeline/test_s1_inventory.py   (or python -m pytest)
+    python -m pytest tests/test_s1_inventory.py
 
 Covers the order/range helpers and the two global checks that gate ingestion:
 release-cut-off divergence and the relative-volume (clean-truncation) outlier.
@@ -10,20 +10,11 @@ release-cut-off divergence and the relative-volume (clean-truncation) outlier.
 from __future__ import annotations
 
 import os
-import sys
 import tempfile
 from pathlib import Path
 
-# See test_s4_panel.py: avoid the dev/model vs dev/pipeline ``config`` name clash.
-_PIPELINE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_PIPELINE))
-for _m in ("config", "s1_inventory"):
-    _c = sys.modules.get(_m)
-    if _c is not None and not str(getattr(_c, "__file__", "")).startswith(str(_PIPELINE)):
-        del sys.modules[_m]
-
-import config  # noqa: E402  (pipeline config — this dir now leads sys.path)
-import s1_inventory as S1  # noqa: E402
+from floan.pipeline import config
+from floan.pipeline import s1_inventory as S1
 
 
 # --- pure order / range helpers --------------------------------------------

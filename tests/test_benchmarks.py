@@ -1,7 +1,7 @@
 """Unit tests for benchmarks.py — the weighted-tercile edge helper (M5).
 
 Hermetic (pure numpy; no SSD, no torch). Run with:
-    .venv/bin/python dev/model/test_benchmarks.py   (or python -m pytest)
+    python -m pytest tests/test_benchmarks.py
 
 ``_weighted_terciles`` defines the empirical benchmark's cell boundaries, so it must
 place the 1/3 and 2/3 cut points by cumulative WEIGHT (not count) and be deterministic.
@@ -9,19 +9,9 @@ place the 1/3 and 2/3 cut points by cumulative WEIGHT (not count) and be determi
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+import numpy as np
 
-# See test_config.py: bind the MODEL config even if a pipeline config was cached first.
-_MODEL = Path(__file__).resolve().parent
-sys.path.insert(0, str(_MODEL))
-_c = sys.modules.get("config")
-if _c is not None and not str(getattr(_c, "__file__", "")).startswith(str(_MODEL)):
-    del sys.modules["config"]
-
-import numpy as np  # noqa: E402
-
-import benchmarks as B  # noqa: E402
+from floan.model import benchmarks as B
 
 
 def test_weighted_terciles_uniform_weights() -> None:

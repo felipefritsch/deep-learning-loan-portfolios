@@ -53,28 +53,28 @@ def main() -> None:
     quarters = None if args.all else ([args.quarter] if args.quarter else None)
 
     if args.stage == "inventory":
-        import s1_inventory
+        from floan.pipeline import s1_inventory
         s1_inventory.run_inventory(force=args.force, reprobe=args.reprobe)
 
     elif args.stage == "convert":
-        import s2_to_parquet
+        from floan.pipeline import s2_to_parquet
         s2_to_parquet.run(quarters, include_quarantined=args.include_quarantined,
                           force=args.force)
 
     elif args.stage == "clean":
-        import s3_clean
+        from floan.pipeline import s3_clean
         s3_clean.run(quarters, force=args.force)
 
     elif args.stage == "panel":
-        import s4_panel
+        from floan.pipeline import s4_panel
         s4_panel.run(quarters, force=args.force)
 
     elif args.stage == "qa":
-        import s6_qa
+        from floan.pipeline import s6_qa
         s6_qa.main()
 
     elif args.stage == "sample":
-        import s5_sample
+        from floan.pipeline import s5_sample
         con = s5_sample.connect()
         try:
             samp = s5_sample.balanced_sample(con, per_class=args.per_class,
@@ -89,7 +89,7 @@ def main() -> None:
 
     elif args.stage == "pipeline":
         # Per-quarter end-to-end: Stage 2 → 3 → 4 (each idempotent/resumable).
-        import s2_to_parquet, s3_clean, s4_panel
+        from floan.pipeline import s2_to_parquet, s3_clean, s4_panel
         s2_to_parquet.run(quarters, include_quarantined=args.include_quarantined,
                           force=args.force)
         s3_clean.run(quarters, force=args.force)

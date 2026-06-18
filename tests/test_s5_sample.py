@@ -1,7 +1,7 @@
 """Unit tests for s5_sample.py — the train-only feature scaler + leakage mask.
 
 Hermetic (synthetic Polars/DuckDB frames; no SSD, no torch). Run with:
-    .venv/bin/python dev/pipeline/test_s5_sample.py   (or python -m pytest)
+    python -m pytest tests/test_s5_sample.py
 
 Covers the §6.4 "never standardise the lake" contract:
   * ``training_mask`` is the strict ``period_ym < cutoff`` leakage filter;
@@ -14,23 +14,12 @@ Covers the §6.4 "never standardise the lake" contract:
 from __future__ import annotations
 
 import math
-import sys
-from pathlib import Path
 
-# See test_s4_panel.py: avoid the dev/model vs dev/pipeline ``config`` name clash.
-_PIPELINE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_PIPELINE))
-for _m in ("config", "s5_sample"):
-    _c = sys.modules.get(_m)
-    if _c is not None and not str(getattr(_c, "__file__", "")).startswith(str(_PIPELINE)):
-        del sys.modules[_m]
+import duckdb
+import polars as pl
 
-import duckdb  # noqa: E402
-import polars as pl  # noqa: E402
-
-import config  # noqa: E402  (pipeline config — this dir now leads sys.path)
-import schema  # noqa: E402
-import s5_sample as S5  # noqa: E402
+from floan.pipeline import config, schema
+from floan.pipeline import s5_sample as S5
 
 CONT = schema.FEATURE_SPEC["continuous_standardize"]
 

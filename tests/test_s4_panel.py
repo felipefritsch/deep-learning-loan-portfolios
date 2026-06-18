@@ -1,7 +1,7 @@
 """Unit tests for s4_panel.py — the seven-state transition target's heart.
 
 Hermetic (synthetic Polars/DuckDB frames; no SSD, no torch). Run with:
-    .venv/bin/python dev/pipeline/test_s4_panel.py   (or python -m pytest)
+    python -m pytest tests/test_s4_panel.py
 
 Covers two things the panel build rests on:
   * ``_finalize`` — ``state_next`` is the next row's state only when it is the SAME
@@ -14,26 +14,11 @@ Covers two things the panel build rests on:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+import duckdb
+import polars as pl
 
-# dev/model and dev/pipeline each ship a ``config.py``; in a single pytest session the
-# model one may already sit in sys.modules under the bare name ``config`` (e.g. cached
-# by dev/model/test_config.py). Put this file's own dir first and drop any stale
-# ``config`` so the pipeline imports below bind to the pipeline package.
-_PIPELINE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_PIPELINE))
-for _m in ("config", "s4_panel"):
-    _c = sys.modules.get(_m)
-    if _c is not None and not str(getattr(_c, "__file__", "")).startswith(str(_PIPELINE)):
-        del sys.modules[_m]
-
-import duckdb  # noqa: E402
-import polars as pl  # noqa: E402
-
-import config  # noqa: E402  (pipeline config — this dir now leads sys.path)
-import schema  # noqa: E402
-import s4_panel as S4  # noqa: E402
+from floan.pipeline import config, schema
+from floan.pipeline import s4_panel as S4
 
 
 # --- _finalize: state_next within a loan, censored only for live transients ----
