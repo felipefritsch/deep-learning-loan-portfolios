@@ -1,7 +1,7 @@
 """Unit tests for eda_common.py — the shared EDA stat helpers.
 
 Hermetic (pure numpy/polars; no SSD, no torch). Run with:
-    .venv/bin/python dev/analysis/test_eda_common.py   (or python -m pytest)
+    python -m pytest tests/test_eda_common.py
 
 These three helpers feed every Phase-1 hazard figure, so a bug here propagates
 widely: the Wilson interval, the equal-population bucket edges, and the
@@ -10,22 +10,10 @@ fine-histogram -> bucketed-rate collapse.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+import numpy as np
+import polars as pl
 
-# eda_common imports the PIPELINE config; in a single pytest session a model config may
-# already be cached under the bare name ``config``. Put dev/pipeline first and drop any
-# non-pipeline ``config`` so the import below binds the pipeline package.
-_PIPELINE = Path(__file__).resolve().parents[1] / "pipeline"
-sys.path.insert(0, str(_PIPELINE))
-_c = sys.modules.get("config")
-if _c is not None and not str(getattr(_c, "__file__", "")).startswith(str(_PIPELINE)):
-    del sys.modules["config"]
-
-import numpy as np  # noqa: E402
-import polars as pl  # noqa: E402
-
-import eda_common as eda  # noqa: E402
+from floan.analysis import eda_common as eda
 
 
 # --- wilson_ci -------------------------------------------------------------

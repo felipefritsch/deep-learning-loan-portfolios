@@ -1,7 +1,7 @@
 """Unit tests for export.py — the shared-pool schema, thinning weight, and label shift.
 
 Hermetic (constants + a tiny DuckDB eval; no SSD, no torch). Run with:
-    .venv/bin/python dev/model/test_export.py   (or python -m pytest)
+    python -m pytest tests/test_export.py
 
 Pins the parts of the M4 export that a silent change would corrupt: the on-disk
 column order, the current→current importance weight (1/p_keep), and the one-month
@@ -12,21 +12,12 @@ window logic cannot drift apart.
 from __future__ import annotations
 
 import math
-import sys
-from pathlib import Path
 
-# See test_config.py: bind the MODEL config even if a pipeline config was cached first.
-_MODEL = Path(__file__).resolve().parent
-sys.path.insert(0, str(_MODEL))
-_c = sys.modules.get("config")
-if _c is not None and not str(getattr(_c, "__file__", "")).startswith(str(_MODEL)):
-    del sys.modules["config"]
+import duckdb
+import polars as pl
 
-import duckdb  # noqa: E402
-import polars as pl  # noqa: E402
-
-import config as cfg  # noqa: E402  (model config — this dir now leads sys.path)
-import export as EX  # noqa: E402
+from floan.model import config as cfg
+from floan.model import export as EX
 
 
 def test_output_cols_layout() -> None:

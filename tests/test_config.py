@@ -1,7 +1,7 @@
 """Unit tests for config.py — the rolling expanding-window backtest splits.
 
 Hermetic (pure integer arithmetic; no SSD, no torch). Run with:
-    .venv/bin/python dev/model/test_config.py   (or python -m pytest)
+    python -m pytest tests/test_config.py
 
 Covers the §3.2 leakage rule that every test in this project ultimately rests on:
 the train/val/test ``period_ym`` ranges must TILE the axis with no gap and no
@@ -10,20 +10,7 @@ overlap for every window ``k``, so a loan-month is never both trained and scored
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-# dev/model and dev/pipeline each ship a ``config.py``. In a single pytest session the
-# pipeline one could already be cached under the bare name ``config`` (collection order
-# is not contractual), so put this file's dir first and drop any stale ``config`` to
-# bind the MODEL config below.
-_MODEL = Path(__file__).resolve().parent
-sys.path.insert(0, str(_MODEL))
-_c = sys.modules.get("config")
-if _c is not None and not str(getattr(_c, "__file__", "")).startswith(str(_MODEL)):
-    del sys.modules["config"]
-
-import config as cfg  # noqa: E402  (model config — this dir now leads sys.path)
+from floan.model import config as cfg
 
 
 # --- window bounds: tiling, no overlap, expanding train ---------------------

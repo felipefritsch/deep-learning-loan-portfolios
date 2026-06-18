@@ -50,7 +50,7 @@ to a high-RAM box.**
 Re-fires only the 9 missing windows (regime-first); idempotency skips the banked 2015/2019.
 ```bash
 cd "/Users/felipefritsch/Documents/Masters MCF Oxford/Dissertation/Dissertation - Asset Loans Default Risk" && \
-nohup .venv/bin/python -u dev/model/backtest.py --device cpu --gbt-only \
+nohup .venv/bin/python -u -m floan.model.backtest --device cpu --gbt-only \
   --windows 2020 2023 2025 2016 2017 2018 2021 2022 2024 --gbt-threads N \
   >> "/Volumes/SSD Felipe/dissertation/logs/gbt_sweep.log" 2>&1 &
 ```
@@ -62,12 +62,12 @@ nohup .venv/bin/python -u dev/model/backtest.py --device cpu --gbt-only \
   `deterministic=True` + `force_row_wise` make the models **bit-identical regardless of
   `--gbt-threads`**, so a different core count on the pod yields the same results.
 - **Volume:** mount the retained SSD at `/Volumes/SSD Felipe/dissertation` (or edit `ROOT` in
-  `dev/pipeline/config.py`); `require_drive()` fails fast otherwise.
-- **Optional supervisor:** `dev/model/run_gbt_sweep.sh` (auto-resume on transient failure)
+  `src/floan/pipeline/config.py`); `require_drive()` fails fast otherwise.
+- **Optional supervisor:** `scripts/run_gbt_sweep.sh` (auto-resume on transient failure)
   hardcodes the original 10-window list; for the precise 9, use the bare command above.
 
 ## 6. Artifacts & provenance
 Run folders on the SSD (`models/gbt/full/{k2015,k2019}` + `k2015_reconfirm`), mirrored to
-`ssd_mirror/` via `dev/tools/backup_ssd.sh` (2026-06-17 11:51). `gbt-baseline` commits:
+`ssd_mirror/` via `scripts/backup_ssd.sh` (2026-06-17 11:51). `gbt-baseline` commits:
 `4374c4e` (M16 trainer), `b35635f` (M17 wiring), `659497f` (reconfirm msh=1000 + atomic
 run-folder writes), `99010e4` (sweep supervisor).

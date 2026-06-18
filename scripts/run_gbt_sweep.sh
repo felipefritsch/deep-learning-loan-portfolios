@@ -13,11 +13,11 @@
 # are the 10 remaining windows, key/regime-first (2019,2020,2023,2025) then the six fillers.
 #
 # Launch (detached, no-sleep, unbuffered, append log):
-#   nohup caffeinate -dims bash dev/model/run_gbt_sweep.sh \
+#   nohup caffeinate -dims bash scripts/run_gbt_sweep.sh \
 #     >> "/Volumes/SSD Felipe/dissertation/logs/gbt_sweep.log" 2>&1 &
 set -u
 
-REPO="/Users/felipefritsch/Documents/Masters MCF Oxford/Dissertation/Dissertation - Asset Loans Default Risk"
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
 MODELS="/Volumes/SSD Felipe/dissertation/models/gbt/full"
 WINDOWS="2019 2020 2023 2025 2016 2017 2018 2021 2022 2024"
 SWEEP_WINDOWS="2016 2017 2018 2019 2020 2021 2022 2023 2024 2025"   # the 10 to complete (2015 promoted)
@@ -25,6 +25,8 @@ MAX_ATTEMPTS=30
 SLEEP_SECS=90
 
 cd "$REPO" || exit 1
+PY="$REPO/.venv/bin/python"; [ -x "$PY" ] || PY=python
+export PYTHONPATH="$REPO/src${PYTHONPATH:+:$PYTHONPATH}"
 
 done_count() {
   local n=0 k
@@ -36,7 +38,7 @@ done_count() {
 
 for a in $(seq 1 "$MAX_ATTEMPTS"); do
   echo "=== supervisor attempt $a/$MAX_ATTEMPTS  $(date '+%F %T')  ($(done_count)/10 windows done) ==="
-  .venv/bin/python -u dev/model/backtest.py --device cpu --gbt-only --windows $WINDOWS --gbt-threads 8
+  "$PY" -u -m floan.model.backtest --device cpu --gbt-only --windows $WINDOWS --gbt-threads 8
   rc=$?
   n=$(done_count)
   echo "=== attempt $a exited rc=$rc; $n/10 windows complete  $(date '+%F %T') ==="

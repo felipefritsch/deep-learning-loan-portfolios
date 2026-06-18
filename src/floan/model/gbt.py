@@ -31,10 +31,10 @@ Three drivers, all on this shared loader + QA:
   windows. Idempotent on (window, config).
 
 Run (CPU; needs the SSD + the export):
-    .venv/bin/python dev/model/gbt.py                                  # M16 dev k=2015 tuning
-    .venv/bin/python dev/model/gbt.py --mode frozen --variant full --k 2015   # one frozen fit
-    .venv/bin/python dev/model/gbt.py --mode reconfirm --variant full --k 2015 # full-scale re-check
-    .venv/bin/python dev/model/gbt.py --max-rows 100000               # quick wiring smoke
+    python -m floan.model.gbt                                  # M16 dev k=2015 tuning
+    python -m floan.model.gbt --mode frozen --variant full --k 2015   # one frozen fit
+    python -m floan.model.gbt --mode reconfirm --variant full --k 2015 # full-scale re-check
+    python -m floan.model.gbt --max-rows 100000               # quick wiring smoke
 """
 
 from __future__ import annotations
@@ -51,12 +51,12 @@ import lightgbm as lgb
 import numpy as np
 import polars as pl
 
-import backtest as B          # _structural_allow — the §7 monotone-delinquency mask
-import config
-import data as D
-import evaluate as E          # _nll — the headline out-of-sample NLL object (the cross-check target)
-import features as F
-import train as T             # _git_commit — shared run-folder provenance
+from floan.model import backtest as B   # _structural_allow — the §7 monotone-delinquency mask
+from floan.model import config
+from floan.model import data as D
+from floan.model import evaluate as E    # _nll — the headline out-of-sample NLL object (the cross-check target)
+from floan.model import features as F
+from floan.model import train as T       # _git_commit — shared run-folder provenance
 
 VARIANT_DEFAULT = "dev"
 TUNING_K = config.TUNING_YEAR          # 2015 — architecture/HP selection happens here only
