@@ -6,8 +6,8 @@
 > and the task list `specs/model/04_TASKS.md` (M16–M19). Live resume details:
 > `src/floan/model/M17_NOTES.md`.
 >
-> **As of:** 2026-06-18 · canonical branch `main` (tip `55dd43b`; `gbt-baseline` and
-> `writeup-abstract-appendixA` are superseded ancestors fully contained in `main`).
+> **As of:** 2026-06-18 · canonical branch `main` (the only long-lived branch; create your
+> GBT working branch off it).
 
 ---
 
