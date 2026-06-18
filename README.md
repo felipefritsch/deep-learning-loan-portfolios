@@ -27,7 +27,10 @@ pool level.
 ## Repository layout
 
 The code is an installable Python package (`floan`) under a `src/` layout; modules import
-each other by package path (no `sys.path` manipulation).
+each other by package path (no `sys.path` manipulation). The package is named **`floan`**
+("f" + *loan*) — short and a valid Python identifier. Per the standard `src/` convention this
+import name is deliberately distinct from the long repository name (cf. `scikit-learn` →
+`sklearn`), and it is what every `import floan …` / `python -m floan.…` command below uses.
 
 ```
 .
