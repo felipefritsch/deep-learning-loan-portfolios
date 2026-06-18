@@ -10,7 +10,7 @@ grouped over the 256 shards proved unreliable — it reported a large spurious s
 loans/shard, contradicting the uniform exact count, so this figure uses the exact
 distinct despite the heavier scan.)
 
-Run:  python dev/analysis/f5_1_shard_balance.py
+Run:  python -m floan.analysis.f5_1_shard_balance
 """
 
 from __future__ import annotations

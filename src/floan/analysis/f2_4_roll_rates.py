@@ -13,7 +13,7 @@ cure (roll-down to a lower bucket / back to current) vs roll-forward
 and roll-forward swells through 2008–11, and the 2020–21 forbearance bulge cures
 out afterwards.
 
-Run:  python dev/analysis/f2_4_roll_rates.py
+Run:  python -m floan.analysis.f2_4_roll_rates
 """
 
 from __future__ import annotations

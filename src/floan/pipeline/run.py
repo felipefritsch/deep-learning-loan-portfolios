@@ -6,15 +6,15 @@ per-quarter; re-running skips work already done.
 
 Examples
 --------
-    python run.py inventory                      # Stage 1 (content-aware resume)
-    python run.py inventory --force              #   full rescan
-    python run.py convert  --quarter 2017Q2      # Stage 2, one vintage
-    python run.py convert  --all                 # Stage 2, all non-quarantined
-    python run.py clean    --all                 # Stage 3
-    python run.py panel    --all                 # Stage 4 (seven-state target)
-    python run.py qa                             # Stage 6 QA report
-    python run.py sample   --cutoff-ym 201501    # Stage 5 balanced sample + scaler
-    python run.py pipeline --quarter 2020Q4      # Stages 2→3→4 end-to-end, one vintage
+    python -m floan.pipeline.run inventory                      # Stage 1 (content-aware resume)
+    python -m floan.pipeline.run inventory --force              #   full rescan
+    python -m floan.pipeline.run convert  --quarter 2017Q2      # Stage 2, one vintage
+    python -m floan.pipeline.run convert  --all                 # Stage 2, all non-quarantined
+    python -m floan.pipeline.run clean    --all                 # Stage 3
+    python -m floan.pipeline.run panel    --all                 # Stage 4 (seven-state target)
+    python -m floan.pipeline.run qa                             # Stage 6 QA report
+    python -m floan.pipeline.run sample   --cutoff-ym 201501    # Stage 5 balanced sample + scaler
+    python -m floan.pipeline.run pipeline --quarter 2020Q4      # Stages 2→3→4 end-to-end, one vintage
 
 Stages run independently; a crash mid-run is recoverable (completed quarters are
 skipped). The external SSD must be mounted — every stage calls require_drive().

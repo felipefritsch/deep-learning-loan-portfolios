@@ -39,9 +39,9 @@ Outputs (under ``models/``):
   ``nn/full/backtest_summary.json``            Table-B-style matrix + base-rate QA (§7)
 
 Run (inside tmux):
-    .venv/bin/python dev/model/backtest.py --device cuda --amp        # the full loop
-    .venv/bin/python dev/model/backtest.py --verify-only              # Accept checks on outputs
-    .venv/bin/python dev/model/backtest.py --device cuda --amp --windows 2015 2019  # subset
+    .venv/bin/python -m floan.model.backtest --device cuda --amp        # the full loop
+    .venv/bin/python -m floan.model.backtest --verify-only              # Accept checks on outputs
+    .venv/bin/python -m floan.model.backtest --device cuda --amp --windows 2015 2019  # subset
 """
 
 from __future__ import annotations

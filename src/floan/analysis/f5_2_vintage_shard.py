@@ -9,7 +9,7 @@ stripes, a clean one shows horizontal bands matching the panel marginals.
 
 One DuckDB pass: ``count(*)`` per (origination year, shard).
 
-Run:  python dev/analysis/f5_2_vintage_shard.py
+Run:  python -m floan.analysis.f5_2_vintage_shard
 """
 
 from __future__ import annotations

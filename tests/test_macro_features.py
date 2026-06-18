@@ -1,7 +1,7 @@
 """Unit tests for macro_features.py — the §4 lag convention, join + derived features.
 
 Hermetic (synthetic tables only; no SSD). Run with:
-    .venv/bin/python dev/model/test_macro_features.py   (or python -m pytest)
+    .venv/bin/python -m floan.model.test_macro_features   (or python -m pytest)
 """
 
 from __future__ import annotations

@@ -60,7 +60,7 @@ git push
 **Phase-3 gate (you run these):**
 
 ```bash
-./dev/tools/backup_ssd.sh        # 💾 SSD essential — mirrors the SSD dirs
+./scripts/backup_ssd.sh        # 💾 SSD essential — mirrors the SSD dirs
 git push                         # 🌐
 ```
 
@@ -69,7 +69,7 @@ git push                         # 🌐
 Mark M11–M15 ✅ in `PROMPTS.md`, commit, push:
 
 ```bash
-git add dev/model_plan/PROMPTS.md && git commit -m "PROMPTS: Phase 2-3 complete" && git push
+git add specs/model/PROMPTS.md && git commit -m "PROMPTS: Phase 2-3 complete" && git push
 ```
 
 One-line status email to supervisor. Done — remaining work is prose.

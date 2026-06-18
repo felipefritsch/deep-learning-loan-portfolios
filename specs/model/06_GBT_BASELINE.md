@@ -14,7 +14,7 @@ It reuses, unchanged:
 - `evaluate.py` (`02 §7`) — GBT predictions are an `(n, 7)` array that flows through the existing NLL / AUC / calibration path with no change to the evaluator;
 - `pool.py`'s composition engine (`03 §3`) and cashflow engine (`03 §5`) — GBT enters via a model-agnostic predictor (M19).
 
-New code is confined to `dev/model/gbt.py` (trainer + predict adapter) and a single model-agnostic-predictor seam in `pool.py`.
+New code is confined to `src/floan/model/gbt.py` (trainer + predict adapter) and a single model-agnostic-predictor seam in `pool.py`.
 
 ## 2. Locked decisions (binding — these preserve the controlled comparison)
 
@@ -46,7 +46,7 @@ GBT softmax probabilities can be miscalibrated (boosting tends to over-confidenc
 
 | Module | Change |
 |---|---|
-| `dev/model/gbt.py` | **new** — trainer (weighted multiclass softmax, early stopping, run-folder writer) + `predict_proba(booster, X) → (n,7)` adapter + optional per-window calibrator. |
+| `src/floan/model/gbt.py` | **new** — trainer (weighted multiclass softmax, early stopping, run-folder writer) + `predict_proba(booster, X) → (n,7)` adapter + optional per-window calibrator. |
 | `backtest.py` | add GBT to the per-window loop (frozen config; per-window vocab + early stopping); **no change to the window/masking logic**. |
 | `evaluate.py` | **none** — GBT predictions flow through the existing NLL/AUC/calibration path as a fifth model column. |
 | `pool.py` | one **model-agnostic predictor** seam (a callable returning the 7-vector at evolved covariates), then pass the net or GBT predictor; the composition and cashflow engines are otherwise untouched. |

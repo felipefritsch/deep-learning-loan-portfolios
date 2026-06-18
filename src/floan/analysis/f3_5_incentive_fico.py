@@ -11,7 +11,7 @@ One DuckDB pass joins ``macro_national`` (PMMS) and emits prepaid/at-risk counts
 come from equal-population edges on the FICO margin; within each tercile the incentive
 axis is collapsed to equal-population buckets with Wilson 95% CIs.
 
-Run:  python dev/analysis/f3_5_incentive_fico.py
+Run:  python -m floan.analysis.f3_5_incentive_fico
 """
 
 from __future__ import annotations

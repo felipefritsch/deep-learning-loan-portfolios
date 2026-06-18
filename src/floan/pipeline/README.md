@@ -6,7 +6,7 @@ CSVs into a compressed, columnar, queryable lake and derives the Sirignano
 seven-state monthly-transition target — **never loading more than a bounded
 chunk into memory** (hard rule; see `CLAUDE.md`).
 
-Specs live in `../pipeline_plan/` (`00_OVERVIEW` → `01_SCHEMA` → `02_PIPELINE_STAGES`
+Specs live in `specs/pipeline/` (`00_OVERVIEW` → `01_SCHEMA` → `02_PIPELINE_STAGES`
 → `03_CLAUDE_CODE_TASKS`). This README is the operator guide.
 
 ## Current state (certified)
@@ -52,16 +52,16 @@ reports/lake.duckdb   reports/samples/          # internal disk: catalog + cache
 
 ```bash
 pip install -r requirements.txt          # duckdb, polars, pyarrow, tqdm
-python run.py inventory                   # Stage 1 — review outputs/inventory_summary.md FIRST
-python run.py convert  --all              # Stage 2  (overnight: wrap in `caffeinate -ims`)
-python run.py clean    --all              # Stage 3
-python run.py panel    --all              # Stage 4
-python run.py qa                          # Stage 6 — certify before any --delete-raw
-python run.py sample   --cutoff-ym 201501 # Stage 5 — balanced sample + scaler for a backtest window
+python -m floan.pipeline.run inventory                   # Stage 1 — review outputs/inventory_summary.md FIRST
+python -m floan.pipeline.run convert  --all              # Stage 2  (overnight: wrap in `caffeinate -ims`)
+python -m floan.pipeline.run clean    --all              # Stage 3
+python -m floan.pipeline.run panel    --all              # Stage 4
+python -m floan.pipeline.run qa                          # Stage 6 — certify before any --delete-raw
+python -m floan.pipeline.run sample   --cutoff-ym 201501 # Stage 5 — balanced sample + scaler for a backtest window
 ```
 
-Single vintage / end-to-end: `python run.py pipeline --quarter 2020Q4`.
-Tests: `python test_schema.py`.
+Single vintage / end-to-end: `python -m floan.pipeline.run pipeline --quarter 2020Q4`.
+Tests: `python -m pytest tests/test_schema.py`.
 
 ## Operating notes
 

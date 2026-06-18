@@ -16,7 +16,7 @@ server-side at fetch time, see ``fetch_macro.py``). Each series is asserted mono
 and gap-free over its table span (single-month interior gaps forward-filled, longer
 gaps fail).
 
-Run:  .venv/bin/python dev/model/build_macro.py [--snapshot YYYY-MM-DD]
+Run:  .venv/bin/python -m floan.model.build_macro [--snapshot YYYY-MM-DD]
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ from floan.pipeline import config
 # 1998-11 (min orig_ym 199901 − 2m; period 200001 − 14m). Starting at 1998-01 (every
 # FRED series and FMHPI cover it gap-free) is what makes "zero null macro columns"
 # achievable downstream; 2000-01 → snapshot end (the spec's stated span) is a gap-free
-# subset. See dev/model/macro_features.py for the join/lag contract.
+# subset. See src/floan/model/macro_features.py for the join/lag contract.
 START_YM = 199801
 
 # 50 states + DC — their FRED LAUS SA series are "{POSTAL}UR".

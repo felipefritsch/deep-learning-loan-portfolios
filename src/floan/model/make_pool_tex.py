@@ -9,7 +9,7 @@ M14/M15b JSON tables. Pure formatting; no SSD models, no re-run of the pool pipe
 Both are tabular-only (caption/label in chapter4.tex), Unicode-free, booktabs+multirow — matching the
 loan-level ``table_b.tex`` convention. Writes into ``writeup/latex/figs/`` (the LaTeX figs dir).
 
-Run:  .venv/bin/python dev/model/make_pool_tex.py
+Run:  .venv/bin/python -m floan.model.make_pool_tex
 """
 from __future__ import annotations
 
