@@ -2,9 +2,9 @@
 
 > **Purpose:** drop-in context for a fresh Claude Code chat continuing the LightGBM
 > gradient-boosted-tree (GBT) baseline. Self-contained snapshot of the prior session
-> (M16 done, M17 partial). Pair with the binding spec `dev/model_plan/06_GBT_BASELINE.md`
-> and the task list `dev/model_plan/04_TASKS.md` (M16–M19). Live resume details:
-> `dev/model/M17_NOTES.md`.
+> (M16 done, M17 partial). Pair with the binding spec `specs/model/06_GBT_BASELINE.md`
+> and the task list `specs/model/04_TASKS.md` (M16–M19). Live resume details:
+> `src/floan/model/M17_NOTES.md`.
 >
 > **As of:** 2026-06-18 · branch `gbt-baseline`.
 
@@ -31,18 +31,21 @@ monthly transition model**: `current → 30/60/90+ DPD → foreclosure → REO �
 **Standing invariants (apply everywhere):**
 1. Never load a full quarter into memory — stream via DuckDB/Polars/PyArrow.
 2. `raw/` on the SSD is immutable — no code writes there.
-3. All paths derive from the single `ROOT` in `dev/pipeline/config.py`; every stage calls
-   `require_drive()` and fails fast if the SSD isn't mounted.
+3. All paths derive from the single `ROOT` in `src/floan/pipeline/config.py`; every stage
+   calls `require_drive()` and fails fast if the SSD isn't mounted.
 4. Stages idempotent + per-window; verify each task's **Accept** criteria before advancing.
 5. Commit/push **only when the user asks**. One task per branch-commit.
-6. Data lives on external SSD `SSD Felipe` at `/Volumes/SSD Felipe/dissertation/`
+6. The repo is an installable package (`pip install -e .`); code imports as `floan.*` and
+   runs as a module — e.g. `python -m floan.model.backtest`. **Never run files by path**
+   (it breaks imports).
+7. Data lives on external SSD `SSD Felipe` at `/Volumes/SSD Felipe/dissertation/`
    (`raw/ → interim/ → processed/`, plus `models/ outputs/ logs/`), **not** in the repo.
-7. Working style: state assumptions before coding, simplest solution that works, surgical
+8. Working style: state assumptions before coding, simplest solution that works, surgical
    diffs, verify against explicit success criteria. **Never tune GBT to chase the NN number.**
 
 ---
 
-## 2. The M16–M19 task arc (binding: `06_GBT_BASELINE.md`)
+## 2. The M16–M19 task arc (binding: `specs/model/06_GBT_BASELINE.md`)
 
 - **M16 — GBT trainer (dev scale, k=2015). ✅ DONE + committed.**
   Single 7-class softmax LightGBM; origin `state` as native categorical (NOT four per-origin
@@ -148,7 +151,7 @@ Re-fires only the 9 missing windows (regime-first); idempotency skips banked 201
 
 ```bash
 cd "/Users/felipefritsch/Documents/Masters MCF Oxford/Dissertation/Dissertation - Asset Loans Default Risk" && \
-nohup .venv/bin/python -u dev/model/backtest.py --device cpu --gbt-only \
+nohup .venv/bin/python -u -m floan.model.backtest --device cpu --gbt-only \
   --windows 2020 2023 2025 2016 2017 2018 2021 2022 2024 --gbt-threads N \
   >> "/Volumes/SSD Felipe/dissertation/logs/gbt_sweep.log" 2>&1 &
 ```
@@ -160,47 +163,49 @@ nohup .venv/bin/python -u dev/model/backtest.py --device cpu --gbt-only \
 - **Reproducible:** frozen config in committed `config.GBT_SELECTED`; `deterministic=True` +
   `force_row_wise` ⇒ bit-identical regardless of `--gbt-threads`.
 - **Volume:** mount the SSD at `/Volumes/SSD Felipe/dissertation` (or edit `ROOT` in
-  `dev/pipeline/config.py`); `require_drive()` fails fast otherwise.
-- **Supervisor:** `dev/model/run_gbt_sweep.sh` auto-resumes on transient failure but hardcodes
+  `src/floan/pipeline/config.py`); `require_drive()` fails fast otherwise.
+- **Supervisor:** `scripts/run_gbt_sweep.sh` auto-resumes on transient failure but hardcodes
   the original 10-window list — for the precise 9, use the bare command above. macOS no-sleep
   wrapper: prefix with `caffeinate -dims`.
 
 After the sweep completes all 11 windows: finish M17 (full 11-window GBT-vs-logit-vs-NN table,
-`backtest.py --verify-only --device cpu` for the `[6] M17 GBT` block), then proceed to M18/M19.
+`python -m floan.model.backtest --verify-only --device cpu` for the `[6] M17 GBT` block), then
+proceed to M18/M19.
 
 ---
 
 ## 7. File map (what each thing is)
 
 ### Modified / created this arc
-- **`dev/model/gbt.py`** (core deliverable) — single 7-class softmax LightGBM. Key functions:
-  `feature_layout(vocab)→(names, cat_idx)`; `build_X(df, vocab)`; `load_split`/`load_window`;
-  `_base_params(n_threads)` (objective/num_class=7/metric/num_leaves=63/lr=0.1/msh=1e-3/ff=1.0/
-  l2=0/max_bin=255/seed=0/deterministic=True/force_row_wise=True); `tune()` (calibrate-then-plane:
-  msh sweep → num_leaves×lr plane → ff/l2 sweeps); `reconfirm()` (3-cell focused re-check);
-  `fit_window_frozen(variant,k,cfg,n_threads)` (per-window unit, free_raw_data=True, idempotent
-  on (window,config), atomic writes); `classify_zone` (empirical_floor primary, logit fallback);
-  `predict_proba`; `compute_accept` (5 criteria + zone_basis + leakage probe);
-  `write_run_folder` (atomic `.tmp`+os.replace, metrics.json LAST).
-- **`dev/model/config.py`** — `GBT_SELECTED = {num_leaves: 31, learning_rate: 0.05,
+- **`src/floan/model/gbt.py`** (core deliverable) — single 7-class softmax LightGBM. Key
+  functions: `feature_layout(vocab)→(names, cat_idx)`; `build_X(df, vocab)`;
+  `load_split`/`load_window`; `_base_params(n_threads)` (objective/num_class=7/metric/
+  num_leaves=63/lr=0.1/msh=1e-3/ff=1.0/l2=0/max_bin=255/seed=0/deterministic=True/
+  force_row_wise=True); `tune()` (calibrate-then-plane: msh sweep → num_leaves×lr plane →
+  ff/l2 sweeps); `reconfirm()` (3-cell focused re-check); `fit_window_frozen(variant,k,cfg,
+  n_threads)` (per-window unit, free_raw_data=True, idempotent on (window,config), atomic
+  writes); `classify_zone` (empirical_floor primary, logit fallback); `predict_proba`;
+  `compute_accept` (5 criteria + zone_basis + leakage probe); `write_run_folder` (atomic
+  `.tmp`+os.replace, metrics.json LAST).
+- **`src/floan/model/config.py`** — `GBT_SELECTED = {num_leaves: 31, learning_rate: 0.05,
   min_sum_hessian_in_leaf: 1000.0, feature_fraction: 1.0, lambda_l2: 0.0}` (full-scale val
   argmin; was 100.0 from M16 dev). `GBT_TUNING_BEST_ITERATION = 1208`. Rationale comment
   documents the msh 100→1000 reconfirm move.
-- **`dev/model/backtest.py`** — `import os`; `_gbt_frozen()`; `fit_gbt(k,cfg,n_threads,*,fresh)`
-  (lazy `import gbt as G` to break a circular import); `_read_gbt(k)`; gbt in build_summary;
-  `[6] M17 GBT` verify block; main() loop flags `--gbt-only` / `--skip-gbt` / `--gbt-threads`.
-  Note: `--verify-only` defaults `--device cuda` and crashes without CUDA — run with
-  `--device cpu`.
-- **`dev/model/run_gbt_sweep.sh`** — bounded (30-attempt) auto-resuming supervisor;
+- **`src/floan/model/backtest.py`** — `import os`; `_gbt_frozen()`; `fit_gbt(k,cfg,n_threads,
+  *,fresh)` (lazy `import gbt as G` to break a circular import); `_read_gbt(k)`; gbt in
+  build_summary; `[6] M17 GBT` verify block; main() loop flags `--gbt-only` / `--skip-gbt` /
+  `--gbt-threads`. Note: `--verify-only` defaults `--device cuda` and crashes without CUDA —
+  run with `--device cpu`.
+- **`scripts/run_gbt_sweep.sh`** — bounded (30-attempt) auto-resuming supervisor;
   WINDOWS="2019 2020 2023 2025 2016 2017 2018 2021 2022 2024".
-- **`dev/model/M17_NOTES.md`** — the live resume record (config, banked table, k2019 QA finding,
-  swap-ceiling diagnosis, resume command, provenance).
-- **`dev/model_plan/04_TASKS.md`** — appended M16–M19; spec-map line extended with
+- **`src/floan/model/M17_NOTES.md`** — the live resume record (config, banked table, k2019 QA
+  finding, swap-ceiling diagnosis, resume command, provenance).
+- **`specs/model/04_TASKS.md`** — appended M16–M19; spec-map line extended with
   `06_GBT_BASELINE.md (16–19)`.
-- **`dev/analysis/requirements.txt`** — added `lightgbm==4.6.0`.
+- **`pyproject.toml`** — added `lightgbm==4.6.0` (line 27).
 
 ### Reference (read, not modified)
-- `dev/model/net.py` (MortgageMLP, make_nn_predict), `evaluate.py`
+- `src/floan/model/net.py` (MortgageMLP, make_nn_predict), `evaluate.py`
   (`_nll = mean −log p[y]`, `score_window`), `torch_common.py` (weighted_ce),
   `features.py` (CONTINUOUS/CATEGORICAL/BINARY, Scaler, Vocab UNK=0, encode_frame),
   `data.py` (window_spec, `_masked_scan`, fit_window), `benchmarks.py` (M5 empirical/bucketed
@@ -228,7 +233,11 @@ After the sweep completes all 11 windows: finish M17 (full 11-window GBT-vs-logi
 `659497f` (reconfirm msh=1000 + atomic run-folder writes), `99010e4` (sweep supervisor),
 `47fb9f8` (bank k=2015 + k=2019; abandon k=2020; defer 9). Run folders on the SSD
 (`models/gbt/full/{k2015,k2019}` + `k2015_reconfirm`), mirrored to `ssd_mirror/` via
-`dev/tools/backup_ssd.sh` (2026-06-17 11:51).
+`scripts/backup_ssd.sh` (2026-06-17 11:51).
+
+> Path note: this arc predates a repo reorg that moved model code into `src/floan/model/`,
+> specs into `specs/model/`, and shell helpers into `scripts/`. Older commit messages may
+> still reference the former `dev/` tree.
 
 ---
 
@@ -236,7 +245,7 @@ After the sweep completes all 11 windows: finish M17 (full 11-window GBT-vs-logi
 
 1. On a ≥64 GB box, run the §6 resume command to fit the 9 deferred windows.
 2. Finish **M17**: build the full 11-window GBT-vs-logit-vs-NN table; run
-   `python dev/model/backtest.py --verify-only --device cpu` for the `[6] M17 GBT` block;
+   `python -m floan.model.backtest --verify-only --device cpu` for the `[6] M17 GBT` block;
    note whether the k=2019 impossible-mass pattern recurs.
 3. Then **M18** (loan-level exhibits + calibration decision) and **M19** (model-agnostic
-   `pool.py` seam for GBT pool roll-forward) per `06_GBT_BASELINE.md`.
+   `pool.py` seam for GBT pool roll-forward) per `specs/model/06_GBT_BASELINE.md`.
