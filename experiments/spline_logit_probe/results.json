@@ -1,0 +1,191 @@
+{
+  "probe": "additive spline-expanded multinomial logit vs plain logit (k2015 go/no-go)",
+  "throwaway": true,
+  "variant": "full",
+  "window_k": 2015,
+  "seed": 0,
+  "anchors_full_scale": {
+    "empirical": 0.112869,
+    "bucketed": 0.109385,
+    "logit": 0.108246,
+    "gbt": 0.103597,
+    "nn": 0.103125
+  },
+  "headline": {
+    "raw_gap_overall": 0.0014423030737278908,
+    "plain_nll": 0.10813118636587213,
+    "spline_nll": 0.10668888329214424,
+    "raw_gap_per_origin": {
+      "current": 0.0016525622987304432,
+      "dpd_30": -0.0007588431855860432,
+      "dpd_60": -0.0031186167042405177,
+      "dpd_90plus": -0.015606897929058438
+    },
+    "expectation": "spline expected to close LESS on `current` (incentive\u00d7FICO interaction lives there) and MORE on the delinquent / pure-shape origins"
+  },
+  "per_origin_nll": {
+    "current": {
+      "plain_nll": 0.09047496086361605,
+      "spline_nll": 0.0888223985648856,
+      "gap": 0.0016525622987304432,
+      "n": 6037215
+    },
+    "dpd_30": {
+      "plain_nll": 1.0805037700548226,
+      "spline_nll": 1.0812626132404086,
+      "gap": -0.0007588431855860432,
+      "n": 65008
+    },
+    "dpd_60": {
+      "plain_nll": 1.3887929047340775,
+      "spline_nll": 1.391911521438318,
+      "gap": -0.0031186167042405177,
+      "n": 16474
+    },
+    "dpd_90plus": {
+      "plain_nll": 0.46958074968299673,
+      "spline_nll": 0.4851876476120552,
+      "gap": -0.015606897929058438,
+      "n": 61654
+    }
+  },
+  "secondary_orientation_only": {
+    "closed_fraction_of_anchor_gap": 0.31023942218281153,
+    "anchor_gap": 0.004649,
+    "caveat": "DOUBLY approximate: (a) 1.5M subsample vs 33.5M full train; (b) geo mismatch -- the GBT denominator 0.103597 is geo-inclusive while the probe is geo-dropped (MSA+Zip3). Use the raw gaps + shape overlays as the clean deliverables, not this number."
+  },
+  "representativeness": {
+    "reference": "full un-subsampled k2015 train slice (same era -> isolates sampling from 2013->2015 drift)",
+    "max_abs_baserate_diff_subsample_vs_fulltrain": 0.0016990684937797929,
+    "tol": 0.01,
+    "pass": true,
+    "per_origin_max_diff": {
+      "current": 0.0006011751997656578,
+      "dpd_30": 0.0015485210502228508,
+      "dpd_60": 0.0016990684937797929,
+      "dpd_90plus": 0.0007631103214864599
+    }
+  },
+  "drift_fyi": {
+    "note": "train(<=2013) vs test(2015) per-origin next-state base-rate drift -- NOT a gate; reported so the |plain-0.108246| offset is read in context",
+    "max_abs_diff": 0.30990306259129163,
+    "per_origin_max_diff": {
+      "current": 0.30990306259129163,
+      "dpd_30": 0.02550648973128311,
+      "dpd_60": 0.057746468413703456,
+      "dpd_90plus": 0.010915672518943542
+    }
+  },
+  "regularization": {
+    "probe_C": 0.1,
+    "solver": "lbfgs",
+    "max_iter": 500,
+    "plain_n_iter": 242,
+    "spline_n_iter": 234,
+    "converged": true,
+    "note": "deployed logit used torch Adam weight_decay=1e-5 (val-selected), NOT an sklearn C. Probe uses C=0.1 == logit.py:CROSS_CHECK_C (the repo's own conditioning value for fitting this exact geo-dropped multinomial with sklearn lbfgs) -> mean-1 weights give effective L2 ~3e-6 (still near-MLE, the same light-reg regime) while pinning the over-param softmax gauge so lbfgs converges. Plain and spline SHARE C, so the gap reflects the basis expansion alone."
+  },
+  "subsample": {
+    "target": 1500000,
+    "actual": 1499174,
+    "strategy": "proportional stratified deterministic hash",
+    "per_origin": {
+      "current": 1039076,
+      "dpd_30": 220595,
+      "dpd_60": 58269,
+      "dpd_90plus": 181234
+    }
+  },
+  "spline": {
+    "n_knots": 8,
+    "degree": 3,
+    "knots": "quantile",
+    "include_bias": false,
+    "additive": true,
+    "interactions": false
+  },
+  "dropped_categoricals": [
+    "Metropolitan Statistical Area (MSA)",
+    "Zip Code Short"
+  ],
+  "design_width": {
+    "plain": 134,
+    "spline": 314,
+    "pipeline_logit_onehot_equiv": 1506
+  },
+  "test": {
+    "rows": 6180351,
+    "expected_rows": 6180351,
+    "unweighted": true,
+    "max_prob_sum_err": 8.881784197001252e-16
+  },
+  "plain_vs_pipeline_logit_abs": 0.0001148136341278666,
+  "knot_robustness": {
+    "triggered": true,
+    "note": "fraction 0.310 in (0.25, 0.6)",
+    "knot_8_gap": 0.0014423030737278908,
+    "by_knots": {
+      "5": {
+        "spline_nll": 0.10702213128693928,
+        "gap": 0.001109055078932844
+      },
+      "12": {
+        "spline_nll": 0.10585420097093316,
+        "gap": 0.0022769853949389657
+      }
+    }
+  },
+  "shape_background": {
+    "slice": "2015 eval (test) current-origin",
+    "n": 255760,
+    "label": "test-slice analogue of the Ch.3 hazards, not the same curves"
+  },
+  "shape_summary": {
+    "incentive": {
+      "pdp_prepaid_range": [
+        0.004036201785605968,
+        0.027137299703794606
+      ],
+      "pdp_dpd30_range": [
+        0.0032038874231591716,
+        0.005775963509949246
+      ],
+      "emp_bins": 20
+    },
+    "Loan Age": {
+      "pdp_prepaid_range": [
+        0.004512507241025604,
+        0.03485853125367682
+      ],
+      "pdp_dpd30_range": [
+        0.002371369664350989,
+        0.006530807527160931
+      ],
+      "emp_bins": 20
+    },
+    "ltv_mtm": {
+      "pdp_prepaid_range": [
+        0.00928627831451867,
+        0.01606621483184012
+      ],
+      "pdp_dpd30_range": [
+        0.002540107927742216,
+        0.006641171475273143
+      ],
+      "emp_bins": 19
+    },
+    "fico_orig": {
+      "pdp_prepaid_range": [
+        0.011664819308526066,
+        0.014149113160873701
+      ],
+      "pdp_dpd30_range": [
+        0.0016964072045492383,
+        0.010963796901765145
+      ],
+      "emp_bins": 20
+    }
+  },
+  "wall_sec": 1427.2,
+  "peak_rss_gb": 6.21
+}

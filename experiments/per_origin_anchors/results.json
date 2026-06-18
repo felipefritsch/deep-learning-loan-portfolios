@@ -1,0 +1,59 @@
+{
+  "diagnostic": "per-origin test NLL of the banked full-scale geo-inclusive logit & GBT (k2015)",
+  "throwaway": true,
+  "read_only": true,
+  "variant": "full",
+  "window_k": 2015,
+  "test_rows": 6180351,
+  "expected_rows": 6180351,
+  "method": "reloaded banked models + predicted on frozen eval pool (no refit, no geo-drop, test unweighted); per-row predictions were not saved",
+  "overall": {
+    "logit": 0.10824580633723772,
+    "gbt": 0.10359650445606283,
+    "logit_minus_gbt": 0.0046493018811748915,
+    "anchors": {
+      "logit": 0.108246,
+      "gbt": 0.103597
+    },
+    "reproduction_abs": {
+      "logit": 1.9366276227117396e-07,
+      "gbt": 4.955439371623349e-07
+    }
+  },
+  "per_origin": {
+    "current": {
+      "n": 6037215,
+      "logit_nll": 0.09058442091053483,
+      "gbt_nll": 0.08651261213909477,
+      "logit_minus_gbt": 0.004071808771440061,
+      "probe_plain_minus_spline": 0.001653
+    },
+    "dpd_30": {
+      "n": 65008,
+      "logit_nll": 1.078423694978525,
+      "gbt_nll": 1.0292067373115634,
+      "logit_minus_gbt": 0.04921695766696166,
+      "probe_plain_minus_spline": -0.000759
+    },
+    "dpd_60": {
+      "n": 16474,
+      "logit_nll": 1.387405568270039,
+      "gbt_nll": 1.3734202881185271,
+      "logit_minus_gbt": 0.013985280151511903,
+      "probe_plain_minus_spline": -0.003119
+    },
+    "dpd_90plus": {
+      "n": 61654,
+      "logit_nll": 0.472916045348464,
+      "gbt_nll": 0.4612048335970553,
+      "logit_minus_gbt": 0.011711211751408712,
+      "probe_plain_minus_spline": -0.015607
+    }
+  },
+  "prob_sum_err": {
+    "logit": 6.661338147750939e-16,
+    "gbt": 8.881784197001252e-16
+  },
+  "caveat": "logit/GBT anchors are full-scale & geo-inclusive; probe plain/spline are geo-dropped on a 1.5M subsample. Geography adds ~nothing (probe plain reproduced the deployed logit to 1.1e-4) -> approximate-but-fair.",
+  "wall_sec": 17.7
+}
