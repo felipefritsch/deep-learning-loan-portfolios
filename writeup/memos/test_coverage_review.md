@@ -8,6 +8,35 @@ carry per-task **Accept** evidence; this memo is about the standing unit suite.*
 
 ---
 
+## 0. Status — implemented (2026-06-18)
+
+The §4 backlog and the §5 infrastructure below have since been **implemented**; §1–§7
+are retained as the original review that motivated the work. Current state:
+
+- **Suite: 45 → 94 hermetic tests**, run as one command (`python -m pytest`, green in
+  ~3 s), order-independent. New files, in the existing hand-rolled-runner style:
+  - *P0* — `dev/model/test_config.py`, `dev/pipeline/test_s4_panel.py`,
+    `dev/pipeline/test_s5_sample.py`
+  - *P1* — `dev/pipeline/test_s3_clean.py`, `dev/model/test_export.py`,
+    `dev/pipeline/test_s1_inventory.py`
+  - *P2* — `dev/analysis/test_eda_common.py`, `dev/model/test_benchmarks.py`,
+    `dev/analysis/test_mkt_rate.py`
+- **Infra:** root `pyproject.toml` (`[tool.pytest.ini_options] testpaths=["dev"]`) for
+  one-command discovery, and `.github/workflows/tests.yml` running the suite on pull
+  requests and pushes to `main` (CPU-only PyTorch wheel + `dev/pipeline/requirements.txt`).
+- **Deviations from the original proposal:**
+  - Torch is handled by a per-file module-level skip guard (`try: import torch / except:
+    pytest.skip(..., allow_module_level=True)`) on the three files whose modules import
+    torch at load (`test_pool`, `test_pools`, `test_economics`), **not** a
+    `requires_torch` marker — a marker cannot prevent a collection-time import error. CI
+    installs the CPU torch wheel so those run rather than skip.
+  - A small `sys.modules` shim at the top of each pipeline/analysis/model test file
+    resolves the `dev/model` vs `dev/pipeline` duplicate `config.py` name clash within a
+    single pytest session (verified across collection orders).
+- **Still open (deferred, non-blocking):** the `pytest-cov` floor (§5.2), a shared
+  `conftest.py` for the synthetic-frame builders (§5.4), and folding
+  `verify_logit_equiv.py`/`verify_m9.py` into discoverable `test_*` (§4 item 10).
+
 ## 1. Summary
 
 The suite covers the **numerically subtle cores** of the modelling stack very well —
@@ -19,7 +48,8 @@ logic (`config.py`'s window bounds, `s4_panel`'s `state_next`/`censored` derivat
 `s5_sample`'s scaler round-trip) have **no tests at all**. There is also **no test
 infrastructure** — no `pyproject.toml`/`pytest.ini`, no `conftest.py`, no
 `pytest-cov`, and no CI workflow — so the suite is run by hand, file by file, and
-nothing guards against regressions on push.
+nothing guards against regressions on push. *(This describes the state at review time;
+§0 records what has since been implemented.)*
 
 The good news: every existing test is **hermetic** (synthetic data, no SSD, no GPU,
 no network), so the suite is cheap to run and CI is entirely feasible. The
@@ -191,8 +221,9 @@ so the suite stays fast and runnable without the SSD.
   `s4_panel.py:57,124`, `s5_sample.py:72,136,173`, `config.py:74–102`).
 - Infra absence confirmed: no `pyproject.toml`/`pytest.ini`/`setup.cfg`/`tox.ini`/
   `conftest.py`/`.coveragerc` and no `.github/workflows/` exist in the repo.
-- The hermetic suite could **not** be executed in this container (`polars`, `numpy`,
-  `torch`, and `pytest` are not installed here). To run it locally with the SSD-free
-  dependencies installed:
-  `pip install -r dev/model/requirements.txt && python -m pytest dev -q`
-  (or, today, `python dev/model/test_pool.py` etc. via each file's built-in runner).
+- At review time the hermetic suite could not be executed in this container (`polars`,
+  `numpy`, `torch`, `pytest` were not installed). It has since been run after installing
+  the SSD-free deps — `pip install pytest numpy -r dev/pipeline/requirements.txt` plus a
+  CPU torch wheel, then `python -m pytest` → **94 passed** (see §0). Each file's built-in
+  `python dev/.../test_*.py` runner also still works. Note the model/analysis deps live
+  in `dev/analysis/requirements.txt` (there is no `dev/model/requirements.txt`).
