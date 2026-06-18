@@ -15,7 +15,7 @@ matrices and logistic regression) and a gradient-boosted-tree baseline. Models a
 and evaluated on the **Fannie Mae Single-Family Loan Performance** dataset (~800 GB, ~100
 acquisition vintages, 2000–2025; 30M+ loans, billions of monthly observations).
 
-The core model is a **Sirignano-style seven-state monthly transition model** over the states
+The core model is a **seven-state monthly transition model** over the states, replicating the approach in Sirignano et al 2021.
 
 ```
 current → dpd_30 → dpd_60 → dpd_90plus → foreclosure → REO        (+ prepaid)
