@@ -42,7 +42,7 @@ import duckdb
 import polars as pl
 import pyarrow.parquet as pq
 
-import config
+from floan.pipeline import config
 
 LOG_PATH = config.LOGS / "run.log"
 ABSORBING = ("prepaid", "foreclosure", "REO")
@@ -284,7 +284,7 @@ def validate(con: duckdb.DuckDBPyConnection, quarter: str) -> None:
 
     # 7. CROSS-CHECK: SQL state distribution == schema.derive_state (Polars) on clean
     import polars as pl
-    import schema
+    from floan.pipeline import schema
     cf = _sql_str(config.CLEAN_DIR / f"acq_quarter={quarter}" / "part.parquet")
     pol = (pl.scan_parquet(cf.replace("''", "'"))
            .select(schema.derive_state().alias("state"))

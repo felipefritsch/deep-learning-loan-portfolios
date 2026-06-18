@@ -33,8 +33,8 @@ from pathlib import Path
 
 import duckdb
 
-import config
-import schema
+from floan.pipeline import config
+from floan.pipeline import schema
 
 MANIFEST_PATH = config.OUTPUTS / "inventory_manifest.csv"
 LOG_PATH = config.LOGS / "run.log"

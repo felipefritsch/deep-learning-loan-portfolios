@@ -43,7 +43,7 @@ from pathlib import Path
 import duckdb
 from tqdm import tqdm
 
-import config
+from floan.pipeline import config
 
 # Quarantine thresholds (02_PIPELINE_STAGES.md §Stage 1).
 MIN_DISTINCT_LOANS = 1000

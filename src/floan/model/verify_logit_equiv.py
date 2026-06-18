@@ -27,11 +27,11 @@ import json
 import numpy as np
 import torch
 
-import backtest as B
-import config
-import data as D
-import features as F
-import train as T
+from floan.model import backtest as B
+from floan.model import config
+from floan.model import data as D
+from floan.model import features as F
+from floan.model import train as T
 
 VARIANT = "dev"
 K = 2015

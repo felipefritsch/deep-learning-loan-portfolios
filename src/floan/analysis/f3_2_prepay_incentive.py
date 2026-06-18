@@ -22,7 +22,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import polars as pl
 
-import eda_common as eda
+from floan.analysis import eda_common as eda
 
 config = eda.config
 MACRO_NAT = config.PROCESSED / "macro" / "macro_national.parquet"

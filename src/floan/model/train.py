@@ -42,11 +42,11 @@ import numpy as np
 import polars as pl
 import torch
 
-import config           # dev/model/config.py — also puts dev/pipeline on sys.path
-import data as D        # M6 loader: window_spec / _masked_scan / fit_window
-import features as F    # M6 feature pipeline: Scaler / Vocab / encode_frame / save_pipeline
-import net as N         # M8 MLP + predict callback
-import torch_common as tc
+from floan.model import config
+from floan.model import data as D  # M6 loader: window_spec / _masked_scan / fit_window
+from floan.model import features as F  # M6 feature pipeline: Scaler / Vocab / encode_frame / save_pipeline
+from floan.model import net as N  # M8 MLP + predict callback
+from floan.model import torch_common as tc
 
 _REPO = Path(__file__).resolve().parents[2]
 

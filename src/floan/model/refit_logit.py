@@ -40,15 +40,15 @@ import numpy as np
 import polars as pl
 import torch
 
-import backtest as B
-import config
-import data as D
-import features as F
-import pool as PL
-import pools as PP
-import smm_paths as S
-import torch_common as tc
-import train as T
+from floan.model import backtest as B
+from floan.model import config
+from floan.model import data as D
+from floan.model import features as F
+from floan.model import pool as PL
+from floan.model import pools as PP
+from floan.model import smm_paths as S
+from floan.model import torch_common as tc
+from floan.model import train as T
 
 VARIANT = "full"
 KEY_WINDOWS = [2015, 2019, 2020, 2023, 2025]      # k=2015 FIRST (the validation gate)

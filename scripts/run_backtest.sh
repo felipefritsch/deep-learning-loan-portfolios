@@ -3,5 +3,8 @@
 # skipped, interrupted ones resume from their last epoch checkpoint. Runs in tmux so a
 # disconnect costs nothing. Verify + base-rate QA run automatically at the end.
 set -u
-cd /workspace/repo/dev/model
-exec /workspace/repo/.venv/bin/python backtest.py --device cuda --amp
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+PY="$REPO_ROOT/.venv/bin/python"; [ -x "$PY" ] || PY=python
+export PYTHONPATH="$REPO_ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
+exec "$PY" -m floan.model.backtest --device cuda --amp

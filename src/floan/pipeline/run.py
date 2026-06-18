@@ -24,12 +24,8 @@ For long runs, wrap with `caffeinate -ims` so the Mac doesn't sleep.
 from __future__ import annotations
 
 import argparse
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))  # import sibling stages
-
-import config
+from floan.pipeline import config
 
 STAGES = ["inventory", "convert", "clean", "panel", "qa", "sample", "pipeline"]
 

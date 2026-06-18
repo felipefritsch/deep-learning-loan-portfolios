@@ -55,13 +55,13 @@ import numpy as np
 import polars as pl
 import torch
 
-import backtest as B          # LogitEmbNet (the committed full-scale logit parameterisation)
-import config
-import data as D
-import features as F
-import net as N
-import torch_common as tc
-import train as T
+from floan.model import backtest as B  # LogitEmbNet (the committed full-scale logit parameterisation)
+from floan.model import config
+from floan.model import data as D
+from floan.model import features as F
+from floan.model import net as N
+from floan.model import torch_common as tc
+from floan.model import train as T
 
 VARIANT = "full"
 KEY_WINDOWS = (2015, 2019, 2020, 2023, 2025)     # §6: ensemble only on these 5

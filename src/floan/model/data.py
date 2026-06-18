@@ -34,8 +34,8 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-import config
-import features as F
+from floan.model import config
+from floan.model import features as F
 
 # Raw pool columns the loader must read (derived cats are computed by prepare_raw from
 # period_ym/orig_ym; weight + keys ride along for the loss and eval alignment).

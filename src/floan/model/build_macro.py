@@ -22,17 +22,12 @@ Run:  .venv/bin/python dev/model/build_macro.py [--snapshot YYYY-MM-DD]
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
 import polars as pl
 
 # The pipeline package is the single source of truth for paths.
-_PIPELINE = Path(__file__).resolve().parents[1] / "pipeline"
-if str(_PIPELINE) not in sys.path:
-    sys.path.insert(0, str(_PIPELINE))
-
-import config  # noqa: E402
+from floan.pipeline import config
 
 # Macro tables begin 1998-01, not 2000-01. The panel's period_ym starts at 200001,
 # but §4's joins are LAGGED (unrate −1m, hpi −2m) and ltv_mtm/hpi_chg_12m look up HPI

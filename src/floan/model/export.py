@@ -38,9 +38,9 @@ from pathlib import Path
 import duckdb
 import polars as pl
 
-import config  # dev/model/config.py — also puts dev/pipeline on sys.path
-import macro_features as mf
-import schema  # pipeline schema — FEATURE_SPEC column names (single source of truth)
+from floan.model import config
+from floan.model import macro_features as mf
+from floan.pipeline import schema  # pipeline schema — FEATURE_SPEC column names (single source of truth)
 
 _REPO = Path(__file__).resolve().parents[2]
 

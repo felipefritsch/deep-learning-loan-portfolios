@@ -35,12 +35,12 @@ from types import SimpleNamespace
 import numpy as np
 import torch
 
-import config
-import data as D
-import features as F
-import net as N
-import torch_common as tc
-import train as T
+from floan.model import config
+from floan.model import data as D
+from floan.model import features as F
+from floan.model import net as N
+from floan.model import torch_common as tc
+from floan.model import train as T
 
 N_MEMBERS = 8                  # paper Fig 7: ensemble of 8
 EVAL_BATCH = 16384

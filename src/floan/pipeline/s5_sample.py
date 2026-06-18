@@ -40,8 +40,8 @@ from pathlib import Path
 import polars as pl
 import duckdb
 
-import config
-import schema
+from floan.pipeline import config
+from floan.pipeline import schema
 
 # Internal-disk working-set cache (fast NVMe) — keep training samples here so the
 # model loop never streams the USB lake every epoch.
