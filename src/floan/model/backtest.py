@@ -329,7 +329,7 @@ def fit_gbt(k: int, cfg: dict, n_threads: int, *, fresh: bool = False) -> Path:
     :func:`gbt.fit_window_frozen`, which shares the export/loader/evaluator path with every
     other model. Idempotent on (window, config). ``gbt`` is imported lazily to avoid the
     import cycle (``gbt`` → ``evaluate`` → ``backtest``)."""
-    import gbt as G
+    from floan.model import gbt as G
     return G.fit_window_frozen(VARIANT, k, cfg, n_threads, fresh=fresh)
 
 
