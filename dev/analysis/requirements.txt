@@ -11,5 +11,8 @@ matplotlib==3.9.4
 #        loop (M8+) installs the CUDA build separately.
 # scikit-learn: M7 logit numerical cross-check (LogisticRegression vs the torch logit);
 #        pulls scipy as a transitive dep.
+# lightgbm: M16+ GBT baseline (gbt.py) — the non-neural flexible learner (06_GBT_BASELINE);
+#        CPU-only multiclass softmax, reuses scipy from scikit-learn.
 torch==2.8.0
 scikit-learn==1.6.1
+lightgbm==4.6.0
