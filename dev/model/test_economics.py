@@ -16,6 +16,13 @@ from __future__ import annotations
 import numpy as np
 import polars as pl
 
+try:  # economics.py/pool.py import torch at module load
+    import torch  # noqa: F401
+except ImportError:
+    import pytest
+
+    pytest.skip("torch not installed", allow_module_level=True)
+
 import economics as EC
 import pool as P
 

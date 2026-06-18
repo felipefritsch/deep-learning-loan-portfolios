@@ -16,6 +16,13 @@ from __future__ import annotations
 
 import numpy as np
 
+try:  # pool.py imports torch at module load; skip cleanly when torch is absent
+    import torch  # noqa: F401
+except ImportError:
+    import pytest
+
+    pytest.skip("torch not installed", allow_module_level=True)
+
 import pool as P
 
 
