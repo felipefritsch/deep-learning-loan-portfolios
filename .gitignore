@@ -86,7 +86,7 @@ docs/bib_refs/
 
 # Claude-created scratch notes (plans, audits, changelogs, state) — local only.
 # Files moved here from the repo root/writeup on 2026-06-16; they remain in git
-# history but are untracked going forward. Binding specs (dev/*_plan/) and the
+# history but are untracked going forward. Binding specs (specs/) and the
 # writeup/memos deliverables are intentionally NOT ignored.
 notes/
 

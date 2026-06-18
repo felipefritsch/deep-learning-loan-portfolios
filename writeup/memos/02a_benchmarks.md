@@ -1,6 +1,6 @@
 # Memo 02a — Benchmarks: the linear baseline
 
-*Phase 2 §4–5 of the modelling plan (`dev/model_plan/02_LOAN_LEVEL.md`); the "linear
+*Phase 2 §4–5 of the modelling plan (`specs/model/02_LOAN_LEVEL.md`); the "linear
 baseline" section of the results chapter. Covers the two covariate-free frequency
 benchmarks and the multinomial logit (incl. the hand-augmented variant), on the tuning
 window k = 2015. Tables in `outputs/tables/loan_level/` (`table_a.*`, `table_b.*`,

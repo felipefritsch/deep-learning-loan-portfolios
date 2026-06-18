@@ -1,7 +1,7 @@
 # Memo 01 — Exploratory Analysis & Motivation
 
-*Phase 1 of the modelling plan (`dev/model_plan/01_EDA.md`); seeds the Data and
-Motivation chapters. All figures regenerate from `dev/analysis/` against the Stage-4
+*Phase 1 of the modelling plan (`specs/model/01_EDA.md`); seeds the Data and
+Motivation chapters. All figures regenerate from `src/floan/analysis/` against the Stage-4
 DuckDB panel views; tables in `outputs/tables/eda/`, figures in `outputs/figures/eda/`.*
 
 ---

@@ -1,6 +1,6 @@
 # Memo 02c — Robustness caveats (M12)
 
-*Phase 2 §8 of the modelling plan (`dev/model_plan/02_LOAN_LEVEL.md`); feeds §4.2 (rolling
+*Phase 2 §8 of the modelling plan (`specs/model/02_LOAN_LEVEL.md`); feeds §4.2 (rolling
 backtest) and the supplementary appendix of the results chapter. M12 verified all four
 Accept criteria (seed variance, ranking stability, k=2019 sensitivity, width sweep) — see
 `outputs/tables/loan_level/robustness.{json,md}`. This memo records three loan-level caveats
@@ -55,7 +55,7 @@ aggregation (§4) the ensemble *does* earn its keep in most regimes — so don't
 ## 4. M14 addendum — pool-level results are shock-type dependent (not a flat "nonlinearity wins")
 
 *Source: M14 characteristic-bucket R²/RMSE over the 5 key anchors (`outputs/tables/pool_level/
-t_m14_pool_counts.md`; mechanical M14 notes + Accept evidence in `dev/model/M14_NOTES.md`, esp.
+t_m14_pool_counts.md`; mechanical M14 notes + Accept evidence in `src/floan/model/M14_NOTES.md`, esp.
 §3). Read the
 **characteristic-bucket** panel for interpretable R² — random-pool R² is uninformative by
 construction (homogeneous ~1000-loan draws ⇒ near-zero cross-pool signal variance ⇒ large

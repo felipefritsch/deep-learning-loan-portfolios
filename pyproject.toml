@@ -1,7 +1,38 @@
-# Test-runner configuration only — the project is run as scripts under dev/, not
-# packaged/installed. This makes `python -m pytest` discover the whole hermetic
-# suite as one command instead of running each test file by hand.
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "floan"
+version = "0.1.0"
+description = "Deep-learning models of US mortgage default risk on the Fannie Mae Single-Family Loan Performance dataset (Oxford MCF dissertation)."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "felipefritsch", email = "fpf2106@columbia.edu" }]
+
+# Consolidated from the former dev/pipeline/requirements.txt and
+# dev/analysis/requirements.txt, plus the model deps gathered from imports.
+# Pins kept where they were pinned (Python 3.9 venv compatibility); torch's CUDA
+# build for the cloud-GPU loop (M8+) is installed separately.
+dependencies = [
+    "duckdb",
+    "polars",
+    "pyarrow",
+    "tqdm",
+    "numpy",
+    "pandas==2.3.3",
+    "matplotlib==3.9.4",
+    "torch==2.8.0",
+    "scikit-learn==1.6.1",
+    "lightgbm==4.6.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# The hermetic unit suite lives in tests/; `python -m pytest` discovers it as one
+# command. Synthetic-data only — no SSD, no GPU, no network.
 [tool.pytest.ini_options]
-testpaths = ["dev"]
+testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-q"

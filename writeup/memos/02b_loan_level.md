@@ -1,6 +1,6 @@
 # Memo 02b — Loan-level results: depth grid, rolling backtest, calibration
 
-*Phase 2 §6–8 of the modelling plan (`dev/model_plan/02_LOAN_LEVEL.md`); the core
+*Phase 2 §6–8 of the modelling plan (`specs/model/02_LOAN_LEVEL.md`); the core
 loan-level results chapter in embryo. Builds on memo 02a (the linear baseline). Tables in
 `outputs/tables/loan_level/` (`table_a.*`, `table_b.*`, `auc.*`), figures in
 `outputs/figures/loan_level/`; run folders under `models/{logit,nn}/full/`. All NLLs are

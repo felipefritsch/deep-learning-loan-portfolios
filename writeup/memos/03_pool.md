@@ -1,11 +1,11 @@
 # Memo 03 — Pool-level results and the economic translation (Phase 3)
 
-*Phase 3 of the modelling plan (`dev/model_plan/03_POOL_LEVEL.md`, §1–§6); the final results
+*Phase 3 of the modelling plan (`specs/model/03_POOL_LEVEL.md`, §1–§6); the final results
 chapter (§4.3) in embryo, and the dissertation's main beyond-replication contribution. Consumes the
 **frozen** Phase-2 models — no re-fitting. Tables in `outputs/tables/pool_level/`
 (`t_m14_pool_counts.*` for §2–§4, `t_m15_econ_errors.*` for §5; per-pool detail in
 `econ_errors_k*.parquet`), figures in `outputs/figures/pool_level/`. Mechanical notes + Accept
-evidence: `dev/model/{M13,M14,M15}_NOTES.md`. Builds on memo 02c §4 (the M14 addendum) and shares its
+evidence: `src/floan/model/{M13,M14,M15}_NOTES.md`. Builds on memo 02c §4 (the M14 addendum) and shares its
 shock-type-dependence framing. Read alongside `02b` (loan-level) — the point of this memo is that the
 loan-level NLL differences, which `02c §3` flagged as a ~1e-4 ensemble edge, **earn their keep at pool
 aggregation** in most regimes.*

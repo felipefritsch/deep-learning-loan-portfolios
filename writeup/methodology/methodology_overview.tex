@@ -3,7 +3,7 @@
 % Standalone explainer: design rationale for the analysis & modelling plan.
 % Compile: latexmk -pdf methodology_overview.tex   (or pdflatex x2)
 % Cross-references: figure/table codes (T1.1, F3.4, ...) and tasks (M1-M15,
-% MD1-MD4) refer to dev/model_plan/01_EDA.md, 02_LOAN_LEVEL.md,
+% MD1-MD4) refer to specs/model/01_EDA.md, 02_LOAN_LEVEL.md,
 % 03_POOL_LEVEL.md, 04_TASKS.md, 05_MACRO_DATA.md in the repository.
 % =====================================================================
 \documentclass[11pt,a4paper]{article}
@@ -30,7 +30,7 @@
 
 \title{Modelling Mortgage State Transitions with Deep Learning:\\
 \large A Methodological Overview of the Analysis Design\\
-\normalsize (companion document to the \code{dev/model\_plan} specification)}
+\normalsize (companion document to the \code{specs/model} specification)}
 \author{Felipe Fritsch\\ \small MSc Mathematical \& Computational Finance, University of Oxford}
 \date{June 2026}
 
@@ -123,7 +123,7 @@ Supporting exhibits map the terrain: transition rates over calendar time \artifa
 
 \subsection{Phase 1 results (executed; memo \code{writeup/memos/01\_eda.md})}\label{sec:edaresults}
 
-Phase 1 is complete; this subsection records what the programme found. All empirical rates carry Wilson 95\% intervals and every number regenerates from \code{dev/analysis/}.
+Phase 1 is complete; this subsection records what the programme found. All empirical rates carry Wilson 95\% intervals and every number regenerates from \code{src/floan/analysis/}.
 
 \paragraph{Scope.} The assembled panel is the complete release: \textbf{3{,}312{,}456{,}883 loan-months across 57{,}562{,}668 loans}, reporting months 2000-01 through 2025-12, in 104 acquisition-vintage partitions \artifact{T1.1}.
 
@@ -419,7 +419,7 @@ Code & Content & Produced by \\
 \artifact{T5.1, F5.2} & speed/timing/price-error table; price-error bucket map (economic translation) & M15 \\
 \bottomrule
 \end{tabular}
-\caption{Map from artifact codes used in this document to the plan tasks that produce them. Task definitions and acceptance criteria: \code{dev/model\_plan/04\_TASKS.md}; EDA codes: \code{01\_EDA.md}; model/evaluation codes: \code{02\_LOAN\_LEVEL.md}; pool codes: \code{03\_POOL\_LEVEL.md}; macro: \code{05\_MACRO\_DATA.md}.}
+\caption{Map from artifact codes used in this document to the plan tasks that produce them. Task definitions and acceptance criteria: \code{specs/model/04\_TASKS.md}; EDA codes: \code{01\_EDA.md}; model/evaluation codes: \code{02\_LOAN\_LEVEL.md}; pool codes: \code{03\_POOL\_LEVEL.md}; macro: \code{05\_MACRO\_DATA.md}.}
 \label{tab:artifactmap}
 \end{table}
 
