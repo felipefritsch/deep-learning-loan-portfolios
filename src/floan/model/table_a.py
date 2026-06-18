@@ -39,13 +39,13 @@ import json
 import numpy as np
 import torch
 
-import config
-import data as D
-import features as F
-import logit as L
-import net as N
-import torch_common as tc
-import train as T
+from floan.model import config
+from floan.model import data as D
+from floan.model import features as F
+from floan.model import logit as L
+from floan.model import net as N
+from floan.model import torch_common as tc
+from floan.model import train as T
 
 EVAL_BATCH = 16384
 
@@ -70,7 +70,7 @@ def _nn_insample(run, enc: dict, device) -> float:
 
 def _ensemble_insample(runs: list, enc: dict, device) -> float:
     """In-sample NLL of the mean-probability ensemble on the (weighted) train slice."""
-    import ensemble as E
+    from floan.model import ensemble as E
     y, w = np.asarray(enc["y"]), np.asarray(enc["w"], dtype=np.float64)
     acc = np.zeros((y.shape[0], F.N_CLASSES), dtype=np.float64)
     for r in runs:

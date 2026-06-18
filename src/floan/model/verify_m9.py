@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import json
 
-import config
+from floan.model import config
 
 TABLE_DIR = config.OUTPUTS / "tables" / "loan_level"
 NN_DIR = config.MODELS / "nn" / "dev"

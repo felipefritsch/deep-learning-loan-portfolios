@@ -14,13 +14,13 @@ Run:  .venv/bin/python dev/model/make_pool_tex.py
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
-import config
+from floan.model import config
+from floan.pipeline.config import REPO_ROOT
 
 ANCHORS = ["Dec2014", "Dec2018", "Dec2019", "Dec2022", "Dec2024"]
 HEAD = ["empirical", "logit", "ensemble"]
-FIGS = Path(__file__).resolve().parents[2] / "writeup" / "latex" / "figs"
+FIGS = REPO_ROOT / "writeup" / "latex" / "figs"
 SRC = config.OUTPUTS / "tables" / "pool_level"
 
 

@@ -23,7 +23,7 @@ except ImportError:
 
     pytest.skip("torch not installed", allow_module_level=True)
 
-import pool as P
+from floan.model import pool as P
 
 
 # ===========================================================================

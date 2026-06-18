@@ -46,15 +46,15 @@ import numpy as np
 import polars as pl
 import torch
 
-import backtest as B
-import config
-import data as D
-import evaluate as E
-import features as F
-import macro_features as mf
-import net as N          # noqa: F401 — E._load_nn rebuilds via net; kept explicit for clarity
-import torch_common as tc
-import train as T
+from floan.model import backtest as B
+from floan.model import config
+from floan.model import data as D
+from floan.model import evaluate as E
+from floan.model import features as F
+from floan.model import macro_features as mf
+from floan.model import net as N  # noqa: F401 — E._load_nn rebuilds via net; kept explicit for clarity
+from floan.model import torch_common as tc
+from floan.model import train as T
 
 VARIANT = "full"
 HORIZON = 12

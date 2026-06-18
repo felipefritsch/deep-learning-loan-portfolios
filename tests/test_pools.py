@@ -21,7 +21,7 @@ except ImportError:
 
     pytest.skip("torch not installed", allow_module_level=True)
 
-import pools as M
+from floan.model import pools as M
 
 
 def _synthetic(n=20000, seed=7) -> pl.DataFrame:

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import polars as pl
 
-import macro_features as mf
+from floan.model import macro_features as mf
 
 
 # --- helpers ---------------------------------------------------------------

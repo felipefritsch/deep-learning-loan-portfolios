@@ -25,7 +25,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import sys
 import time
 import urllib.request
 from datetime import date
@@ -34,11 +33,7 @@ from pathlib import Path
 import polars as pl
 
 # The pipeline package is the single source of truth for paths (RAW, require_drive).
-_PIPELINE = Path(__file__).resolve().parents[1] / "pipeline"
-if str(_PIPELINE) not in sys.path:
-    sys.path.insert(0, str(_PIPELINE))
-
-import config  # noqa: E402
+from floan.pipeline import config
 
 FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series}"
 FMHPI_NAME = "fmhpi_master_file.csv"

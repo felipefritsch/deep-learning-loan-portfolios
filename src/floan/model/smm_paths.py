@@ -50,12 +50,12 @@ import numpy as np
 import polars as pl
 import torch
 
-import config
-import data as D
-import pool as PL
-import pools as PP
-import torch_common as tc
-import train as T
+from floan.model import config
+from floan.model import data as D
+from floan.model import pool as PL
+from floan.model import pools as PP
+from floan.model import torch_common as tc
+from floan.model import train as T
 
 VARIANT = "full"
 ANCHOR_WINDOWS = list(PL.E.KEY_WINDOWS)              # the 5 ensemble-bearing key windows

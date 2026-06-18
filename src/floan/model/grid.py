@@ -39,8 +39,8 @@ import argparse
 import json
 from types import SimpleNamespace
 
-import config
-import train as T
+from floan.model import config
+from floan.model import train as T
 
 # --- the pruned grid (see module docstring) --------------------------------------------
 PLANE_DEPTHS = (1, 3, 5, 7)

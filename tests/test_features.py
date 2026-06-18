@@ -21,9 +21,9 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-import features as F
-import macro_features as mf
-import data as D
+from floan.model import features as F
+from floan.model import macro_features as mf
+from floan.model import data as D
 
 
 # ===========================================================================

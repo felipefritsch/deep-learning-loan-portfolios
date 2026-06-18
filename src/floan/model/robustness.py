@@ -42,9 +42,9 @@ import math
 from pathlib import Path
 from types import SimpleNamespace
 
-import config
-import grid as G
-import train as T
+from floan.model import config
+from floan.model import grid as G
+from floan.model import train as T
 
 OUT_DIR = config.OUTPUTS / "tables" / "loan_level"
 PERM_TOP_RUN = "k2015_d3_do0.2_wd1e-05"   # the deployed tuning-window single net (seed 0)
@@ -401,9 +401,9 @@ def perm_importance(full_variant: str = "full", k: int = config.TUNING_YEAR,
     the sanity role and is documented as such)."""
     import numpy as np
     import torch
-    import features as F
-    import net as N
-    import torch_common as tc
+    from floan.model import features as F
+    from floan.model import net as N
+    from floan.model import torch_common as tc
 
     device = tc.resolve_device(device_name)
     run = config.MODELS / "nn" / full_variant / PERM_TOP_RUN

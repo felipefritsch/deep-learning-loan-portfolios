@@ -23,7 +23,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-import features as F  # N_CLASSES; the vocab/scaler contract the batch dicts follow
+from floan.model import features as F  # N_CLASSES; the vocab/scaler contract the batch dicts follow
 
 # Paper's depth→width rule (§6: "5 layers: 200 then 140×4"). First hidden layer is wide
 # (200), the rest a constant 140; depth is the number of hidden layers.

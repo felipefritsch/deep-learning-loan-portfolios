@@ -38,9 +38,9 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-import config
-import pool as PL
-import pools as PP
+from floan.model import config
+from floan.model import pool as PL
+from floan.model import pools as PP
 
 ANCHORS = list(PL.E.KEY_WINDOWS)                 # 2015, 2019, 2020, 2023, 2025 → Dec(k−1)
 HORIZON = PL.HORIZON                             # 12

@@ -25,8 +25,8 @@ from pathlib import Path
 import duckdb
 import pyarrow.parquet as pq
 
-import config
-import schema
+from floan.pipeline import config
+from floan.pipeline import schema
 
 REPORT_PATH = config.OUTPUTS / "qa_report.md"
 NULL_AUDIT_PATH = config.OUTPUTS / "null_audit.csv"

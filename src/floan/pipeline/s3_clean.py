@@ -45,8 +45,8 @@ from pathlib import Path
 import polars as pl
 import pyarrow.parquet as pq
 
-import config
-import schema
+from floan.pipeline import config
+from floan.pipeline import schema
 
 LOG_PATH = config.LOGS / "run.log"
 

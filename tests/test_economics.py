@@ -23,8 +23,8 @@ except ImportError:
 
     pytest.skip("torch not installed", allow_module_level=True)
 
-import economics as EC
-import pool as P
+from floan.model import economics as EC
+from floan.model import pool as P
 
 SMM_COLS = EC.SMM_COLS
 

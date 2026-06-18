@@ -9,7 +9,7 @@ import datetime as dt
 
 import polars as pl
 
-import schema
+from floan.pipeline import schema
 
 
 def test_columns_count_is_113():
