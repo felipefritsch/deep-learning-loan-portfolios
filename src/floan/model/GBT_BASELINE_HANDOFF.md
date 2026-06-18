@@ -6,7 +6,8 @@
 > and the task list `specs/model/04_TASKS.md` (M16–M19). Live resume details:
 > `src/floan/model/M17_NOTES.md`.
 >
-> **As of:** 2026-06-18 · branch `gbt-baseline`.
+> **As of:** 2026-06-18 · canonical branch `main` (tip `55dd43b`; `gbt-baseline` and
+> `writeup-abstract-appendixA` are superseded ancestors fully contained in `main`).
 
 ---
 
@@ -17,8 +18,9 @@ neural transition model. **M16 (dev-scale trainer) is complete and committed.** 
 (full-scale rolling sweep) is partially done:** the frozen config was reconfirmed at full
 scale, GBT was wired into `backtest.py`'s per-window loop, and **2 of 11 windows are banked
 (k=2015, k=2019)**. The remaining **9 windows are deferred to a high-RAM box** — the 16 GB
-Mac swap-thrashes on the ≥48 M-row windows. Everything is committed on `gbt-baseline` and
-mirrored to `ssd_mirror/`. **M18 and M19 are not started.**
+Mac swap-thrashes on the ≥48 M-row windows. Everything is committed on `main` (the GBT work
+was merged via PR #2 and consolidated by the reorg) and mirrored to `ssd_mirror/`. **M18 and
+M19 are not started.**
 
 ---
 
@@ -229,7 +231,7 @@ proceed to M18/M19.
 
 ## 9. Provenance
 
-`gbt-baseline` commits: `4374c4e` (M16 trainer), `b35635f` (M17 wiring),
+GBT commits (originally on `gbt-baseline`, now ancestors of `main`): `4374c4e` (M16 trainer), `b35635f` (M17 wiring),
 `659497f` (reconfirm msh=1000 + atomic run-folder writes), `99010e4` (sweep supervisor),
 `47fb9f8` (bank k=2015 + k=2019; abandon k=2020; defer 9). Run folders on the SSD
 (`models/gbt/full/{k2015,k2019}` + `k2015_reconfirm`), mirrored to `ssd_mirror/` via
