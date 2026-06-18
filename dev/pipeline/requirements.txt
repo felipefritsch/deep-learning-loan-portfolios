@@ -1,4 +1,0 @@
-duckdb
-polars
-pyarrow
-tqdm
