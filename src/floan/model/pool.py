@@ -116,6 +116,25 @@ def onehot_origin(origin_idx: np.ndarray) -> np.ndarray:
     return p0
 
 
+# M20 (ECONOMIC_ENGINE §3.5): the two mechanically-impossible one-step cells out of `current`.
+IMPOSSIBLE_FROM_CURRENT = (SI["foreclosure"], SI["REO"])
+
+
+def _zero_impossible(M: np.ndarray) -> np.ndarray:
+    """Copy of the per-loan transition tensors ``[N, 7, 7]`` with the two mechanically-impossible
+    one-step cells out of ``current`` (``current→foreclosure``, ``current→REO``) zeroed and the
+    ``current`` row renormalised back to a distribution (M20 / §3.5). A current loan cannot
+    foreclose or hit REO in a single month — it must pass through the dpd buckets — so these cells
+    carry only phantom model mass (~1e-9, likelihood-neutral) but high LGD, which pricing
+    severity-amplifies. Applied in the roll-forward predictor **before** any levels-consuming step;
+    the loan-level eval path (``_score_direct`` / ``evaluate``) is left untouched."""
+    out = M.copy()
+    cur = SI["current"]
+    out[:, cur, list(IMPOSSIBLE_FROM_CURRENT)] = 0.0
+    out[:, cur, :] /= out[:, cur, :].sum(axis=1, keepdims=True)
+    return out
+
+
 # ===========================================================================
 # Layer 3 — level-pay pass-through cashflow engine (03_POOL_LEVEL §5.2; hermetic)
 # ===========================================================================
@@ -352,7 +371,7 @@ def roll_forward(k: int, device, *, variant: str = VARIANT, chunk: int = DEFAULT
         for h in range(1, horizon + 1):
             mats = _chunk_matrices(scaler, vocab, emp, torch_models, base, t0, h, device)
             for m in model_names:
-                M = mats[m]
+                M = _zero_impossible(mats[m])                      # M20: drop phantom current→fc/REO mass
                 if capture_smm:                                   # alive mass at START of step h
                     alv_c[m][:, h - 1] = p[m][:, TRANSIENT_COLS].sum(axis=1)
                 p[m] = np.einsum("ni,nij->nj", p[m], M)

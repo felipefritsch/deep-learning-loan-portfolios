@@ -336,18 +336,21 @@ def fit_gbt(k: int, cfg: dict, n_threads: int, *, fresh: bool = False) -> Path:
 # ===========================================================================
 # Base-rate QA (§7) — importance-weighting + impossible-transition checks
 # ===========================================================================
-# Structural transition rule (02_LOAN_LEVEL §1; Sirignano-style monotone delinquency):
-# from a transient origin a loan may stay, cure to *any* lower delinquency bucket (incl.
-# current), worsen by **at most one** bucket, or prepay; foreclosure can only follow
-# dpd_90plus, and REO is never a one-month destination from a transient state (REO follows
-# foreclosure). Rows = the 4 transient origins (current, dpd_30, dpd_60, dpd_90plus); cols =
-# the 7 STATES (current,dpd_30,dpd_60,dpd_90plus,foreclosure,REO,prepaid). `True` = allowed.
+# Structural transition rule (02_LOAN_LEVEL §1; Sirignano-style monotone delinquency), with the
+# M20 reporting-gap correction (ECONOMIC_ENGINE §3.5): from a transient origin a loan may stay,
+# cure to *any* lower delinquency bucket (incl. current), prepay, or worsen — and may *skip*
+# delinquency buckets or reach REO directly from dpd_90plus when a foreclosure+REO (or a multi-
+# bucket escalation) completes inside a single monthly reporting gap. Only current→foreclosure
+# and current→REO stay mechanically impossible (a current loan must pass through the dpd buckets);
+# those remain forbidden here AND are zeroed in the roll-forward predictor (pool._zero_impossible).
+# Rows = the 4 transient origins (current, dpd_30, dpd_60, dpd_90plus); cols = the 7 STATES
+# (current,dpd_30,dpd_60,dpd_90plus,foreclosure,REO,prepaid). `True` = allowed.
 def _structural_allow() -> np.ndarray:
     allow = np.zeros((F.N_CLASSES, F.N_CLASSES), dtype=bool)
-    allow[F.STATE_INDEX["current"], [0, 1, 6]] = True                  # → current/dpd_30/prepaid
-    allow[F.STATE_INDEX["dpd_30"], [0, 1, 2, 6]] = True                # +worsen→dpd_60
-    allow[F.STATE_INDEX["dpd_60"], [0, 1, 2, 3, 6]] = True             # +worsen→dpd_90plus
-    allow[F.STATE_INDEX["dpd_90plus"], [0, 1, 2, 3, 4, 6]] = True      # +foreclosure (not REO)
+    allow[F.STATE_INDEX["current"], [0, 1, 2, 3, 6]] = True            # +skip→dpd_60/dpd_90plus
+    allow[F.STATE_INDEX["dpd_30"], [0, 1, 2, 3, 6]] = True             # +skip→dpd_90plus
+    allow[F.STATE_INDEX["dpd_60"], [0, 1, 2, 3, 6]] = True             # worsen→dpd_90plus
+    allow[F.STATE_INDEX["dpd_90plus"], [0, 1, 2, 3, 4, 5, 6]] = True   # +REO (foreclosure→REO gap)
     return allow
 
 

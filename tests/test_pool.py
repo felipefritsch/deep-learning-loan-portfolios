@@ -23,6 +23,7 @@ except ImportError:
 
     pytest.skip("torch not installed", allow_module_level=True)
 
+from floan.model import evaluate as E
 from floan.model import pool as P
 
 
@@ -89,6 +90,46 @@ def test_assemble_matrix_structure_and_mass():
     p0 = P.onehot_origin(np.zeros(n, dtype=int))       # all start "current"
     p = P.compose(p0, [M] * 12)
     assert np.allclose(p.sum(axis=1), 1.0, atol=1e-12)
+
+
+# ===========================================================================
+# M20 — two-cell zeroing (current→foreclosure / current→REO) is likelihood-neutral
+# ===========================================================================
+def test_zero_impossible_is_likelihood_neutral():
+    """M20 (ECONOMIC_ENGINE §3.5): zeroing the two mechanically-impossible one-step cells out of
+    `current` and renormalising removes phantom high-LGD mass while leaving the pooled NLL
+    unchanged to ≤1e-9 — the data never realises current→foreclosure/REO (monotone delinquency),
+    so the zeroed cells carry no observed likelihood."""
+    rng = np.random.default_rng(20)
+    n = 20_000
+    cur, fc, reo = P.SI["current"], P.SI["foreclosure"], P.SI["REO"]
+    reach = [P.SI[s] for s in ("current", "dpd_30", "dpd_60", "dpd_90plus", "prepaid")]
+
+    # Per-loan current-origin prediction: dominant mass on reachable cells + realistic tiny
+    # phantom (~1e-10/cell) on the mechanically-impossible foreclosure/REO cells.
+    row = np.zeros((n, P.N_CLASSES))
+    r = rng.random((n, len(reach)))
+    row[:, reach] = r / r.sum(axis=1, keepdims=True)
+    row[:, [fc, reo]] = rng.uniform(1e-11, 1e-10, size=(n, 2))
+    row /= row.sum(axis=1, keepdims=True)
+
+    scores = [_softmax_rows(rng, n) for _ in P.ORIGIN_STATES]
+    scores[P.ORIGIN_STATES.index("current")] = row
+    M = P.assemble_matrix(scores)
+    Mz = P._zero_impossible(M)
+
+    # current-origin loans: the h=1 distribution is the matrix's `current` row; realised
+    # next-states are drawn only from reachable cells (never foreclosure/REO).
+    y = np.array(reach)[rng.integers(0, len(reach), n)]
+    nll_before, nll_after = E._nll(M[:, cur, :], y), E._nll(Mz[:, cur, :], y)
+
+    assert abs(nll_after - nll_before) <= 1e-9                       # likelihood-neutral
+    assert M[:, cur, [fc, reo]].sum() > 0.0                          # phantom mass existed
+    assert np.allclose(Mz[:, cur, [fc, reo]], 0.0)                   # phantom mass removed
+    assert np.allclose(Mz[:, cur, :].sum(axis=1), 1.0, atol=1e-12)   # row still stochastic
+    for oi in P.ORIGIN_ROWS:                                          # only the current row changed
+        if oi != cur:
+            assert np.array_equal(Mz[:, oi, :], M[:, oi, :])
 
 
 # ===========================================================================
