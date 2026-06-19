@@ -1,6 +1,6 @@
 # 04 — Sequenced Tasks (execute one at a time, verify Accept before advancing)
 
-> Same contract as `specs/pipeline/03_CLAUDE_CODE_TASKS.md`: each task is small, has explicit acceptance criteria, and is committed before the next begins. Specs: `01_EDA.md` (M-tasks 1–3), `02_LOAN_LEVEL.md` (4–12), `03_POOL_LEVEL.md` (13–15), `06_GBT_BASELINE.md` (16–19).
+> Same contract as `specs/pipeline/03_CLAUDE_CODE_TASKS.md`: each task is small, has explicit acceptance criteria, and is committed before the next begins. Specs: `01_EDA.md` (M-tasks 1–3), `02_LOAN_LEVEL.md` (4–12), `03_POOL_LEVEL.md` (13–15), `06_GBT_BASELINE.md` (16–19), `ECONOMIC_ENGINE.md` + `ADR-001-economic-engine-seam.md` (20–27, the post-supervision priority — see `writeup/memos/post_supervision_roadmap.md`).
 
 ---
 
@@ -87,6 +87,79 @@ Fold GBT in as a fifth model column on the identical frozen test rows: Table A (
 ### M19 — GBT into the pool roll-forward (`pool.py` model-agnostic seam) + memo
 Add **one model-agnostic predictor seam** to `pool.py` — a callable returning the per-loan 7-vector at the evolved covariates — so the composition (`03 §3`) and cashflow (`03 §5`) engines score the net **or** the GBT booster with the engine logic otherwise unchanged (the current `_origin_scores`/`_chunk_matrices` path is torch-specific: `model(cont,cat,binb)`→float64 softmax; GBT scores `booster.predict(X)` with the `state` column overridden per origin in the code matrix). Apply the M18 calibrator inside the roll-forward predictor if `06 §4` triggered. Produce GBT columns in T4.2 (count R²/RMSE), T5.1 (economic error) and F5.2 (price-error buckets) at the same regime anchors (`06 §6`); fold into memo 03_pool with the CPU/GPU deviation (`06 §2.4`) and the pre-registered result framing (`06 §7`).
 **Accept:** h=1 GBT composition equals the GBT loan-level prediction on the same anchor rows (the M13 Accept #2 analogue); GBT columns in T4.2/T5.1/F5.2 at ≥3 regime-spanning anchors via the unchanged engine; memo 03_pool + chapter tables updated; the §7 framing and §2.4 deviation stated. **GBT-baseline gate.**
+
+---
+
+## Post-supervision workstream (M20–M27)
+
+> Spec: `ECONOMIC_ENGINE.md`; architecture: `ADR-001-economic-engine-seam.md`; rationale + sequencing:
+> `writeup/memos/post_supervision_roadmap.md`. **Critical path:** M20 → M21 → {M22, M23} → M24, with M25
+> foldable any time after M21. **Workstream B (M26→M27) runs in parallel and must not block M20–M24.**
+> **Workstream C (standby, no new compute):** the banked loan-level GBT sweep and the COVID inversion are
+> preserved as a finished sub-result; the spline-logit-across-all-windows probe, EBM/GA2M, and further GBT
+> elaboration are paused — revive only if A and B leave timeline.
+
+### M20 — Impossible-cell mask correction, applied uniformly *(QA + pricing prerequisite)*
+Per `ECONOMIC_ENGINE §3.5` (supervision brief §7). **Permit** the four reporting-gap-legal skip-bucket cells
+(`current→dpd_60`, `current→dpd_90plus`, `dpd_30→dpd_90plus`, `dpd_90plus→REO`) in `backtest._structural_allow`
+(`02 §7`); **separately zero** the two mechanically-impossible cells (`current→foreclosure`, `current→REO`) in the
+roll-forward predictor before any levels-consuming step. Apply to **all** models including the nets; re-score the
+nets under the corrected mask (the brief's "QA consistency" ask).
+**Accept:** post-correction residual impossible mass < 1e-4 every window; the four legal cells no longer flagged;
+nets re-scored, QA gate passes honestly with the **threshold unchanged** (`02 §7`); the two-cell zeroing is
+unit-tested to change pooled NLL by ≤ 1e-9 while removing the phantom high-LGD mass. **Gate before M21–M24.**
+
+### M21 — Predictor seam + horizon parameter *(extends M13/M19, governed by ADR-001)*
+Per `ADR-001` + `ECONOMIC_ENGINE §3`. Extract the `Predictor` protocol from `pool._origin_scores`; wrap the torch
+path as `TorchPredictor`; make `horizon` a parameter of `roll_forward`; thread the optional `calibrator`/`absorb`.
+**No change** to `compose`/`absorb_rows`/`assemble_matrix`/`cashflow_engine`.
+**Accept:** `roll_forward(..., horizon=1)` equals `evaluate.py` outputs **exactly** (the M13 Accept-#2 identity,
+parameterized — the regression guard); H ∈ {1,3,6,12} runs complete in bounded memory at ≥3 anchors; a stub second
+`Predictor` (e.g. empirical-matrix) flows through identical engine math (proves the seam is model-agnostic).
+
+### M22 — Loan-level cashflow/valuation *(the supervisor's explicit ask)*
+Per `ECONOMIC_ENGINE §3.4`. Price at the **loan** level via `cashflow_engine` (a one-loan "pool"), then aggregate.
+**Accept:** loan→pool aggregation identity holds to ~1e-6 (`ECONOMIC_ENGINE §4.3`); loan-level WAL/price tables exist
+at ≥3 anchors × H ∈ {1,3,6,12}; the closed-form cashflow tests (zero-prepay annuity, constant-SMM survival, `03 §5`)
+pass on the per-loan path.
+
+### M23 — Per-horizon calibration decision *(generalizes M18's calibration step)*
+Per `ECONOMIC_ENGINE §6` / `06 §4`. Reliability diagrams on **raw** outputs **per horizon**; if off-diagonal, fit
+per-window temperature scaling on the **val** slice (per-class isotonic + renormalise fallback) and apply via the
+`§3.2` calibrator seam (before assembly, `§4.2`). Report **calibrated-vs-raw** price error **by H**.
+**Accept:** calibrated-vs-raw price-error table by H ∈ {1,3,6,12} at ≥3 anchors; the calibrator is a no-op identity
+when disabled (regression check); decision documented (applied-with-evidence or skipped-with-evidence).
+
+### M24 — Rolling pricing backtest: the horizon × regime grid *(extends M15/`03 §5`)*
+Per `ECONOMIC_ENGINE §5,§9`. Run M21–M23 across all available anchors × H; extend T4.2/T5.1/F5.2 with an H dimension.
+**Accept:** T4.2/T5.1/F5.2 carry an H axis at ≥3 regime-spanning anchors; the headline ensemble/NN-vs-logit
+price-error reduction by anchor × H is stated; the COVID-inversion-in-dollars is reproduced and shown to **deepen
+with H**; memo 03_pool + chapter tables synced (M15 pattern).
+
+### M25 — AUC as the cross-period display metric *(presentation; foldable after M21)*
+Per `ECONOMIC_ENGINE §7`. NLL stays the estimation/selection/within-window metric. Add per-window one-vs-rest AUC
+for `current→prepaid`, `dpd_90plus→foreclosure`, `current→dpd_30`, plotted **2015–2025 per model** — the AUC mirror
+of Table B. `evaluate.py`'s metric path is unchanged; add a per-window AUC time-series driver that calls the existing
+AUC function per window.
+**Accept:** an AUC-by-window figure + table per key transition; an explicit "**AUC illustrates, NLL decides**" note
+in the memo; every AUC traces to `evaluate.py` on the identical frozen test rows.
+
+### M26 — Sequence-model feasibility spike *(Workstream B; parallel; strict go/no-go)*
+Per the roadmap's Workstream B. Stand up a per-loan **sequence** data path (loan-keyed shards already co-locate a
+loan's full history), length-bucketing/padding, and a loan-level shuffle; smoke-test one RNN and one
+attention/transformer block on the tuning window at dev scale. **Frame it as a Markov-assumption test:** does loan
+history beyond the current state predict next-state transitions (cured-from-delinquency vs continuously-current)?
+Time-box to a fixed budget.
+**Accept:** a dev-scale sequence model trains without OOM and is scored through the **same** `evaluate.py` NLL/AUC
+path on the frozen test rows; a one-page go/no-go memo states the val-NLL delta vs the feed-forward net (the "value
+of memory" rung) and an honest integration-cost estimate. **Parallel — must not block M20–M24.**
+
+### M27 — Sequence-model estimation *(conditional on M26 = go)*
+If go: roll the chosen architecture over the windows (frozen-config protocol, `02 §6`); calibrate per M23; feed its
+probabilities into the engine via a `SeqPredictor` (`ECONOMIC_ENGINE §3.1`) for loan- and pool-level pricing. If the
+seam needs per-loan history rather than point-in-time covariates, record **ADR-002** first.
+**Accept:** sequence-model column in Table B (+pooled), AUC-by-window (M25), and the pricing tables, on identical
+frozen test rows; the Markov-test conclusion stated; if a signature change was needed, ADR-002 is committed.
 
 ---
 

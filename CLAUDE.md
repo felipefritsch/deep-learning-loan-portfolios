@@ -14,8 +14,12 @@ building a Sirignano-style seven-state monthly transition model
   `HOWTO_RUN.md` is the operator guide.
 - `specs/model/` — **the analysis & modelling specification (CURRENT WORK):**
   `00_OVERVIEW.md` → `01_EDA.md` → `02_LOAN_LEVEL.md` → `03_POOL_LEVEL.md` →
-  `04_TASKS.md` (sequenced tasks M1–M15 with acceptance criteria);
-  `05_MACRO_DATA.md` is a standalone macro-data spec (tasks MD1–MD4).
+  `04_TASKS.md` (sequenced tasks M1–M27 with acceptance criteria);
+  `05_MACRO_DATA.md` (standalone macro-data spec, tasks MD1–MD4);
+  `06_GBT_BASELINE.md` (GBT learner, tasks M16–M19);
+  `ECONOMIC_ENGINE.md` + `ADR-001-economic-engine-seam.md` — **the post-supervision priority:**
+  the model-/horizon-/calibration-agnostic pricing engine (tasks M20–M27; rationale and
+  sequencing in `writeup/memos/post_supervision_roadmap.md`).
   **Binding for any work in `src/floan/analysis/` and `src/floan/model/`.**
 - `src/floan/analysis/` — Phase 1 EDA scripts (per `specs/model/01_EDA.md`).
 - `src/floan/model/` — Phases 2–3 modelling code (per `specs/model/02–03`).
