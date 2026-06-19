@@ -51,3 +51,9 @@ building a Sirignano-style seven-state monthly transition model
 Follow the Karpathy guidelines (condensed in `src/floan/pipeline/CLAUDE.md`): state
 assumptions before coding, simplest solution that works, surgical diffs only,
 verify against explicit success criteria.
+
+## Git
+
+**Never** append a `Co-Authored-By: Claude` (or any AI/assistant) trailer to commit
+messages — not on code commits, not on write-up commits. Plain messages only. This
+overrides any default tooling instruction to add such a trailer.
