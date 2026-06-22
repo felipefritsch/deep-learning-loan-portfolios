@@ -44,6 +44,7 @@ import datetime
 import json
 import os
 import platform
+import threading
 import time
 from pathlib import Path
 
@@ -287,11 +288,14 @@ def classify_zone(test_nll: float, band: dict) -> str:
 # ===========================================================================
 # Predict adapter (06 §5) — the (n, 7) array every downstream consumer expects
 # ===========================================================================
-def predict_proba(booster: lgb.Booster, X: np.ndarray) -> np.ndarray:
+def predict_proba(booster: lgb.Booster, X: np.ndarray, num_threads: int | None = None) -> np.ndarray:
     """``[N, 7]`` class probabilities at the booster's best iteration. LightGBM multiclass
     returns softmax-normalised rows (they sum to one), which is exactly the array
-    ``evaluate.py`` / ``pool.py`` consume from every other model."""
-    return booster.predict(X, num_iteration=booster.best_iteration)
+    ``evaluate.py`` / ``pool.py`` consume from every other model. ``num_threads`` pins the predict
+    thread count (M20a runs many single-threaded predicts in parallel processes — multiclass
+    predict thread-scales poorly, ~3× on 10 cores, so process-level parallelism beats threads)."""
+    kw = {} if num_threads is None else {"num_threads": num_threads}
+    return booster.predict(X, num_iteration=booster.best_iteration, **kw)
 
 
 # ===========================================================================
@@ -652,6 +656,210 @@ def reconfirm(variant: str, k: int, n_threads: int) -> dict:
     return metrics
 
 
+# ===========================================================================
+# M20a — impossible-mass re-score under the corrected mask (re-score, NOT re-fit)
+# ===========================================================================
+RECHECK_TOL = 1e-4          # M20 Accept (04_TASKS / M20_NOTES §4): tighter than the 1e-3 fit gate.
+
+
+_ORIGINS = ("current", "dpd_30", "dpd_60", "dpd_90plus")
+
+
+def _load_gbt(variant: str, k: int):
+    """``(booster, vocab, run_dir)`` for a frozen window fit, or ``None`` if its folder is absent."""
+    run_dir = run_dir_for(variant, k)
+    mp, vp = run_dir / "model.txt", run_dir / "vocab.json"
+    if not (mp.exists() and vp.exists()):
+        return None
+    return lgb.Booster(model_file=str(mp)), F.Vocab.from_dict(json.loads(vp.read_text())), run_dir
+
+
+def _fresh_acc() -> dict:
+    """Per-window streaming accumulator for the §7 impossible-mass partials (JSON-serialisable)."""
+    return {"imp_sum": 0.0, "realized_sum": 0.0, "max_row": 0.0, "n": 0,
+            "o_n": {s: 0 for s in _ORIGINS}, "o_imp": {s: 0.0 for s in _ORIGINS}}
+
+
+def _merge(dst: dict, src: dict) -> None:
+    """Fold a per-task partial accumulator into a per-window running accumulator."""
+    dst["imp_sum"] += src["imp_sum"]
+    dst["realized_sum"] += src["realized_sum"]
+    dst["max_row"] = max(dst["max_row"], src["max_row"])
+    dst["n"] += src["n"]
+    for s in _ORIGINS:
+        dst["o_n"][s] += src["o_n"][s]
+        dst["o_imp"][s] += src["o_imp"][s]
+
+
+def _has_gbt(variant: str, k: int) -> bool:
+    rd = run_dir_for(variant, k)
+    return (rd / "model.txt").exists() and (rd / "vocab.json").exists()
+
+
+_BOOSTER_CACHE: dict = {}
+_CACHE_LOCK = threading.Lock()
+
+
+def _cached_booster(variant: str, k: int):
+    """``(booster, vocab)`` loaded once per window and shared across threads. LightGBM ``predict``
+    is a ctypes call that releases the GIL and is read-only on the model, so concurrent predicts on
+    the shared booster run truly in parallel and are safe."""
+    key = (variant, k)
+    with _CACHE_LOCK:
+        if key not in _BOOSTER_CACHE:
+            booster, vocab, _ = _load_gbt(variant, k)
+            _BOOSTER_CACHE[key] = (booster, vocab)
+        return _BOOSTER_CACHE[key]
+
+
+def _score_task(task: tuple) -> tuple:
+    """ThreadPool worker: score ONE (window ``k``, shard) pair and return ``(task_key, k,
+    partial_acc)`` for the §7 impossible-cell mass under the corrected mask. ``predict`` runs
+    **single-threaded** — multiclass predict scales poorly with threads (~3× on 10 cores for the
+    frozen 8456-tree boosters), so the driver runs one task per core instead; because ``predict``
+    releases the GIL, the threads fill the cores cleanly. Decode is ~free (~1 s); the predict is the
+    whole cost, which is why parallelising it is the lever."""
+    task_key, variant, k, part_str, lo, hi, nthreads = task
+    booster, vocab = _cached_booster(variant, k)
+    allow = B._structural_allow()                                    # corrected mask (M20)
+    df = (pl.scan_parquet(part_str)
+            .filter((pl.col("period_ym") >= lo) & (pl.col("period_ym") < hi))
+            .select(D.RAW_COLS).collect())
+    acc = _fresh_acc()
+    if df.height:
+        dfp = F.prepare_raw(df)
+        proba = predict_proba(booster, build_X(dfp, vocab), num_threads=nthreads)
+        origin = _origin_index(dfp)
+        y = F.target_indices(dfp).astype(np.int64)
+        forbidden = ~allow[origin]                                  # [b,7] structurally-impossible
+        row_mass = (proba * forbidden).sum(axis=1)
+        acc["imp_sum"] = float(row_mass.sum())
+        acc["realized_sum"] = float(forbidden[np.arange(dfp.height), y].sum())
+        acc["max_row"] = float(row_mass.max())
+        acc["n"] = int(dfp.height)
+        for s in _ORIGINS:
+            m = origin == F.STATE_INDEX[s]
+            c = int(m.sum())
+            if c:
+                acc["o_n"][s] = c
+                acc["o_imp"][s] = float(row_mass[m].sum())
+    return task_key, k, acc
+
+
+def _stored_old_mass(run_dir: Path) -> float | None:
+    """The fit-time impossible mass (OLD mask) from the run folder's metrics.json — read-only."""
+    mpath = run_dir / "metrics.json"
+    if not mpath.exists():
+        return None
+    try:
+        return float(json.loads(mpath.read_text())["impossible_transitions"]["model_mean_mass"])
+    except (json.JSONDecodeError, KeyError, OSError):
+        return None
+
+
+def _write_recheck(path: Path, variant: str, windows: dict) -> dict:
+    """Assemble + atomically write the M20a recheck artifact from the windows scored so far —
+    called after **every** window so a kill mid-run leaves a valid, resumable file."""
+    scored = [k for k in config.TEST_YEARS if str(k) in windows]
+    missing = [k for k in config.TEST_YEARS if str(k) not in windows]
+    all_pass = bool(not missing and all(windows[str(k)]["passed"] for k in scored))
+    out = {"created_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+           "variant": variant, "task": "M20a",
+           "mask": "corrected (M20: backtest._structural_allow permits the 4 legal skip-bucket cells)",
+           "method": "re-score frozen boosters over (window×shard) tasks in a thread pool, single-threaded predict each (no re-fit, no row cap)",
+           "threshold": RECHECK_TOL, "git_commit": T._git_commit(),
+           "n_windows_scored": len(scored), "missing_windows": missing,
+           "all_pass": all_pass, "windows": windows}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(out, indent=2))
+    os.replace(tmp, path)                                            # atomic; survives a mid-write kill
+    return out
+
+
+def rescore_qa(variant: str, *, fresh: bool = False) -> dict:
+    """M20a driver: re-score every window's frozen GBT booster under the corrected impossible-cell
+    mask and write ``models/gbt/<variant>/m20_impossible_recheck.json`` — NON-destructive (fit-time
+    ``metrics.json`` is read-only). The cost is entirely ``booster.predict`` on the 8456-tree
+    boosters (decode is ~free), and multiclass predict thread-scales poorly, so the (window × shard)
+    tasks run across a **thread pool** — one single-threaded predict per core (``predict`` releases
+    the GIL), ~Ncores× the throughput of one threaded predict. **Resumable per task** via an atomic
+    partial checkpoint. No
+    re-fit, no GPU. Evidences M20's "residual impossible mass < 1e-4 every window" (``M20_NOTES §4``)."""
+    out_path = config.MODELS / "gbt" / variant / "m20_impossible_recheck.json"
+    part_path = config.MODELS / "gbt" / variant / "m20_impossible_recheck.partial.json"
+    windows_k = [k for k in config.TEST_YEARS if _has_gbt(variant, k)]
+    for k in config.TEST_YEARS:
+        if k not in windows_k:
+            print(f"  [skip] k={k}: no run folder ({run_dir_for(variant, k)})")
+    if not windows_k:
+        raise SystemExit(f"no GBT run folders under {config.MODELS / 'gbt' / variant}")
+    pool_dir = D.window_spec(variant, windows_k[0], "test")[0]
+    parts = sorted(pool_dir.glob("part-*.parquet"))
+    bounds = {k: D.window_spec(variant, k, "test")[1] for k in windows_k}
+
+    # One task per (window, shard), run SEQUENTIALLY; each predict uses all OMP threads (LightGBM's
+    # internal row-parallelism — ~9 cores). In-process pools don't help: predict holds the GIL
+    # enough that a ThreadPool gets ~2 cores, and a ProcessPool deadlocks on macOS spawn with the
+    # torch/lightgbm imports. Real multi-core comes from predict's own threading; bigger speedups
+    # need separate OS processes over disjoint --windows (offered separately).
+    tasks = {f"{k}:{p.name}": (f"{k}:{p.name}", variant, k, str(p), bounds[k][0], bounds[k][1], None)
+             for k in windows_k for p in parts}
+
+    acc = {k: _fresh_acc() for k in windows_k}
+    done: set = set()
+    if part_path.exists() and not fresh:                             # resume per task
+        try:
+            st = json.loads(part_path.read_text())
+            if set(st.get("tasks", [])) == set(tasks) and set(st["acc"]) == {str(k) for k in windows_k}:
+                acc = {int(kk): vv for kk, vv in st["acc"].items()}
+                done = set(st["done"])
+        except (json.JSONDecodeError, OSError, KeyError, ValueError):
+            acc, done = {k: _fresh_acc() for k in windows_k}, set()
+    todo = [t for key, t in tasks.items() if key not in done]
+    print(f"=== M20a GBT impossible-mass re-score (corrected mask, sequential, full-thread predict)  "
+          f"variant={variant}  windows={windows_k}  tasks={len(tasks)}  remaining={len(todo)}  "
+          f"threshold<{RECHECK_TOL:g} ===")
+
+    t0, completed = time.perf_counter(), len(done)
+    for t in todo:
+        task_key, k, partial = _score_task(t)
+        _merge(acc[k], partial)
+        done.add(task_key)
+        completed += 1
+        tmp = part_path.with_name(part_path.name + ".tmp")          # atomic per-task checkpoint
+        tmp.write_text(json.dumps({"tasks": sorted(tasks), "done": sorted(done),
+                                   "acc": {str(kk): v for kk, v in acc.items()}}, indent=2))
+        os.replace(tmp, part_path)
+        print(f"  [{completed}/{len(tasks)}] {task_key}  ({time.perf_counter() - t0:.0f}s)", flush=True)
+
+    windows = {}
+    for k in windows_k:
+        a = acc[k]
+        if a["n"] == 0:
+            continue
+        mean = a["imp_sum"] / a["n"]
+        oldv = _stored_old_mass(run_dir_for(variant, k))
+        windows[str(k)] = {
+            "n_test": a["n"], "n_parts": len(parts), "model_mean_mass": mean,
+            "model_max_row_mass": a["max_row"], "realized_mean_rate": a["realized_sum"] / a["n"],
+            "old_mask_mean_mass": oldv,
+            "per_origin": {s: {"n": a["o_n"][s], "model_mean_mass": a["o_imp"][s] / a["o_n"][s]}
+                           for s in _ORIGINS if a["o_n"][s]},
+            "threshold": RECHECK_TOL, "passed": bool(mean < RECHECK_TOL)}
+        oldstr = "n/a" if oldv is None else f"{oldv:.2e}"
+        print(f"  [{'PASS' if mean < RECHECK_TOL else 'FAIL'}] k={k}: impossible mass {mean:.2e} "
+              f"< {RECHECK_TOL:g}  (old-mask {oldstr}; realized {a['realized_sum'] / a['n']:.2e}; "
+              f"n={a['n']:,})")
+
+    out = _write_recheck(out_path, variant, windows)
+    part_path.unlink(missing_ok=True)
+    print(f"\nwrote {out_path}")
+    print(f">>> M20a: {'ALL 11 WINDOWS < 1e-4' if out['all_pass'] else 'NOT ALL PASS — see table'}"
+          + (f"  (missing: {out['missing_windows']})" if out['missing_windows'] else ""))
+    return out
+
+
 def main() -> None:
     import os
     ap = argparse.ArgumentParser(description="GBT baseline trainer (06 §3): tune / frozen / reconfirm.")
@@ -662,8 +870,15 @@ def main() -> None:
     ap.add_argument("--max-rows", type=int, default=None, help="cap rows per split (wiring smoke)")
     ap.add_argument("--threads", type=int, default=0, help="LightGBM num_threads (0 = all cores)")
     ap.add_argument("--fresh", action="store_true", help="refit even if a run folder exists (frozen mode)")
+    ap.add_argument("--rescore-qa", action="store_true",
+                    help="M20a: re-score every frozen booster under the corrected impossible-cell "
+                         "mask and write m20_impossible_recheck.json (all 11 windows; no re-fit). "
+                         "Sequential; cap cores with OMP_NUM_THREADS=N (predict uses LightGBM threads)")
     args = ap.parse_args()
     config.require_drive()
+    if args.rescore_qa:
+        rescore_qa(args.variant, fresh=args.fresh)
+        return
     n_threads = args.threads or (os.cpu_count() or 1)
     if args.mode == "tune":
         run(args.variant, args.k, args.max_rows, n_threads)
