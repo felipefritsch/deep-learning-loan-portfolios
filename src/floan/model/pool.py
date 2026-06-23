@@ -35,6 +35,12 @@ predictor engine :func:`roll_forward_predictor` (horizon a parameter, optional `
 ``absorb``, snapshots H∈{1,3,6,12} of one roll to 12); and a staged + legacy-guarded
 :func:`verify_h1`. The legacy multi-model :func:`roll_forward` is unchanged for M14/M15.
 
+M22 (ECONOMIC_ENGINE §3.4) adds loan-level pricing: ``roll_forward_predictor(capture_smm=True)``
+records the per-month prepay increment the loop already computes (cumulative-prepaid + alive mass,
+no second roll); :func:`per_loan_smm` turns that into a per-loan conditional SMM path; and
+:func:`price_loans` prices each loan as a one-loan "pool" through the unchanged :func:`cashflow_engine`
+and aggregates to the pool (the §4.3 linear-in-UPB aggregation identity). No new engine math.
+
 Run (GPU box; the full eval pool lives there):
     .venv/bin/python -m floan.model.pool --k 2020 --device cuda            # full window
     .venv/bin/python -m floan.model.pool --k 2020 --device cuda --verify   # + h=1 == evaluate
@@ -202,6 +208,75 @@ def cashflow_engine(wac: float, wam: float, upb: float, smm,
             "total_prin": total_prin, "cashflow": cashflow, "price": price, "wal": wal,
             "total_principal": float(total_prin.sum()), "wac": wac, "wam": n, "upb": float(upb),
             "servicing_spread": servicing_spread, "discount_rate": wac - servicing_spread}
+
+
+# ===========================================================================
+# Layer 3b — loan-level pricing (M22, ECONOMIC_ENGINE §3.4): price each loan as a one-loan
+# "pool" through the SAME cashflow_engine, then aggregate. No new engine math — this only
+# marshals per-loan inputs and a per-loan SMM path into cashflow_engine and sums the result.
+# ===========================================================================
+def per_loan_smm(cum_prepaid: np.ndarray, alive_before: np.ndarray) -> np.ndarray:
+    """Per-loan **conditional** monthly SMM path ``[N, H]`` from a roll-forward SMM capture
+    (:func:`roll_forward_predictor` with ``capture_smm``). This is the loan-level analogue of the
+    pool aggregation in ``smm_paths.py``: the unconditional prepay increment ``Δ_h(i) =
+    cum_prepaid[i,h]−cum_prepaid[i,h−1]`` (with ``Δ_1 = cum_prepaid[:,0]`` — a transient-origin loan
+    carries zero prepaid mass at t0) divided by the loan's surviving (transient) mass at the start of
+    the month, ``SMM_i(h) = Δ_h(i) / alive_before(i, h−1)`` — the fraction of survivors that prepay in
+    month ``h``, in ``[0, 1]`` (``Δ_h ≤ alive_before`` since prepaid mass cannot exceed the alive mass
+    it leaves). Survivor-conditional matches what ``cashflow_engine`` expects (SMM acts on the
+    surviving balance, ``§5.2``). Denominators of 0 (loan fully terminated) → SMM 0."""
+    inc = np.empty_like(cum_prepaid, dtype=np.float64)
+    inc[:, 0] = cum_prepaid[:, 0]
+    inc[:, 1:] = cum_prepaid[:, 1:] - cum_prepaid[:, :-1]
+    den = alive_before.astype(np.float64)
+    return np.divide(inc, den, out=np.zeros_like(inc), where=den > 0)
+
+
+def price_loans(wac: np.ndarray, wam: np.ndarray, upb: np.ndarray, smm: np.ndarray,
+                *, servicing_spread: float = SERVICING_SPREAD) -> dict:
+    """Price ``N`` loans one at a time through :func:`cashflow_engine` (each loan a one-loan
+    "pool" with its **own** note rate / remaining term / UPB and its own ``[H]`` conditional monthly
+    SMM path), then aggregate to the pool (``ECONOMIC_ENGINE §3.4``). No new engine math — the
+    per-loan call is the unchanged ``§5.2`` engine; this wrapper only loops it and sums dollars.
+
+    Inputs are row-aligned arrays: ``wac[N]`` (annual **decimal**), ``wam[N]`` (months),
+    ``upb[N]`` ($), ``smm[N, H]`` (conditional monthly SMM, e.g. from :func:`per_loan_smm`). Returns
+    per-loan ``price[N]`` (per 100 face), ``wal[N]`` (years), ``value[N] = price·upb/100`` ($) and
+    the pool aggregate:
+
+      * ``pool_value = Σ_i value_i`` — pool dollar value = Σ loan dollar values (the engine is
+        **linear in UPB**, so this is the §4.3 aggregation identity by construction);
+      * ``pool_price = 100·pool_value / Σ_i upb_i`` — the UPB-weighted mean per-100 price;
+      * ``pool_wal = Σ_i wal_i·total_principal_i / Σ_i total_principal_i`` — principal-$-weighted
+        (the exact pool WAL: ``Σ_i Σ_h h·prin_{i,h} / (12·Σ_i Σ_h prin_{i,h})``).
+
+    For a pool whose loans share ``wac``/``wam`` (one discount curve, one schedule length) this pool
+    aggregate equals the pool-level ``cashflow_engine`` run on the balance-weighted aggregate SMM to
+    ~1e-6 (M22 Accept / §4.3); at the population scale the pool ``wac``/``wam`` are UPB-weighted means
+    and the reconciliation is approximate — a modelling choice, stated, not a wiring bug."""
+    wac = np.asarray(wac, dtype=np.float64).reshape(-1)
+    wam = np.asarray(wam, dtype=np.float64).reshape(-1)
+    upb = np.asarray(upb, dtype=np.float64).reshape(-1)
+    smm = np.asarray(smm, dtype=np.float64)
+    n = wac.shape[0]
+    if not (wam.shape[0] == upb.shape[0] == smm.shape[0] == n):
+        raise ValueError(f"row-count mismatch: wac={n} wam={wam.shape[0]} upb={upb.shape[0]} "
+                         f"smm={smm.shape[0]}")
+    price = np.empty(n); wal = np.empty(n); tprin = np.empty(n)
+    for i in range(n):
+        r = cashflow_engine(float(wac[i]), float(wam[i]), float(upb[i]), smm[i],
+                            servicing_spread=servicing_spread)
+        price[i] = r["price"]; wal[i] = r["wal"]; tprin[i] = r["total_principal"]
+    value = price * upb / 100.0
+    pool_upb = float(upb.sum())
+    pool_value = float(value.sum())
+    pool_price = 100.0 * pool_value / pool_upb if pool_upb > 0 else float("nan")
+    tp_sum = float(tprin.sum())
+    pool_wal = float((wal * tprin).sum() / tp_sum) if tp_sum > 0 else float("nan")
+    return {"n_loans": n, "price": price, "wal": wal, "value": value, "upb": upb,
+            "total_principal": tprin, "pool_value": pool_value, "pool_upb": pool_upb,
+            "pool_price": pool_price, "pool_wal": pool_wal,
+            "servicing_spread": servicing_spread}
 
 
 # ===========================================================================
@@ -517,7 +592,7 @@ def roll_forward_predictor(predictor: Predictor, base: pl.DataFrame, t0: int, *,
                            horizon: int = HORIZON, snapshots=None,
                            calibrator: Calibrator | None = None, absorb: int | None = None,
                            zero_impossible: bool = True, chunk: int = DEFAULT_CHUNK,
-                           capture_h1: bool = False) -> dict:
+                           capture_h1: bool = False, capture_smm: bool = False) -> dict:
     """Roll ONE injected ``predictor`` forward ``horizon`` months over the loans in ``base`` (an
     anchor slice at ``t0``, already ``prepare_raw``-ed), in bounded-memory chunks, and snapshot the
     composed distribution at each ``h`` in ``snapshots`` (default ``config.HORIZONS``). Because the
@@ -530,21 +605,38 @@ def roll_forward_predictor(predictor: Predictor, base: pl.DataFrame, t0: int, *,
       :func:`_zero_impossible` (M20, if ``zero_impossible``) → :func:`absorb_rows` (if ``absorb`` is
       a state index — the first-passage chain) → compose.
 
-    Returns ``{"snapshots": {h: P[N, 7]}, "n_loans": N}`` (plus ``"h1"`` when ``capture_h1``), the
-    arrays aligned to ``base``'s row order. ``horizon=1, zero_impossible=False`` is the parameterized
-    M13 Accept-#2 identity (must equal ``evaluate.py`` exactly)."""
+    With ``capture_smm`` (M22) the harness also **records what the loop already computes** at every
+    step — no second roll: ``out["smm"] = {"cum_prepaid": [N, horizon], "alive_before": [N, horizon]}``
+    (float32, row-aligned to ``base``), where ``cum_prepaid[:, h−1]`` is the composed prepaid mass
+    after step ``h`` (cumulative through ``t0+h``) and ``alive_before[:, h−1]`` is the transient
+    (non-terminated) mass at the **start** of step ``h``. :func:`per_loan_smm` turns these into the
+    per-loan conditional SMM path that :func:`price_loans` consumes (M22 / §3.4). Capture is the
+    normal-chain prepay increment, so ``absorb`` must be ``None`` (the first-passage chain redirects
+    mass and would not give the prepayment path).
+
+    Returns ``{"snapshots": {h: P[N, 7]}, "n_loans": N}`` (plus ``"h1"`` when ``capture_h1``, plus
+    ``"smm"`` when ``capture_smm``), the arrays aligned to ``base``'s row order. ``horizon=1,
+    zero_impossible=False`` is the parameterized M13 Accept-#2 identity (must equal ``evaluate.py``
+    exactly)."""
     if snapshots is None:
         snapshots = config.HORIZONS
+    if capture_smm and absorb is not None:
+        raise ValueError("capture_smm records the normal-chain prepay increment; absorb must be None")
     snaps = sorted({s for s in snapshots if 1 <= s <= horizon})
     n_total = base.height
     acc = {h: [] for h in snaps}
     h1_acc = [] if capture_h1 else None
+    smm_cum, smm_alv = ([], []) if capture_smm else (None, None)   # per-chunk [c, horizon]
 
     for start in range(0, n_total, chunk):
         chunk_df = base.slice(start, chunk)
         origin_idx = chunk_df.select(pl.col("state").replace_strict(
             list(SI), list(SI.values()), default=-1, return_dtype=pl.Int64)).to_numpy().reshape(-1)
         p = onehot_origin(origin_idx)
+        nc = chunk_df.height
+        if capture_smm:
+            cum_c = np.empty((nc, horizon), np.float32)
+            alv_c = np.empty((nc, horizon), np.float32)
         for h in range(1, horizon + 1):
             scores = predictor.origin_scores(advance_frame(chunk_df, t0, h))
             if calibrator is not None:                              # §4 item 2: calibrate raw scores
@@ -554,16 +646,25 @@ def roll_forward_predictor(predictor: Predictor, base: pl.DataFrame, t0: int, *,
                 P_h = _zero_impossible(P_h)
             if absorb is not None:                                  # first-passage chain (03 §3)
                 P_h = absorb_rows(P_h, absorb)
+            if capture_smm:                                         # alive mass at START of step h
+                alv_c[:, h - 1] = p[:, TRANSIENT_COLS].sum(axis=1)
             p = np.einsum("ni,nij->nj", p, P_h)                     # = compose(p, [P_h]) (one step)
+            if capture_smm:                                         # cumulative prepaid through step h
+                cum_c[:, h - 1] = p[:, PREPAID]
             if capture_h1 and h == 1:
                 h1_acc.append(p.copy())
             if h in acc:
                 acc[h].append(p.copy())
+        if capture_smm:
+            smm_cum.append(cum_c); smm_alv.append(alv_c)
 
     out = {"n_loans": n_total, "horizon": horizon,
            "snapshots": {h: np.concatenate(acc[h]) for h in snaps}}
     if capture_h1:
         out["h1"] = np.concatenate(h1_acc)
+    if capture_smm:
+        out["smm"] = {"cum_prepaid": np.concatenate(smm_cum),
+                      "alive_before": np.concatenate(smm_alv)}
     return out
 
 
