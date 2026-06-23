@@ -94,7 +94,7 @@ Add **one model-agnostic predictor seam** to `pool.py` — a callable returning 
 
 > Spec: `ECONOMIC_ENGINE.md`; architecture: `ADR-001-economic-engine-seam.md`; rationale + sequencing:
 > `writeup/memos/post_supervision_roadmap.md`. **Critical path:** M20 → M21 → {M22, M23} → M24, with M25
-> foldable any time after M21. **Workstream B (M26→M27) runs in parallel and must not block M20–M24.**
+> foldable any time after M21. **Workstream B (M26a→M26→M27) runs in parallel and must not block M20–M24.**
 > **Workstream C (standby, no new compute):** the banked loan-level GBT sweep and the COVID inversion are
 > preserved as a finished sub-result; the spline-logit-across-all-windows probe, EBM/GA2M, and further GBT
 > elaboration are paused — revive only if A and B leave timeline.
@@ -115,26 +115,40 @@ cannot evidence this on a Mac; see notes.
 
 ### M21 — Predictor seam + horizon parameter *(extends M13/M19, governed by ADR-001)*
 Per `ADR-001` + `ECONOMIC_ENGINE §3`. Extract the `Predictor` protocol from `pool._origin_scores`; wrap the torch
-path as `TorchPredictor`; make `horizon` a parameter of `roll_forward`; thread the optional `calibrator`/`absorb`.
+path as `TorchPredictor` — a **verbatim** extraction (move the `_origin_scores` body unchanged, don't reimplement,
+so its output is byte-identical by construction); make `horizon` a parameter of `roll_forward`; thread the optional
+`calibrator`/`absorb`.
 **No change** to `compose`/`absorb_rows`/`assemble_matrix`/`cashflow_engine`.
 **Accept:** `roll_forward(..., horizon=1)` equals `evaluate.py` outputs **exactly** (the M13 Accept-#2 identity,
-parameterized — the regression guard); H ∈ {1,3,6,12} runs complete in bounded memory at ≥3 anchors; a stub second
-`Predictor` (e.g. empirical-matrix) flows through identical engine math (proves the seam is model-agnostic).
+parameterized — the regression guard), with the check **staged** (assert input-frame equality → predictor-output
+equality → composed equality, so a divergence localises at a labelled stage instead of needing a bisection);
+H ∈ {1,3,6,12} are produced as snapshots of a **single roll to 12** (cost
+is max-horizon × population, not the horizon count — the intermediates are free) and run in bounded memory on a
+**smoke-capped slice at one anchor** for the local gate (the full-scale ≥3-regime-anchor sweep is **M24**, not
+M21); a stub second `Predictor` (e.g. empirical-matrix) flows through identical engine math (proves the seam is
+model-agnostic).
 *Branch off the M20 branch (`m20-impossible-cell-mask`), not main, until M20 merges — M21 builds on M20's
 `pool.py`. Merge order + rationale: `src/floan/model/M20_NOTES.md §7`.*
 
 ### M22 — Loan-level cashflow/valuation *(the supervisor's explicit ask)*
 Per `ECONOMIC_ENGINE §3.4`. Price at the **loan** level via `cashflow_engine` (a one-loan "pool"), then aggregate.
-**Accept:** loan→pool aggregation identity holds to ~1e-6 (`ECONOMIC_ENGINE §4.3`); loan-level WAL/price tables exist
-at ≥3 anchors × H ∈ {1,3,6,12}; the closed-form cashflow tests (zero-prepay annuity, constant-SMM survival, `03 §5`)
-pass on the per-loan path.
+**Accept:** the reliability backbone is exact and **scale-invariant** — prove it on a **small/synthetic pool**: the
+loan→pool aggregation identity to ~1e-6 (`ECONOMIC_ENGINE §4.3`; the engine is linear in UPB, so this holds at any
+size — do not run the full population to prove it) and the closed-form cashflow tests (zero-prepay annuity,
+constant-SMM survival, `03 §5`, ~1e-8) on the per-loan path. The **full-scale** loan-level WAL/price tables
+(≥3 anchors × H ∈ {1,3,6,12}) consume the roll-forward at scale and are produced by **M24's single grid run, not a
+separate M22 full-population pass**.
 
 ### M23 — Per-horizon calibration decision *(generalizes M18's calibration step)*
 Per `ECONOMIC_ENGINE §6` / `06 §4`. Reliability diagrams on **raw** outputs **per horizon**; if off-diagonal, fit
 per-window temperature scaling on the **val** slice (per-class isotonic + renormalise fallback) and apply via the
 `§3.2` calibrator seam (before assembly, `§4.2`). Report **calibrated-vs-raw** price error **by H**.
-**Accept:** calibrated-vs-raw price-error table by H ∈ {1,3,6,12} at ≥3 anchors; the calibrator is a no-op identity
-when disabled (regression check); decision documented (applied-with-evidence or skipped-with-evidence).
+**Accept:** fit the calibrator and make the calibrate-vs-not **decision** on a representative **~20% subsample** (the
+project's established calibration practice — temperature is one scalar per window, subsample-robust; reliability
+diagrams are distributional and stable under subsampling); the calibrator is a no-op identity when disabled
+(regression check); decision documented (applied-with-evidence or skipped-with-evidence). The reported
+**calibrated-vs-raw price-error table** (by H ∈ {1,3,6,12} at ≥3 anchors) rides **M24's full-scale run — subsample
+the fit, never the reported numbers**.
 
 ### M24 — Rolling pricing backtest: the horizon × regime grid *(extends M15/`03 §5`)*
 Per `ECONOMIC_ENGINE §5,§9`. Run M21–M23 across all available anchors × H; extend T4.2/T5.1/F5.2 with an H dimension.
@@ -150,22 +164,35 @@ AUC function per window.
 **Accept:** an AUC-by-window figure + table per key transition; an explicit "**AUC illustrates, NLL decides**" note
 in the memo; every AUC traces to `evaluate.py` on the identical frozen test rows.
 
-### M26 — Sequence-model feasibility spike *(Workstream B; parallel; strict go/no-go)*
-Per the roadmap's Workstream B. Stand up a per-loan **sequence** data path (loan-keyed shards already co-locate a
-loan's full history), length-bucketing/padding, and a loan-level shuffle; smoke-test one RNN and one
-attention/transformer block on the tuning window at dev scale. **Frame it as a Markov-assumption test:** does loan
-history beyond the current state predict next-state transitions (cured-from-delinquency vs continuously-current)?
-Time-box to a fixed budget.
-**Accept:** a dev-scale sequence model trains without OOM and is scored through the **same** `evaluate.py` NLL/AUC
-path on the frozen test rows; a one-page go/no-go memo states the val-NLL delta vs the feed-forward net (the "value
-of memory" rung) and an honest integration-cost estimate. **Parallel — must not block M20–M24.**
+### M26a — Markov-assumption probe in the existing FF net *(Workstream B; cheapest; ~1 day; do FIRST)*
+Test path-dependence **without** a sequence model. Add a handful of history-summary features to the **existing**
+feed-forward net's input on the tuning window (k=2015), reusing the existing loader/net/eval path: previous state
+(S_{t−1}), months-since-last-delinquency, ever-delinquent flag, count of prior delinquency episodes. Derive them
+per loan-month respecting the temporal masks (info available at *t* only — no leakage). Compare val-NLL against the
+current-state-only net on the **same** slice. No new data pipeline, no new model class.
+**Accept:** the augmented net trains and scores through the same `evaluate.py` NLL/AUC path; val-NLL delta vs the
+current-state-only net reported **with the seed-noise band** (M12's seed sd); leakage spot-check on one loan-month.
+**Decision gate:** delta > seed noise ⇒ path-dependence exists, escalate to M26; else ⇒ report "current-state
+conditioning sufficient at dev scale" as the finding and make M26/M27 future-work. **Parallel — must not block M20–M24.**
 
-### M27 — Sequence-model estimation *(conditional on M26 = go)*
-If go: roll the chosen architecture over the windows (frozen-config protocol, `02 §6`); calibrate per M23; feed its
-probabilities into the engine via a `SeqPredictor` (`ECONOMIC_ENGINE §3.1`) for loan- and pool-level pricing. If the
-seam needs per-loan history rather than point-in-time covariates, record **ADR-002** first.
-**Accept:** sequence-model column in Table B (+pooled), AUC-by-window (M25), and the pricing tables, on identical
-frozen test rows; the Markov-test conclusion stated; if a signature change was needed, ADR-002 is committed.
+### M26 — Minimal sequence-model spike *(conditional on M26a = signal; ~2–4 days; strict go/no-go)*
+Only if M26a shows signal (or the sequence architecture is specifically wanted in-thesis). **De-risk the data path
+first** (~½ day: materialize short padded per-loan sequences from the loan-keyed shards, train a tiny model
+end-to-end). Then **one** small architecture (1-layer GRU/LSTM, small hidden dim — **skip the transformer**, note as
+future work), **short** sequences (last ~6–12 months), heavily **subsampled** loans, **tuning window only**. Compare
+val-NLL vs the FF net on the same slice — a *discriminating* model, not a competitive one.
+**Accept:** the seq model trains without OOM and scores through the **same** `evaluate.py` path; a one-page go/no-go
+memo states the val-NLL delta vs the FF net (the "value of memory" rung), the **result asymmetry** (positive = strong
+finding; negative = inconclusive-at-scale, not "the process is Markov"), and an honest M27 cost estimate. **Parallel
+— must not block M20–M24.**
+
+### M27 — Sequence-model full estimation *(FUTURE-WORK by default — only if M26 strongly positive AND time remains)*
+Default: a future-work note in the memo — the Markov finding is already delivered by M26a/M26. **Only** if M26 is
+strongly positive and time allows: roll the chosen architecture over the windows (frozen-config, `02 §6`); calibrate
+per M23; feed into the engine via a `SeqPredictor` (`ECONOMIC_ENGINE §3.1`); if the seam needs per-loan history
+rather than point-in-time covariates, record **ADR-002** first.
+**Accept (only if undertaken):** sequence-model column in Table B (+pooled), AUC-by-window (M25), and the pricing
+tables on identical frozen test rows; the Markov conclusion stated; ADR-002 committed if the signature changed.
 
 ---
 
