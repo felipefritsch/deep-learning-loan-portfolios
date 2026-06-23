@@ -108,6 +108,10 @@ nets under the corrected mask (the brief's "QA consistency" ask).
 **Accept:** post-correction residual impossible mass < 1e-4 every window; the four legal cells no longer flagged;
 nets re-scored, QA gate passes honestly with the **threshold unchanged** (`02 §7`); the two-cell zeroing is
 unit-tested to change pooled NLL by ≤ 1e-9 while removing the phantom high-LGD mass. **Gate before M21–M24.**
+**Verification procedure + evidence:** `src/floan/model/M20_NOTES.md` — the windowed criterion needs **M20a**
+(GBT impossible-mass re-score under the corrected mask, CPU/all-11 — `verify` reads stale fit-time GBT flags)
+and **M20b** (ensemble base-rate QA, `--device cuda`, 5 key windows). Bare `--verify-only` defaults to CUDA and
+cannot evidence this on a Mac; see notes.
 
 ### M21 — Predictor seam + horizon parameter *(extends M13/M19, governed by ADR-001)*
 Per `ADR-001` + `ECONOMIC_ENGINE §3`. Extract the `Predictor` protocol from `pool._origin_scores`; wrap the torch
@@ -116,6 +120,8 @@ path as `TorchPredictor`; make `horizon` a parameter of `roll_forward`; thread t
 **Accept:** `roll_forward(..., horizon=1)` equals `evaluate.py` outputs **exactly** (the M13 Accept-#2 identity,
 parameterized — the regression guard); H ∈ {1,3,6,12} runs complete in bounded memory at ≥3 anchors; a stub second
 `Predictor` (e.g. empirical-matrix) flows through identical engine math (proves the seam is model-agnostic).
+*Branch off the M20 branch (`m20-impossible-cell-mask`), not main, until M20 merges — M21 builds on M20's
+`pool.py`. Merge order + rationale: `src/floan/model/M20_NOTES.md §7`.*
 
 ### M22 — Loan-level cashflow/valuation *(the supervisor's explicit ask)*
 Per `ECONOMIC_ENGINE §3.4`. Price at the **loan** level via `cashflow_engine` (a one-loan "pool"), then aggregate.

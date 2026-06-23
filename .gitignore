@@ -70,6 +70,8 @@ reports/
 
 # Built PDF (regenerate with latexmk; not tracked, to avoid binary churn in history)
 writeup/latex/main.pdf
+# Figure preview PNGs (generators emit .png next to the tracked .pdf; figs is PDF-only)
+writeup/latex/figs/*.png
 
 
 # Local SSD backup mirror (small irreplaceable artifacts; not for git)
