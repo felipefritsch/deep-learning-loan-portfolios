@@ -116,6 +116,18 @@ old-mask breaches (k2019/2020/2021/2024/2025, all >1e-3) cleared by ~30–60×. 
 | 2024 | 1.12e-05 | 1.20e-03 | ✓ | 8,775,310 |
 | 2025 | 8.65e-06 | 1.43e-03 | ✓ | 8,723,591 |
 
+**M20c — `verify [6]` live re-score (2026-06-23, branch `m20c-verify-gbt-live`).** `[6]` now
+recomputes each window's GBT impossible-cell mass **live** under the corrected `_structural_allow`
+(`gbt.live_impossible_mass` reuses M20a's per-shard `_score_task` streaming — no whole-slice
+collect, no re-fit), gated at the **standing** `IMPOSSIBLE_TOL` = 1e-3 (symmetric with `[5]`/
+`base_rate_qa`; the gate never moves — the tighter <1e-4 confirmation stays in
+`m20_impossible_recheck.json`, not the harness). The reported `model_mean_mass` matches the M20a
+artifact window-for-window (same booster, mask, shards, accumulation order). On `--verify-only
+--device cpu` (Mac, SSD mounted) all 11 windows now PASS live (mass ~1e-5, ≪1e-3) where the stored
+old-mask block reported 5 as FAIL. When the booster/test slice is absent (un-fit window; or — were
+`require_drive` bypassed — SSD unmounted) `[6]` falls back to the stored value with a visible
+`[warn] … STALE (pre-M20 mask)` line, **non-gating**, so a quick no-SSD verify still runs `[1]–[4]`.
+
 **Ensemble, 5 key windows** (M20b):
 
 | window | impossible mass (corrected) | base-rate max\|Δ\| | pass |
@@ -141,7 +153,10 @@ session** rather than its own — it must be **recorded before the M20 branch me
 M21 from starting. Don't silently drop it.
 
 **Separate follow-up (does NOT gate M20):**
-- [ ] **M20c** — wire `verify [6]` to recompute GBT QA live (its own branch; cures the staleness so the harness stops reporting a false GBT failure post-M20).
+- [x] **M20c** — `verify [6]` recomputes GBT impossible-mass live under the corrected mask
+  (`gbt.live_impossible_mass`, M20a streaming reuse), gated at the standing 1e-3, value reported;
+  falls back to stored + visible `[warn] STALE` when slices absent (Mac, 2026-06-23, branch
+  `m20c-verify-gbt-live`). Cures the staleness — the harness no longer reports a false GBT failure post-M20.
 
 ## 7. Branching — don't forget (M20 → M20c → M21 stack)
 
