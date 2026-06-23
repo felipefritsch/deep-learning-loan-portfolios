@@ -117,6 +117,19 @@ ORIGIN_STATES = ("current", "dpd_30", "dpd_60", "dpd_90plus")
 # one-step prediction and must equal evaluate.py exactly (the engine's regression guard).
 HORIZONS = (1, 3, 6, 12)
 
+# Calibration decision (ECONOMIC_ENGINE §6 / §8, task M23). roll_forward_predictor applies an
+# optional pool.Calibrator to the RAW per-origin scores BEFORE assembly (§4 item 2); this records
+# whether it is enabled and the basis. The DECISION is made on a ~20% subsample at H=1 (the clean
+# calibration test, §5); if APPLIED, per-window temperatures are refit at full scale in M24
+# ("subsample the fit, never the reported numbers"). Evidence: src/floan/model/M23_NOTES.md.
+CALIBRATION = {
+    "method": "temperature",            # one scalar per window (06 §4); primary method
+    "fallback": "isotonic_per_class",   # per-class isotonic + row renormalise (06 §4 fallback)
+    "applied": False,                   # filled from the M23 decision (see M23_NOTES.md)
+    "basis": "M23 H=1 reliability, ~20% subsample @ k=2020 (CPU)",
+    "refit_at_scale": "M24",
+}
+
 # ---------------------------------------------------------------------------
 # Export variants — dev (M4–M9 tuning) vs full (M10). Each variant fixes a train-pool
 # loan block `train_shard_lt` (shards [0, train_shard_lt)) and a never-thinned eval
