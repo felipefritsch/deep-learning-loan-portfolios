@@ -143,6 +143,15 @@ is the §7 importance-weighting check, separate from the impossible-mass gate; l
 | 2023 | 3.54e-06 | 3.01e-03 | ✓ |
 | 2025 | 5.25e-06 | 1.07e-04 | ✓ |
 
+**M24 launched on 2a + [5] live-green; live [6] print deferred (thread-oversubscription thrash).**
+[6] result stands on the banked M20a artifact (all 11 < 1e-4) + the M20c k2015 live spot-check.
+
+*Deferred (post-M24 / post-deadline; pure re-confirmation, gates nothing): (i) re-run the live [6]
+with a thread cap (`OMP_NUM_THREADS` / `POLARS_MAX_THREADS=8`, or set LightGBM `num_threads` + polars
+threads explicitly) for a fresh print; (ii) fix the verify-[6] thread oversubscription (LightGBM +
+polars each spawning a full thread pool → ~157 threads on ~10 cores → thrash; the all-11 live
+re-score ran 74 min wall before it was killed).*
+
 ## 6. Gate status
 
 - [x] Fix (a) mask correction + Fix (b) zeroing/renorm + unit test — implemented, locally green.
