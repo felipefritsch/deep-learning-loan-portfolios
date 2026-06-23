@@ -279,6 +279,71 @@ def price_loans(wac: np.ndarray, wam: np.ndarray, upb: np.ndarray, smm: np.ndarr
             "servicing_spread": servicing_spread}
 
 
+def price_loans_vec(wac: np.ndarray, wam: np.ndarray, upb: np.ndarray, smm: np.ndarray,
+                    *, servicing_spread: float = SERVICING_SPREAD) -> dict:
+    """Vectorised :func:`price_loans` — the **same** §5.2 level-pay math, run over all ``N`` loans
+    at once instead of one Python ``cashflow_engine`` call per loan (the M24 loan-level scale guard:
+    ~0.7 M loans/anchor would be a Python-loop bottleneck). Identical inputs/outputs to
+    :func:`price_loans`; agrees with it to ~1e-9 (``test_pricing_grid``), so the M22 closed-form /
+    aggregation-identity guarantees carry over unchanged.
+
+    Amortise month-by-month as a single masked array sweep: at each month ``h`` the **active** loans
+    (``h < round(wam_i)``) recompute the level payment on their surviving balance and remaining term,
+    accrue interest, take scheduled principal, then prepay ``SMM_i(h)`` of the post-amortisation
+    balance (``SMM`` constant-extrapolated past its last column). Per-loan price/WAL are accumulated
+    as running scalars (PV of cashflow, principal-$, time-weighted principal-$) so memory is ``O(N)``,
+    not ``O(N·max_wam)``. Loans past their term contribute nothing (balance has reached 0)."""
+    wac = np.asarray(wac, dtype=np.float64).reshape(-1)
+    wam = np.asarray(wam, dtype=np.float64).reshape(-1)
+    upb = np.asarray(upb, dtype=np.float64).reshape(-1)
+    smm = np.asarray(smm, dtype=np.float64)
+    n_loans = wac.shape[0]
+    if not (wam.shape[0] == upb.shape[0] == smm.shape[0] == n_loans):
+        raise ValueError(f"row-count mismatch: wac={n_loans} wam={wam.shape[0]} "
+                         f"upb={upb.shape[0]} smm={smm.shape[0]}")
+    H = smm.shape[1] if smm.ndim == 2 else 0
+    n = np.rint(np.nan_to_num(wam, nan=0.0)).astype(np.int64)         # int(round(wam)) per loan
+    n = np.clip(n, 0, None)
+    c = wac / 12.0
+    y = (wac - servicing_spread) / 12.0
+    B = np.nan_to_num(upb, nan=0.0).astype(np.float64)                # surviving balance; null UPB → 0
+    pv = np.zeros(n_loans); tp_sum = np.zeros(n_loans); wal_num = np.zeros(n_loans)
+    max_n = int(n.max()) if n_loans else 0
+    for h in range(max_n):
+        active = h < n                                               # rem ≥ 1 exactly where active
+        if not active.any():
+            break
+        rem_safe = np.where(active, n - h, 1)                        # avoid rem≤0 in the pmt formula
+        # level payment on the surviving balance over the remaining term (c==0 ⇒ straight-line)
+        pmt = np.where(c == 0.0, B / rem_safe, B * c / (1.0 - (1.0 + c) ** (-rem_safe)))
+        i_h = B * c
+        sp = np.minimum(pmt - i_h, B)                               # scheduled principal (guard last)
+        sp = np.where(active, sp, 0.0)
+        i_h = np.where(active, i_h, 0.0)
+        bal_after = B - sp
+        s = smm[:, h] if h < H else (smm[:, H - 1] if H else np.zeros(n_loans))
+        pp = np.where(active, s * bal_after, 0.0)                   # SMM on post-amortisation balance
+        total_prin = sp + pp
+        disc = (1.0 + y) ** (-(h + 1))
+        pv += (i_h + total_prin) * disc
+        tp_sum += total_prin
+        wal_num += (h + 1) * total_prin
+        B = bal_after - pp
+    pos = upb > 0
+    price = np.where(pos, 100.0 * pv / np.where(pos, upb, 1.0), np.nan)
+    value = np.where(pos, price * upb / 100.0, 0.0)                 # null/zero-UPB loan ⇒ 0 value
+    wal = np.where(tp_sum > 0, wal_num / (12.0 * np.where(tp_sum > 0, tp_sum, 1.0)), np.nan)
+    pool_upb = float(upb[pos].sum())
+    pool_value = float(value.sum())
+    pool_price = 100.0 * pool_value / pool_upb if pool_upb > 0 else float("nan")
+    tps = float(tp_sum.sum())
+    pool_wal = float((np.where(tp_sum > 0, wal, 0.0) * tp_sum).sum() / tps) if tps > 0 else float("nan")
+    return {"n_loans": n_loans, "price": price, "wal": wal, "value": value, "upb": upb,
+            "total_principal": tp_sum, "pool_value": pool_value, "pool_upb": pool_upb,
+            "pool_price": pool_price, "pool_wal": pool_wal,
+            "servicing_spread": servicing_spread}
+
+
 # ===========================================================================
 # Layer 2 — feature evolution (deterministic fields only; macro + statics frozen at t0)
 # ===========================================================================
@@ -529,6 +594,7 @@ def roll_forward(k: int, device, *, variant: str = VARIANT, chunk: int = DEFAULT
     h1_acc = {m: [] for m in model_names} if capture_h1 else None
     smm_cum = {m: [] for m in model_names} if capture_smm else None   # per-chunk [c, horizon]
     smm_alv = {m: [] for m in model_names} if capture_smm else None
+    smm_cumd = {m: [] for m in model_names} if capture_smm else None  # 60+ first-passage (M24)
 
     for start in range(0, n_total, chunk):
         base = F.prepare_raw(df.slice(start, chunk))
@@ -542,6 +608,7 @@ def roll_forward(k: int, device, *, variant: str = VARIANT, chunk: int = DEFAULT
         if capture_smm:
             cum_c = {m: np.empty((nc, horizon), np.float32) for m in model_names}
             alv_c = {m: np.empty((nc, horizon), np.float32) for m in model_names}
+            cumd_c = {m: np.empty((nc, horizon), np.float32) for m in model_names}  # 60+ first-passage
 
         for h in range(1, horizon + 1):
             mats = _chunk_matrices(scaler, vocab, emp, torch_models, base, t0, h, device)
@@ -551,8 +618,9 @@ def roll_forward(k: int, device, *, variant: str = VARIANT, chunk: int = DEFAULT
                     alv_c[m][:, h - 1] = p[m][:, TRANSIENT_COLS].sum(axis=1)
                 p[m] = np.einsum("ni,nij->nj", p[m], M)
                 pfp[m] = np.einsum("ni,nij->nj", pfp[m], absorb_rows(M, DPD60))
-                if capture_smm:                                   # cumulative prepaid through step h
+                if capture_smm:                                   # cumulative prepaid / 60+ through step h
                     cum_c[m][:, h - 1] = p[m][:, PREPAID]
+                    cumd_c[m][:, h - 1] = pfp[m][:, DPD60]        # ever-60+ first-passage mass (M24)
                 if capture_h1 and h == 1:
                     h1_acc[m].append(p[m].copy())
 
@@ -564,6 +632,7 @@ def roll_forward(k: int, device, *, variant: str = VARIANT, chunk: int = DEFAULT
             if capture_smm:
                 smm_cum[m].append(cum_c[m])
                 smm_alv[m].append(alv_c[m])
+                smm_cumd[m].append(cumd_c[m])
 
     cols = {"Loan Identifier": np.concatenate(loan_out),
             "origin": np.concatenate(origin_out)}
@@ -578,7 +647,8 @@ def roll_forward(k: int, device, *, variant: str = VARIANT, chunk: int = DEFAULT
         out["h1"] = {m: np.concatenate(h1_acc[m]) for m in model_names}
     if capture_smm:
         out["smm"] = {m: {"cum_prepaid": np.concatenate(smm_cum[m]),
-                          "alive_before": np.concatenate(smm_alv[m])} for m in model_names}
+                          "alive_before": np.concatenate(smm_alv[m]),
+                          "cum_dpd60p": np.concatenate(smm_cumd[m])} for m in model_names}
     return out
 
 
