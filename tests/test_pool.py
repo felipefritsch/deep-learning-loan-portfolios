@@ -15,6 +15,7 @@ Run:  .venv/bin/python -m floan.model.test_pool     (or python -m pytest)
 from __future__ import annotations
 
 import numpy as np
+import polars as pl
 
 try:  # pool.py imports torch at module load; skip cleanly when torch is absent
     import torch  # noqa: F401
@@ -292,6 +293,137 @@ def test_engine_constant_extrapolation_past_horizon():
     rfull = P.cashflow_engine(wac, wam, upb, np.full(360, lam))
     assert abs(r12["price"] - rfull["price"]) < 1e-10
     assert abs(r12["wal"] - rfull["wal"]) < 1e-10
+
+
+# ===========================================================================
+# M21 — the agnostic engine (roll_forward_predictor) + Predictor/Calibrator seam
+# (ECONOMIC_ENGINE §3 / ADR-001). Pure: a stub Predictor + a toy frame, no SSD/GPU/models.
+# ===========================================================================
+class _StubPredictor:
+    """A non-torch Predictor returning fixed per-origin rows regardless of ``frame_h`` — exercises
+    the engine seam (assemble → calibrate → zero → absorb → compose) with no model artifacts."""
+
+    def __init__(self, rows):
+        self.rows = rows                                   # list of 4 (n, 7) arrays
+
+    def origin_scores(self, frame_h):
+        return [r.copy() for r in self.rows]
+
+
+def _toy_base(n, origin="current", t0=201912):
+    """Minimal anchor slice the engine needs: `state` (origin) for one-hot init, plus the three
+    fields `advance_frame` evolves. Every loan starts in `origin`."""
+    return pl.DataFrame({
+        "Loan Identifier": np.arange(n, dtype=np.int64),
+        "state": [origin] * n,
+        "Loan Age": np.full(n, 10, dtype=np.int64),
+        "Remaining Months to Maturity": np.full(n, 350, dtype=np.int64),
+        "period_ym": np.full(n, t0, dtype=np.int64),
+    })
+
+
+def test_roll_forward_predictor_snapshots_match_compose():
+    """H ∈ {1,3,6,12} read off a SINGLE roll must each equal the closed-form ``compose(p0,[P]*h)``
+    (a time-homogeneous stub chain), proving the snapshots are the genuine composed distributions."""
+    rng = np.random.default_rng(7)
+    n = 12
+    rows = [_softmax_rows(rng, n) for _ in P.ORIGIN_STATES]
+    out = P.roll_forward_predictor(_StubPredictor(rows), _toy_base(n, "current"), 201912,
+                                   horizon=12, snapshots=(1, 3, 6, 12),
+                                   zero_impossible=False, chunk=n + 1)
+    assert sorted(out["snapshots"]) == [1, 3, 6, 12]        # all four produced
+    Pmat = P.assemble_matrix(rows)
+    p0 = P.onehot_origin(np.zeros(n, dtype=int))
+    for h in (1, 3, 6, 12):
+        assert np.array_equal(out["snapshots"][h], P.compose(p0, [Pmat] * h)), h
+
+
+def test_identity_calibrator_is_noop():
+    """``calibrator=None`` and ``calibrator=identity_calibrator`` are bit-identical (§3.2 / the M23
+    disabled-path regression check)."""
+    rng = np.random.default_rng(8)
+    n = 10
+    rows = [_softmax_rows(rng, n) for _ in P.ORIGIN_STATES]
+    base = _toy_base(n)
+    a = P.roll_forward_predictor(_StubPredictor(rows), base, 201912, horizon=6, snapshots=(1, 6),
+                                 zero_impossible=False, chunk=n + 1)
+    b = P.roll_forward_predictor(_StubPredictor(rows), base, 201912, horizon=6, snapshots=(1, 6),
+                                 calibrator=P.identity_calibrator, zero_impossible=False, chunk=n + 1)
+    for h in (1, 6):
+        assert np.array_equal(a["snapshots"][h], b["snapshots"][h])
+
+
+def test_calibrator_applied_to_raw_scores_before_assemble():
+    """The calibrator acts on the RAW per-origin (n,7) scores BEFORE assembly (§4 item 2): an engine
+    run with a calibrator equals building the matrices from the hand-calibrated rows."""
+    rng = np.random.default_rng(9)
+    n = 8
+    rows = [_softmax_rows(rng, n) for _ in P.ORIGIN_STATES]
+    fc = P.SI["foreclosure"]
+    cur_block = P.ORIGIN_STATES.index("current")
+
+    def cal(probs, origin):                                # zero current→fc, renormalise
+        if origin == cur_block:
+            q = probs.copy()
+            q[:, fc] = 0.0
+            return q / q.sum(1, keepdims=True)
+        return probs
+
+    got = P.roll_forward_predictor(_StubPredictor(rows), _toy_base(n), 201912, horizon=3,
+                                   snapshots=(3,), calibrator=cal, zero_impossible=False, chunk=n + 1)
+    hand = [cal(r, o) for o, r in enumerate(rows)]
+    p0 = P.onehot_origin(np.zeros(n, dtype=int))
+    closed = P.compose(p0, [P.assemble_matrix(hand)] * 3)
+    assert np.array_equal(got["snapshots"][3], closed)
+
+
+def test_absorb_param_routes_through_first_passage():
+    """``absorb=DPD60`` makes that state absorbing each step (the first-passage chain), equalling the
+    manual ``absorb_rows`` + compose path."""
+    rng = np.random.default_rng(10)
+    n = 5
+    rows = [_softmax_rows(rng, n) for _ in P.ORIGIN_STATES]
+    got = P.roll_forward_predictor(_StubPredictor(rows), _toy_base(n), 201912, horizon=4,
+                                   snapshots=(4,), absorb=P.DPD60, zero_impossible=False, chunk=n + 1)
+    Pmat = P.absorb_rows(P.assemble_matrix(rows), P.DPD60)
+    p0 = P.onehot_origin(np.zeros(n, dtype=int))
+    assert np.array_equal(got["snapshots"][4], P.compose(p0, [Pmat] * 4))
+
+
+def test_empirical_predictor_stub_flows_through_engine():
+    """The stub second Predictor (EmpiricalPredictor — feature-free) flows through the SAME engine
+    math, proving the seam is model-agnostic (M21 Accept)."""
+    rng = np.random.default_rng(11)
+    n = 7
+    emp = _softmax_rows(rng, 4)                            # 4 origins × 7
+    got = P.roll_forward_predictor(P.EmpiricalPredictor(emp), _toy_base(n), 201912, horizon=12,
+                                   snapshots=(1, 12), zero_impossible=False, chunk=n + 1)
+    rows = [np.broadcast_to(emp[oi].astype(np.float32), (n, P.N_CLASSES)) for oi in range(4)]
+    Pmat = P.assemble_matrix(rows)
+    p0 = P.onehot_origin(np.zeros(n, dtype=int))
+    for h in (1, 12):
+        assert np.array_equal(got["snapshots"][h], P.compose(p0, [Pmat] * h)), h
+
+
+def test_zero_impossible_flag_in_engine():
+    """``zero_impossible=False`` preserves the raw ``current`` row (the M21 raw path the h=1 identity
+    needs); ``True`` zeroes the two mechanically-impossible cells and renormalises (M20 / §3.5)."""
+    rng = np.random.default_rng(12)
+    n = 6
+    fc, reo = P.SI["foreclosure"], P.SI["REO"]
+    ci = P.ORIGIN_STATES.index("current")
+    rows = [_softmax_rows(rng, n) for _ in P.ORIGIN_STATES]
+    rows[ci] = rows[ci].copy()
+    rows[ci][:, [fc, reo]] = 1e-9                          # phantom impossible mass
+    rows[ci] /= rows[ci].sum(1, keepdims=True)
+    base = _toy_base(n, "current")
+    raw = P.roll_forward_predictor(_StubPredictor(rows), base, 201912, horizon=1, snapshots=(1,),
+                                   zero_impossible=False, chunk=n + 1)["snapshots"][1]
+    zed = P.roll_forward_predictor(_StubPredictor(rows), base, 201912, horizon=1, snapshots=(1,),
+                                   zero_impossible=True, chunk=n + 1)["snapshots"][1]
+    assert np.array_equal(raw, rows[ci])                  # raw current row preserved exactly
+    assert np.allclose(zed[:, [fc, reo]], 0.0)            # phantom removed
+    assert np.allclose(zed.sum(1), 1.0)                   # still a distribution
 
 
 if __name__ == "__main__":
