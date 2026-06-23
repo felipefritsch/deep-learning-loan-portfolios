@@ -112,6 +112,11 @@ EVAL_LABEL_YM_MIN = 201401                          # labels ≥ 2014-01 (covers
 # The 4 transient origin states; terminal states never originate a transition.
 ORIGIN_STATES = ("current", "dpd_30", "dpd_60", "dpd_90plus")
 
+# Pricing horizons (ECONOMIC_ENGINE §2/§5, task M21): H ∈ {1,3,6,12} months, produced as
+# SNAPSHOTS of a single roll to max(HORIZONS) — the intermediates are free. H=1 is the direct
+# one-step prediction and must equal evaluate.py exactly (the engine's regression guard).
+HORIZONS = (1, 3, 6, 12)
+
 # ---------------------------------------------------------------------------
 # Export variants — dev (M4–M9 tuning) vs full (M10). Each variant fixes a train-pool
 # loan block `train_shard_lt` (shards [0, train_shard_lt)) and a never-thinned eval
