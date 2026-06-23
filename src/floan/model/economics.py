@@ -86,34 +86,49 @@ def _cpr(smm_path: np.ndarray) -> float:
     return 1.0 - (1.0 - float(smm_path.mean())) ** 12
 
 
-def per_pool_econ(k: int, df: pl.DataFrame | None = None) -> pl.DataFrame:
+def per_pool_econ(k: int, df: pl.DataFrame | None = None, *,
+                  horizons: tuple[int, ...] | None = None) -> pl.DataFrame:
     """Run the cashflow engine on every ``(scheme, pool, model)`` SMM path at anchor k and attach the
     realized-SMM valuation + the three error columns. One row per ``(scheme, pool, model≠realized)``.
 
     ``df`` defaults to the M15a ``smm_paths_k{k}.parquet``; an in-memory frame may be passed instead
     (hermetic tests). The frame must carry ``scheme/pool/model/n_loans/wac/wam/upb`` + ``smm_h01..12``
-    and a ``realized`` model per ``(scheme, pool)``."""
+    and a ``realized`` model per ``(scheme, pool)``.
+
+    ``horizons`` (M24): when given (e.g. ``(1,3,6,12)``), the SMM path is **truncated at month H** and
+    constant-extrapolated past it (the cashflow engine already extrapolates a short vector — §4 item 1 /
+    M15 semantics), pricing each pool at every H and tagging the output with an ``h`` column. The
+    realized reference is truncated at the **same** H, so errors stay model−realized per H. ``None``
+    (default) prices the full 12-month path with **no** ``h`` column — byte-identical to M15."""
     if df is None:
         df = pl.read_parquet(_tabdir() / f"smm_paths_k{k}.parquet")
     models = [m for m in df.get_column("model").unique().to_list() if m != REALIZED]
+    hs = list(horizons) if horizons is not None else None
 
     # Engine outputs per row, vectorised over rows by a Python loop (≈2k pools × ~330 mo = cheap).
+    # H = the full path (M15) or each truncation point (M24); smm[:H] is constant-extrapolated.
     recs: list[dict] = []
     for r in df.iter_rows(named=True):
-        smm = np.array([r[c] for c in SMM_COLS], dtype=np.float64)
-        cf = PL.cashflow_engine(r["wac"], r["wam"], r["upb"], smm)
-        recs.append({"scheme": r["scheme"], "pool": r["pool"], "model": r["model"],
-                     "n_loans": r["n_loans"], "wac": r["wac"], "wam": r["wam"], "upb": r["upb"],
-                     "cpr": _cpr(smm), "wal": cf["wal"], "price": cf["price"]})
+        smm_full = np.array([r[c] for c in SMM_COLS], dtype=np.float64)
+        for h in (hs if hs is not None else [HORIZON]):
+            smm = smm_full[:h]
+            cf = PL.cashflow_engine(r["wac"], r["wam"], r["upb"], smm)
+            rec = {"scheme": r["scheme"], "pool": r["pool"], "model": r["model"],
+                   "n_loans": r["n_loans"], "wac": r["wac"], "wam": r["wam"], "upb": r["upb"],
+                   "cpr": _cpr(smm), "wal": cf["wal"], "price": cf["price"]}
+            if hs is not None:
+                rec["h"] = h
+            recs.append(rec)
     econ = pl.DataFrame(recs)
 
-    # Realized valuation per (scheme, pool) → broadcast as the reference; errors = model − realized.
+    # Realized valuation per (scheme, pool[, h]) → broadcast as the reference; errors = model − realized.
+    join_keys = ["scheme", "pool"] + (["h"] if hs is not None else [])
     real = (econ.filter(pl.col("model") == REALIZED)
-            .select(["scheme", "pool",
+            .select([*join_keys,
                      pl.col("cpr").alias("cpr_real"), pl.col("wal").alias("wal_real"),
                      pl.col("price").alias("price_real")]))
     out = (econ.filter(pl.col("model").is_in(models))
-           .join(real, on=["scheme", "pool"], how="left")
+           .join(real, on=join_keys, how="left")
            .with_columns(
                ((pl.col("cpr") - pl.col("cpr_real")) * 100.0).alias("cpr_err"),     # pp
                ((pl.col("wal") - pl.col("wal_real")) * 12.0).alias("wal_err"),       # months
@@ -236,7 +251,9 @@ def write_table(agg: dict) -> None:
 # ---------------------------------------------------------------------------
 # F5.2 — signed price error by FICO × original-rate-quartile bucket (LTV collapsed, UPB-weighted)
 # ---------------------------------------------------------------------------
-def fig_price_error_buckets(df_k: pl.DataFrame, k: int) -> Path:
+def fig_price_error_buckets(df_k: pl.DataFrame, k: int, *, suffix: str = "") -> Path:
+    """``suffix`` (M24) tags the output filename, e.g. ``_h06`` for the per-horizon F5.2 panels —
+    the M15 call (no suffix) is unchanged."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -284,7 +301,7 @@ def fig_price_error_buckets(df_k: pl.DataFrame, k: int) -> Path:
     fig.suptitle(f"F5.2 — pool price error by characteristic bucket  ·  anchor Dec{k-1} (k={k})\n"
                  "UPB-weighted, LTV collapsed; +ve = model over-values (under-predicts prepay). "
                  "High-incentive = top orig-rate quartile (right).", y=1.06, fontsize=10)
-    p = _figdir() / f"F5.2_price_error_buckets_k{k}"
+    p = _figdir() / f"F5.2_price_error_buckets_k{k}{suffix}"
     fig.savefig(f"{p}.png", dpi=200, bbox_inches="tight")
     fig.savefig(f"{p}.pdf", bbox_inches="tight")
     plt.close(fig)

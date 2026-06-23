@@ -96,11 +96,21 @@ def _anchor_features(k: int) -> pl.DataFrame:
             .collect())
 
 
-def _realized_steps(k: int, pop_ids: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """``[n_pop, 12]`` realized indicator arrays aligned to ``pop_ids``: ``alive[i, j] = 1`` if
-    loan ``i`` has a panel transition at month ``t0+j`` (alive at the start of step ``j+1``);
-    ``prepay[i, j] = 1`` if that transition's ``state_next == prepaid``. Built over the realized
-    window ``test_bounds(k) = [t0, t0+12)`` — the same 12 transitions the roll-forward composes."""
+# Realized event sets (match pools.SIXTY_PLUS — the M14 "ever 60+" convention M24 reproduces).
+SIXTY_PLUS = ("dpd_60", "dpd_90plus", "foreclosure", "REO")     # ever reached 60+ DPD
+NINETY_PLUS = ("dpd_90plus", "foreclosure", "REO")              # ever reached 90+ DPD
+
+
+def _realized_steps(k: int, pop_ids: np.ndarray
+                    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """``[n_pop, 12]`` realized per-step indicator arrays aligned to ``pop_ids``: ``alive[i, j] = 1``
+    if loan ``i`` has a panel transition at month ``t0+j`` (alive at the start of step ``j+1``);
+    ``prepay[i, j] = 1`` if that transition's ``state_next == prepaid``; ``dpd60[i, j]`` / ``dpd90[i, j]``
+    = 1 if ``state_next`` ∈ :data:`SIXTY_PLUS` / :data:`NINETY_PLUS` (the realized 60+/90+ events — M24
+    generalises the former prepay-only return). Built over the realized window ``[t0, t0+12)`` — the
+    same 12 transitions the roll-forward composes. "Ever-by-month-H" counts are the cumulative-OR of
+    these per-step indicators (done in the count layer), the realized analogue of the predicted
+    first-passage masses ``cum_prepaid`` / ``cum_dpd60p``."""
     t0 = config._dec(k - 1)
     pool_dir, (lo, hi) = D.window_spec(VARIANT, k, "test")
     pop_map = pl.DataFrame({"Loan Identifier": pop_ids,
@@ -112,16 +122,22 @@ def _realized_steps(k: int, pop_ids: np.ndarray) -> tuple[np.ndarray, np.ndarray
                            + (pl.col("period_ym") % 100 - t0 % 100)).alias("step"))
             .filter((pl.col("step") >= 0) & (pl.col("step") < HORIZON))
             .join(pop_map.lazy(), on="Loan Identifier", how="inner")
-            .select("row", "step", (pl.col("state_next") == "prepaid").alias("prep"))
+            .select("row", "step",
+                    (pl.col("state_next") == "prepaid").alias("prep"),
+                    pl.col("state_next").is_in(SIXTY_PLUS).alias("d60"),
+                    pl.col("state_next").is_in(NINETY_PLUS).alias("d90"))
             .collect())
     r = rows.get_column("row").to_numpy()
     s = rows.get_column("step").to_numpy()
-    pp = rows.get_column("prep").to_numpy().astype(np.float64)
     alive = np.zeros((pop_ids.shape[0], HORIZON), np.float64)
     prepay = np.zeros((pop_ids.shape[0], HORIZON), np.float64)
+    dpd60 = np.zeros((pop_ids.shape[0], HORIZON), np.float64)
+    dpd90 = np.zeros((pop_ids.shape[0], HORIZON), np.float64)
     alive[r, s] = 1.0                                  # (loan, month) is unique ⇒ no double count
-    prepay[r, s] = pp
-    return alive, prepay
+    prepay[r, s] = rows.get_column("prep").to_numpy().astype(np.float64)
+    dpd60[r, s] = rows.get_column("d60").to_numpy().astype(np.float64)
+    dpd90[r, s] = rows.get_column("d90").to_numpy().astype(np.float64)
+    return alive, prepay, dpd60, dpd90
 
 
 def per_loan_smm_table(k: int, device, requested, *, max_loans: int | None = None,
@@ -155,16 +171,18 @@ def per_loan_smm_table(k: int, device, requested, *, max_loans: int | None = Non
 
     rf_row = df.get_column("rf_row").to_numpy()
     smm = {m: {"cum": rf["smm"][m]["cum_prepaid"][rf_row].astype(np.float64),
-               "alive": rf["smm"][m]["alive_before"][rf_row].astype(np.float64)}
+               "alive": rf["smm"][m]["alive_before"][rf_row].astype(np.float64),
+               "cum_dpd60p": rf["smm"][m]["cum_dpd60p"][rf_row].astype(np.float64)}  # M24 60+ first-passage
            for m in model_names}
     pop_ids = df.get_column("Loan Identifier").to_numpy()
-    alive_real, prepay_real = _realized_steps(k, pop_ids)
+    alive_real, prepay_real, dpd60_real, dpd90_real = _realized_steps(k, pop_ids)
 
     meta = {"k": k, "t0": config._dec(k - 1), "n_alive": n_alive, "n_current": n_current,
             "n_pop": n_pop, "n_dropped_nullbucket": n_current - n_pop, "rf_n_loans": rf["n_loans"],
             "model_names": list(model_names)}
     return {"df": df, "model_names": list(model_names), "smm": smm, "alive_real": alive_real,
-            "prepay_real": prepay_real, "upb": df.get_column("upb").to_numpy(),
+            "prepay_real": prepay_real, "dpd60_real": dpd60_real, "dpd90_real": dpd90_real,
+            "upb": df.get_column("upb").to_numpy(),
             "wac": df.get_column("wac").to_numpy(), "wam": df.get_column("wam").to_numpy(),
             "pop_ids": pop_ids, "meta": meta}
 
