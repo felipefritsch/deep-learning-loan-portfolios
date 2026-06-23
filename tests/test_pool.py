@@ -426,6 +426,170 @@ def test_zero_impossible_flag_in_engine():
     assert np.allclose(zed.sum(1), 1.0)                   # still a distribution
 
 
+# ===========================================================================
+# M22 — loan-level pricing (ECONOMIC_ENGINE §3.4 / §4.3): price each loan as a one-loan "pool"
+# through cashflow_engine, then aggregate. Hermetic: synthetic SMM paths, no SSD/GPU/models.
+# ===========================================================================
+def test_per_loan_smm_is_survivor_conditional():
+    """`per_loan_smm` recovers the conditional monthly prepay rate from a roll-forward SMM capture:
+    the unconditional increment Δ_h over the surviving (transient) mass at the start of the month,
+    bounded in [0,1], with fully-terminated loans (alive=0) → SMM 0."""
+    # cumulative prepaid mass through each month (monotone non-decreasing, ≤ 1)
+    cum = np.array([[0.02, 0.05, 0.05, 0.05],          # prepays, then no survivors prepay further
+                    [0.00, 0.10, 0.25, 0.40]])
+    alive = np.array([[1.00, 0.50, 0.00, 0.00],        # loan 0 fully terminated after month 2
+                      [1.00, 0.80, 0.60, 0.45]])
+    smm = P.per_loan_smm(cum, alive)
+    inc = np.array([[0.02, 0.03, 0.00, 0.00], [0.00, 0.10, 0.15, 0.15]])   # Δ_1=cum[:,0]
+    expect = np.array([[0.02, 0.06, 0.0, 0.0],         # 0.03/0.50; then 0/0 → 0 (guarded)
+                       [0.00, 0.125, 0.25, 0.15 / 0.45]])
+    assert np.allclose(smm, expect, atol=1e-12)
+    assert (smm >= 0).all() and (smm <= 1).all()
+
+
+def _const_smm_pool(rng, n, wac, wam, lam, upb_lo=5e4, upb_hi=5e5):
+    """A synthetic pool sharing (wac, wam) and a COMMON constant SMM path, differing only in UPB —
+    the literal 'engine is linear in UPB' setup."""
+    upb = rng.uniform(upb_lo, upb_hi, n)
+    smm = np.full((n, 12), lam)
+    return (np.full(n, wac), np.full(n, wam), upb, smm)
+
+
+def test_loan_pool_aggregation_identity_linear_in_upb():
+    """§4.3 headline: loan-level prices aggregated over a pool == the pool-level price. With a shared
+    (wac, wam) and a common SMM path, the pool aggregate from `price_loans` must equal a single
+    `cashflow_engine` run on (wac, wam, Σupb, smm) — and every per-loan per-100 price equals the pool
+    price (scale-invariance: the engine is linear in UPB). Exact to ~1e-9, far inside the ~1e-6 gate."""
+    rng = np.random.default_rng(22)
+    wac, wam, upb, smm = _const_smm_pool(rng, 64, 0.06, 360, 0.015)
+    res = P.price_loans(wac, wam, upb, smm)
+    pool = P.cashflow_engine(0.06, 360, float(upb.sum()), smm[0])          # the pool-level engine run
+
+    assert abs(res["pool_price"] - pool["price"]) < 1e-9, (res["pool_price"], pool["price"])
+    assert abs(res["pool_value"] - pool["price"] / 100.0 * upb.sum()) < 1e-6   # $; ~1e-9 relative
+    assert abs(res["pool_wal"] - pool["wal"]) < 1e-9
+    assert np.allclose(res["price"], pool["price"], atol=1e-9)             # per-100 price UPB-invariant
+
+
+def test_loan_pool_value_scale_invariance():
+    """Linear-in-UPB, the other face: scaling every loan's UPB by a constant scales the pool dollar
+    value by exactly that constant and leaves the per-100 pool price unchanged."""
+    rng = np.random.default_rng(23)
+    wac, wam, upb, smm = _const_smm_pool(rng, 40, 0.05, 360, 0.02)
+    base = P.price_loans(wac, wam, upb, smm)
+    scaled = P.price_loans(wac, wam, 10.0 * upb, smm)
+    assert abs(scaled["pool_value"] - 10.0 * base["pool_value"]) < 1e-6 * base["pool_value"]
+    assert abs(scaled["pool_price"] - base["pool_price"]) < 1e-9
+
+
+def test_loan_pool_dollar_additivity_heterogeneous_smm():
+    """§4.3 in full: 'pool cashflow = Σ loan cashflows by construction.' With a shared (wac, wam) but
+    a DIFFERENT SMM path per loan, the pool dollar value must equal the discounted sum of per-loan
+    dollar cashflows (one shared discount curve), and the pool-level engine on the **balance-$-weighted**
+    aggregate SMM must reproduce the summed cashflow exactly — so its price·Σupb/100 == Σ loan values."""
+    rng = np.random.default_rng(24)
+    n, wac, wam, spread = 32, 0.055, 360, P.SERVICING_SPREAD
+    upb = rng.uniform(5e4, 5e5, n)
+    smm = rng.uniform(0.0, 0.05, (n, 12))                                  # heterogeneous paths
+    res = P.price_loans(np.full(n, wac), np.full(n, wam), upb, smm)
+
+    # Independent reference: run each loan's engine, sum dollar cashflows over the shared schedule,
+    # discount once with the shared curve y = (wac − spread)/12.
+    nmax = int(round(wam))
+    cf_sum = np.zeros(nmax); bal_after_sched = np.zeros((n, nmax))
+    for i in range(n):
+        r = P.cashflow_engine(wac, wam, float(upb[i]), smm[i], servicing_spread=spread)
+        cf_sum += r["cashflow"]
+        bal_after_sched[i] = r["balance"] - r["sched_prin"]                # SMM acts on this balance
+    y_m = (wac - spread) / 12.0
+    disc = (1.0 + y_m) ** (-np.arange(1, nmax + 1))
+    # cashflow is in $, so the pool dollar value is the discounted summed cashflow; price_loans'
+    # pool_value (= Σ price_i·upb_i/100) must equal it (one shared discount curve).
+    assert abs(res["pool_value"] - float((cf_sum * disc).sum())) < 1e-6 * res["pool_value"]
+
+    # Pool-level engine on the balance-$-weighted aggregate SMM == summed cashflow, exactly.
+    smm_h = np.array([smm[i, h] if h < 12 else smm[i, 11] for i in range(n) for h in range(nmax)]
+                     ).reshape(n, nmax)
+    num = (bal_after_sched * smm_h).sum(axis=0)
+    den = bal_after_sched.sum(axis=0)
+    pool_smm = np.divide(num, den, out=np.zeros_like(num), where=den > 0)
+    poolr = P.cashflow_engine(wac, wam, float(upb.sum()), pool_smm, servicing_spread=spread)
+    assert np.allclose(poolr["cashflow"], cf_sum, rtol=0, atol=1e-6)
+    assert abs(poolr["price"] / 100.0 * upb.sum() - res["pool_value"]) < 1e-6 * res["pool_value"]
+
+
+def test_price_loans_per_loan_path_closed_forms():
+    """The §5 closed forms still hold when routed through the loan-level wrapper (a one-loan pool):
+    zero-SMM ⇒ the annuity price, constant-SMM ⇒ the survival-schedule price, to ~1e-8 — `price_loans`
+    delegates to `cashflow_engine` without re-deriving any cashflow math."""
+    # zero-prepay annuity
+    wac, wam, upb, spread = 0.05, 360, 100.0, 0.0025
+    rz = P.price_loans(np.array([wac]), np.array([wam]), np.array([upb]),
+                       np.zeros((1, 6)), servicing_spread=spread)
+    c, y_m, n = wac / 12.0, (wac - spread) / 12.0, 360
+    pmt = upb * c / (1.0 - (1.0 + c) ** (-n))
+    price_ann = 100.0 * _annuity_pv(pmt, y_m, n) / upb
+    assert abs(rz["price"][0] - price_ann) < 1e-8
+    assert abs(rz["pool_price"] - price_ann) < 1e-8                       # one-loan pool == the loan
+
+    # constant-SMM survival schedule
+    wac, wam, upb, spread, lam = 0.045, 360, 500_000.0, 0.0025, 0.015
+    rc = P.price_loans(np.array([wac]), np.array([wam]), np.array([upb]),
+                       np.full((1, 12), lam), servicing_spread=spread)
+    c, y_m, n = wac / 12.0, (wac - spread) / 12.0, 360
+    h = np.arange(0, n + 1)
+    phi = ((1.0 + c) ** n - (1.0 + c) ** h) / ((1.0 + c) ** n - 1.0)
+    B = upb * phi * (1.0 - lam) ** h
+    total_prin_ref = B[:-1] - B[1:]
+    cf_ref = B[:-1] * c + total_prin_ref
+    months = np.arange(1, n + 1)
+    price_surv = 100.0 * float((cf_ref * (1.0 + y_m) ** (-months)).sum()) / upb
+    assert abs(rc["price"][0] - price_surv) < 1e-8
+
+
+def test_capture_smm_wires_to_price_loans_end_to_end():
+    """End-to-end M22 wiring on a stub predictor + toy frame (no SSD/GPU): `roll_forward_predictor`
+    captures cum-prepaid + alive mass INSIDE the existing loop (no re-roll), the capture matches the
+    closed-form compose, `per_loan_smm` → `price_loans` prices the loans, and the absorb-guard fires."""
+    rng = np.random.default_rng(25)
+    n, H = 16, 12
+    rows = [_softmax_rows(rng, n) for _ in P.ORIGIN_STATES]
+    base = _toy_base(n, "current")
+    out = P.roll_forward_predictor(_StubPredictor(rows), base, 201912, horizon=H,
+                                   snapshots=(1, H), zero_impossible=False, chunk=n + 1,
+                                   capture_smm=True)
+    assert set(out["smm"]) == {"cum_prepaid", "alive_before"}
+    assert out["smm"]["cum_prepaid"].shape == (n, H)
+
+    # capture matches the closed-form composed chain: cum_prepaid[:,h-1] = compose(p0,[P]*h)[:,PREPAID];
+    # alive_before[:,h-1] = transient mass of compose(p0,[P]*(h-1)).
+    Pmat = P.assemble_matrix(rows)
+    p0 = P.onehot_origin(np.zeros(n, dtype=int))
+    for h in range(1, H + 1):
+        ph = P.compose(p0, [Pmat] * h)
+        assert np.allclose(out["smm"]["cum_prepaid"][:, h - 1], ph[:, P.PREPAID], atol=1e-6)
+        prev = P.compose(p0, [Pmat] * (h - 1))
+        assert np.allclose(out["smm"]["alive_before"][:, h - 1],
+                           prev[:, P.TRANSIENT_COLS].sum(axis=1), atol=1e-6)
+
+    # the captured path drives price_loans through the conditional SMM helper.
+    smm = P.per_loan_smm(out["smm"]["cum_prepaid"].astype(np.float64),
+                         out["smm"]["alive_before"].astype(np.float64))
+    assert (smm >= -1e-7).all() and (smm <= 1 + 1e-7).all()
+    wac = np.full(n, 0.06); wam = np.full(n, 360.0); upb = rng.uniform(5e4, 5e5, n)
+    res = P.price_loans(wac, wam, upb, smm)
+    assert res["price"].shape == (n,) and np.isfinite(res["pool_price"])
+
+    # absorb-guard: capture_smm records the normal-chain prepay increment, so absorb must be None.
+    try:
+        P.roll_forward_predictor(_StubPredictor(rows), base, 201912, horizon=2, snapshots=(2,),
+                                 zero_impossible=False, chunk=n + 1, capture_smm=True, absorb=P.DPD60)
+        raised = False
+    except ValueError:
+        raised = True
+    assert raised
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:
