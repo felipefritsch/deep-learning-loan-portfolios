@@ -128,15 +128,20 @@ old-mask block reported 5 as FAIL. When the booster/test slice is absent (un-fit
 `require_drive` bypassed — SSD unmounted) `[6]` falls back to the stored value with a visible
 `[warn] … STALE (pre-M20 mask)` line, **non-gating**, so a quick no-SSD verify still runs `[1]–[4]`.
 
-**Ensemble, 5 key windows** (M20b):
+**Ensemble, 5 key windows** (M20b). **Result (2026-06-23, `backtest --verify-only --device cuda`,
+commit e351cf1, `backtest_summary.json`):** all 5 key windows' 8-net-ensemble structural-impossible
+mass < 1e-4 — in fact ~3.5–9.0e-06, two orders inside the gate (and ≪ the standing 1e-3
+`IMPOSSIBLE_TOL`); every window `passed=True`. The base-rate max|Δ| (realized vs predicted-mean rate)
+is the §7 importance-weighting check, separate from the impossible-mass gate; largest at k2020
+(COVID, 8.6e-03) as expected, all within the 1e-2 base-rate tolerance.
 
 | window | impossible mass (corrected) | base-rate max\|Δ\| | pass |
 |---|---|---|---|
-| 2015 | | | |
-| 2019 | | | |
-| 2020 | | | |
-| 2023 | | | |
-| 2025 | | | |
+| 2015 | 5.29e-06 | 2.68e-03 | ✓ |
+| 2019 | 6.10e-06 | 3.14e-04 | ✓ |
+| 2020 | 8.97e-06 | 8.60e-03 | ✓ |
+| 2023 | 3.54e-06 | 3.01e-03 | ✓ |
+| 2025 | 5.25e-06 | 1.07e-04 | ✓ |
 
 ## 6. Gate status
 
