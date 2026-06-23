@@ -746,6 +746,42 @@ def _score_task(task: tuple) -> tuple:
     return task_key, k, acc
 
 
+def live_impossible_mass(variant: str, k: int) -> dict | None:
+    """M20c: recompute window ``k``'s GBT structural-impossible-cell mass **live** under the
+    current ``backtest._structural_allow`` (the corrected M20 mask), so ``backtest.verify [6]``
+    gates on the corrected mask instead of the stale fit-time ``metrics.json`` block.
+
+    Streams the frozen test slice shard-by-shard through the persisted booster — the **M20a
+    path** (``_score_task`` per ``part-*.parquet``, single-threaded-released-GIL predict, no
+    whole-slice collect, no re-fit) — so by construction the ``model_mean_mass`` matches
+    ``m20_impossible_recheck.json`` (same booster, mask, shards, sorted accumulation order).
+    Returns ``None`` when the booster or test slice is absent (SSD unmounted / un-fit window),
+    so the caller can fall back to the stored value with a 'stale' warning.
+
+    ``passed``/``threshold`` use the **standing** ``IMPOSSIBLE_TOL`` (1e-3) — identical to
+    ``base_rate_qa``/``compute_accept`` so ``[5]`` and ``[6]`` are symmetric and the gate never
+    moves. The tighter <1e-4 M20 confirmation lives only in the M20a artifact (``RECHECK_TOL``),
+    not in the standing harness; ``model_mean_mass`` is reported so the ~1e-5 stays visible."""
+    if not _has_gbt(variant, k):
+        return None
+    pool_dir, bounds = D.window_spec(variant, k, "test")
+    parts = sorted(pool_dir.glob("part-*.parquet"))
+    if not parts:
+        return None
+    acc = _fresh_acc()
+    for p in parts:
+        _, _, partial = _score_task((f"{k}:{p.name}", variant, k, str(p), bounds[0], bounds[1], None))
+        _merge(acc, partial)
+    if acc["n"] == 0:
+        return None
+    mean = acc["imp_sum"] / acc["n"]
+    return {"window_k": k, "n_test": acc["n"], "model_mean_mass": mean,
+            "model_max_row_mass": acc["max_row"], "realized_mean_rate": acc["realized_sum"] / acc["n"],
+            "per_origin": {s: {"n": acc["o_n"][s], "model_mean_mass": acc["o_imp"][s] / acc["o_n"][s]}
+                           for s in _ORIGINS if acc["o_n"][s]},
+            "threshold": IMPOSSIBLE_TOL, "passed": bool(mean < IMPOSSIBLE_TOL)}
+
+
 def _stored_old_mass(run_dir: Path) -> float | None:
     """The fit-time impossible mass (OLD mask) from the run folder's metrics.json — read-only."""
     mpath = run_dir / "metrics.json"

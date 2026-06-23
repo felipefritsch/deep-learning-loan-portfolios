@@ -553,18 +553,34 @@ def verify(device=None) -> None:
     else:
         print("  [skip] QA needs --device (ensemble inference); run without --verify-only or pass --device")
 
-    print("\n[6] M17 GBT — wiring correctness (run folders, val-only, no leakage, base-rate QA)")
+    print("\n[6] M17 GBT — wiring correctness (run folders, val-only, no leakage, impossible-mass QA)")
     gbt_runs = {k: _read_gbt(k) for k in config.TEST_YEARS}
     if not any(gbt_runs.values()):
         print("  [skip] no GBT run folders yet — run the M17 sweep (gbt fit per window)")
     else:
+        from floan.model import gbt as G   # lazy: gbt imports backtest (cycle); mirror fit_gbt
         gbt_cfg = _gbt_frozen()
         for k in config.TEST_YEARS:
             g = gbt_runs[k]
-            check(f"k={k} GBT run folder + base-rate/impossible QA",
-                  g is not None and g["base_rate_passed"] and g["impossible_passed"])
+            check(f"k={k} GBT run folder + base-rate QA", g is not None and g["base_rate_passed"])
             if g is None:
                 continue
+            # M20c: gate the impossible-cell mass on a LIVE re-score under the corrected M20 mask
+            # (symmetric with [5], which recomputes the ensemble live, never reads stored) — the
+            # fit-time metrics.json block is OLD-mask and would report 5 windows FAIL forever.
+            # Gated like [5]: live when boosters + test slices are present; else fall back to the
+            # stored value with an explicit "stale (pre-M20 mask)" warning — never silently, and
+            # non-gating (a quick no-SSD verify must not hard-fail on data we flag as unverifiable).
+            live = G.live_impossible_mass(VARIANT, k)
+            if live is not None:
+                check(f"k={k} GBT impossible-cell mass {live['model_mean_mass']:.2e} < "
+                      f"{live['threshold']:g} (live, corrected M20 mask; realized "
+                      f"{live['realized_mean_rate']:.2e} — model tracks data, no hallucinated mass)",
+                      live["passed"])
+            else:
+                print(f"  [warn] k={k} GBT impossible-cell mass STALE (pre-M20 mask): live re-score "
+                      f"unavailable (booster/test slice absent — SSD unmounted?). Showing fit-time "
+                      f"stored pass={g['impossible_passed']} — NOT gated; mount the SSD to verify live.")
             lk = g.get("leakage") or {}
             check(f"k={k} GBT val-selected best_iteration={g['best_iteration']} & masks disjoint "
                   f"(val UNK {lk.get('val_unk_rate', 0):.2%}, test UNK {lk.get('test_unk_rate', 0):.2%})",
