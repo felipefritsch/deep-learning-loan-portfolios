@@ -105,6 +105,46 @@ def test_state_next_not_a_feature():
     assert "state_next" not in (F.CONTINUOUS + F.CATEGORICAL + F.BINARY)
 
 
+def test_cache_roundtrip(tmp_path):
+    """M27a cache codec: a SeqArrays saved to a shard and reloaded is byte-identical (the
+    lossless compact downcasts restore to the native dtypes); the leakage aux (origin/t_ym)
+    survives too. Hermetic — pure numpy, no SSD."""
+    rng = np.random.default_rng(0)
+    N, T, nc, nk, nb = 37, S.SEQ_LEN, 23, 11, 10
+    arr = S.SeqArrays(
+        cont=rng.standard_normal((N, T, nc)).astype(np.float32),
+        cat=rng.integers(0, 900, (N, T, nk)).astype(np.int64),   # vocab indices ≥ 0
+        bin=rng.integers(0, 2, (N, T, nb)).astype(np.float32),   # 0/1 only
+        lengths=rng.integers(1, T + 1, N).astype(np.int64),
+        mask=rng.integers(0, 2, (N, T)).astype(np.float32),
+        y=rng.integers(0, F.N_CLASSES, N).astype(np.int64),
+        w=rng.uniform(1.0, 20.0, N).astype(np.float32))
+    origin = rng.integers(0, 4, N)
+    t_ym = rng.integers(201401, 201512, N)
+
+    S.save_shard(tmp_path / "part-0000.npz", arr, origin, t_ym)
+    d = S.load_split(tmp_path)
+    S.assert_arrays_equal(arr, S.to_seqarrays(d))                # 7/7 fields, dtype + values
+    assert np.array_equal(d["origin"].astype(np.int64), origin)
+    assert np.array_equal(d["t_ym"].astype(np.int64), t_ym)
+
+
+def test_cache_roundtrip_multishard(tmp_path):
+    """load_split concatenates shards in part-index order (so probs stay row-aligned to y)."""
+    rng = np.random.default_rng(1)
+    T = S.SEQ_LEN
+    def mk(N, base):
+        a = S.SeqArrays(np.zeros((N, T, 2), np.float32), np.zeros((N, T, 1), np.int64),
+                        np.zeros((N, T, 1), np.float32), np.ones(N, np.int64),
+                        np.ones((N, T), np.float32),
+                        np.arange(base, base + N) % F.N_CLASSES, np.ones(N, np.float32))
+        return a
+    S.save_shard(tmp_path / "part-0000.npz", mk(5, 0), np.zeros(5), np.zeros(5))
+    S.save_shard(tmp_path / "part-0001.npz", mk(4, 5), np.zeros(4), np.zeros(4))
+    d = S.load_split(tmp_path)
+    assert d["y"].tolist() == [(i % F.N_CLASSES) for i in range(9)]
+
+
 def test_scatter_right_pad():
     """Right-pad scatter: real steps at [0..cnt-1] oldest→newest, pads after, mask/lengths."""
     # point 0: cnt=3 (ti 2,1,0 for pos 1,2,3); point 1: cnt=4 (full). enc rows carry their id.

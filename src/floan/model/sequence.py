@@ -29,10 +29,13 @@ sequences, and build wall-time + memory for sizing the full spike:
 from __future__ import annotations
 
 import argparse
+import datetime
+import json
 import resource
 import time
 import tracemalloc
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 import polars as pl
@@ -414,15 +417,317 @@ def iter_batches(arr: SeqArrays, batch_size: int, shuffle: bool, seed: int = 0, 
                "lengths": arr.lengths[idx], "y": arr.y[idx], "w": arr.w[idx]}
 
 
+# ===========================================================================
+# M27a — build → cache → reload  (materialize the k=2015 seq training set on the
+# Mac, SHARD it to disk for upload to the GPU pod, reload round-trips).
+# ===========================================================================
+# A full SeqArrays split is large (full val/test ≈ 6 M sequences ≈ 16 GB dense — bigger
+# than this Mac's RAM), so the cache is SHARDED: each chunk of prediction points is built
+# (memory-bounded), encoded with the TRAIN-fitted scaler/vocab, and written as one
+# compressed npz; the reload concatenates the shards. On-disk dtypes are LOSSLESS compact
+# downcasts of the SeqArrays fields (cont f32, cat i32, bin/mask u8, lengths i16, y i8,
+# w f32) restored to the native dtypes on load — `assert_arrays_equal` round-trips byte for
+# byte. Each shard also carries `origin` (origin-state index, EV.OI order) + `t_ym` so the
+# pod can score per-transition AUC without the SSD panel.
+
+CACHE_FIELDS: tuple[str, ...] = ("cont", "cat", "bin", "lengths", "mask", "y", "w")
+# Native dtype each field is restored to (matches SeqArrays construction in build_split).
+_NATIVE: dict[str, type] = {"cont": np.float32, "cat": np.int64, "bin": np.float32,
+                            "lengths": np.int64, "mask": np.float32, "y": np.int64,
+                            "w": np.float32}
+# Lossless on-disk dtype (the value ranges are guarded in `_compact`).
+_COMPACT: dict[str, type] = {"cont": np.float32, "cat": np.int32, "bin": np.uint8,
+                             "lengths": np.int16, "mask": np.uint8, "y": np.int8,
+                             "w": np.float32}
+
+
+def _compact(arr: SeqArrays, origin: np.ndarray, t_ym: np.ndarray) -> dict:
+    """SeqArrays (+ origin / t_ym aux) → dict of LOSSLESS compact arrays for one npz shard.
+    Asserts each downcast is exact (cat indices, binaries, lengths, classes all in range), so
+    a precondition break fails loudly instead of silently corrupting the cache."""
+    assert 0 <= int(arr.cat.min(initial=0)) and int(arr.cat.max(initial=0)) < 2 ** 31, "cat out of int32"
+    assert np.isin(arr.bin, (0.0, 1.0)).all() and np.isin(arr.mask, (0.0, 1.0)).all(), "bin/mask not 0/1"
+    assert int(arr.lengths.max(initial=0)) <= 32767, "lengths out of int16"
+    assert -1 <= int(arr.y.min(initial=0)) and int(arr.y.max(initial=0)) <= 127, "y out of int8"
+    out = {f: getattr(arr, f).astype(_COMPACT[f]) for f in CACHE_FIELDS}
+    out["origin"] = np.asarray(origin, np.int8)
+    out["t_ym"] = np.asarray(t_ym, np.int32)
+    return out
+
+
+def save_shard(npz_path: Path, arr: SeqArrays, origin: np.ndarray, t_ym: np.ndarray) -> int:
+    """Write one split shard (compressed npz); return its size in bytes."""
+    npz_path = Path(npz_path)
+    npz_path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(npz_path, **_compact(arr, origin, t_ym))
+    return npz_path.stat().st_size
+
+
+def load_split(split_dir: Path) -> dict:
+    """Concatenate a split's shards (in order) → a dict with the 7 SeqArrays fields in their
+    NATIVE dtypes plus ``origin`` / ``t_ym``. ``to_seqarrays`` wraps the model batch."""
+    parts = sorted(Path(split_dir).glob("part-*.npz"))
+    if not parts:
+        raise FileNotFoundError(f"no part-*.npz shards in {split_dir}")
+    acc: dict[str, list] = {k: [] for k in (*CACHE_FIELDS, "origin", "t_ym")}
+    for p in parts:
+        with np.load(p) as z:
+            for k in acc:
+                acc[k].append(z[k])
+    return {k: np.concatenate(v).astype(_NATIVE.get(k, acc[k][0].dtype))
+            for k, v in acc.items()}
+
+
+def to_seqarrays(d: dict) -> SeqArrays:
+    """Reconstruct the model batch from a ``load_split`` dict (drops the origin/t_ym aux)."""
+    return SeqArrays(**{f: d[f] for f in CACHE_FIELDS})
+
+
+def assert_arrays_equal(a: SeqArrays, b: SeqArrays) -> None:
+    """Byte-for-byte equality of every SeqArrays field (the round-trip contract)."""
+    for f in CACHE_FIELDS:
+        x, y = getattr(a, f), getattr(b, f)
+        assert x.dtype == y.dtype and np.array_equal(x, y), f"round-trip mismatch on {f}"
+
+
+# ---------------------------------------------------------------------------
+# Stratified train points (memory-bounded) + scaler/vocab fit
+# ---------------------------------------------------------------------------
+def _origin_idx(points: pl.DataFrame) -> np.ndarray:
+    """Origin-state → index in ``config.ORIGIN_STATES`` (== evaluate.OI), as int8-able int."""
+    return points.select(pl.col("state").replace_strict(
+        list(config.ORIGIN_STATES), list(range(len(config.ORIGIN_STATES))),
+        default=-1, return_dtype=pl.Int64)).to_numpy().reshape(-1)
+
+
+def _fit_rows_sql(T: int, shard_lt: int) -> str:
+    """DISTINCT trailing-window panel rows for the registered ``points`` — the exact rows
+    ``build_split`` encodes (no ``pos``/``cnt``, deduped in SQL so the fit isn't re-weighted by
+    window overlap). DuckDB spills the join/distinct; only the result lands in RAM."""
+    cols = ", ".join(f'p."{c}"' for c in _PANEL_PULL_COLS)
+    return f"""
+    SELECT DISTINCT {cols}
+    FROM points pt JOIN panel p
+      ON p."Loan Identifier" = pt.loan AND p.shard < {shard_lt}
+     AND (year(p.period) * 12 + month(p.period) - 1)
+         BETWEEN pt.t_mi - {T - 1} AND pt.t_mi
+    """
+
+
+def fit_pipeline(variant: str, k: int, points: pl.DataFrame, T: int = SEQ_LEN
+                 ) -> tuple[F.Scaler, F.Vocab]:
+    """Fit Scaler + Vocab on ``points``' trailing-window panel rows — the SAME rows
+    ``build_split`` would fit on (macro reattached, ``prepare_raw`` derived columns), but
+    WITHOUT materializing any dense [N,T,F] tensor. Pass a representative subsample of the
+    train points (continuous stats are stable; rare categorical levels absent here map to the
+    leakage-safe UNK by design, exactly as the FF/spike protocol fits on its train sample)."""
+    shard_lt = config.VARIANTS[variant]["train_shard_lt"]
+    nat, st, mkt = _macro_tables()
+    con = export.connect()
+    con.register("points", points.select("point_id", "loan", "t_mi").to_arrow())
+    pu = con.execute(_fit_rows_sql(T, shard_lt)).pl()
+    con.close()
+    enc = F.prepare_raw(export.attach_macro(
+        pu.with_columns(pl.col("period_ym").alias("label_ym"), pl.lit(1.0).alias("weight")),
+        nat, st, mkt))
+    return F.Scaler.fit(enc, cols=F.CONTINUOUS), F.Vocab.fit(enc, cols=F.CATEGORICAL)
+
+
+# ---------------------------------------------------------------------------
+# Chunked, sharded materialization of one split
+# ---------------------------------------------------------------------------
+def build_split_to_shards(variant: str, k: int, split: str, points: pl.DataFrame,
+                          out_dir: Path, scaler: F.Scaler, vocab: F.Vocab,
+                          T: int = SEQ_LEN, chunk: int = 300_000) -> tuple[int, int]:
+    """Build ``points`` in chunks and write one compressed npz shard per chunk (peak RAM ≈ one
+    chunk's dense tensors, never the whole split). Reuses ``build_split`` with the supplied
+    (scaler, vocab) — no refit. Returns (total bytes on disk, number of shards)."""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for old in out_dir.glob("part-*.npz"):              # idempotent: clear stale shards
+        old.unlink()
+    n, total_bytes, si = points.height, 0, 0
+    for s in range(0, n, chunk):
+        pts = points[s:s + chunk].drop("point_id").with_row_index("point_id")
+        arr, _, _ = build_split(variant, k, split, pts, T, scaler, vocab)
+        b = save_shard(out_dir / f"part-{si:04d}.npz", arr,
+                       _origin_idx(pts), pts["t_ym"].to_numpy())
+        total_bytes += b
+        print(f"  [{split:>5}] shard {si:>2}  rows {s:>9,}..{min(s + chunk, n):<9,} "
+              f"-> {arr.y.shape[0]:>8,} seq  {b / 1e6:>6.0f} MB", flush=True)
+        si += 1
+    return total_bytes, si
+
+
+# ---------------------------------------------------------------------------
+# Verify (small sample): faithful round-trip + leakage flip-test
+# ---------------------------------------------------------------------------
+def verify_sample(variant: str, k: int, points: pl.DataFrame, scaler: F.Scaler,
+                  vocab: F.Vocab, T: int = SEQ_LEN, n: int = 256) -> None:
+    """On a small slice of ``points``: (1) build → save shard → load → assert SeqArrays
+    identical; (2) leakage flip-test — overwrite state_next (and its target), rebuild, assert
+    the input tensors (cont/cat/bin/mask/lengths) are byte-identical and only y changed."""
+    pts = points.head(n).drop("point_id").with_row_index("point_id")
+    arr, _, _ = build_split(variant, k, "train", pts, T, scaler, vocab)
+
+    tmp = Path(config.OUTPUTS) / "seq_cache" / "_verify_tmp"
+    if tmp.exists():
+        for f in tmp.glob("part-*.npz"):
+            f.unlink()
+    save_shard(tmp / "part-0000.npz", arr, _origin_idx(pts), pts["t_ym"].to_numpy())
+    reloaded = to_seqarrays(load_split(tmp))
+    assert_arrays_equal(arr, reloaded)
+    print(f"  [verify] round-trip OK — {arr.y.shape[0]} seqs save→load byte-identical "
+          f"(7/7 fields)", flush=True)
+
+    flip_pts = pts.with_columns(
+        pl.lit("prepaid").alias("state_next"),
+        pl.lit(F.STATE_INDEX["prepaid"]).cast(pl.Int64).alias("target_idx"))
+    flip, _, _ = build_split(variant, k, "train", flip_pts, T, scaler, vocab)
+    inputs_same = all(np.array_equal(getattr(arr, f), getattr(flip, f))
+                      for f in ("cont", "cat", "bin", "mask", "lengths"))
+    y_changed = not np.array_equal(arr.y, flip.y)
+    static_ok = "state_next" not in (F.CONTINUOUS + F.CATEGORICAL + F.BINARY)
+    assert inputs_same and y_changed and static_ok, "LEAKAGE FLIP-TEST FAILED"
+    print(f"  [verify] flip-test PASS — inputs byte-identical, target changed, "
+          f"state_next ∉ feature blocks", flush=True)
+
+
+# ---------------------------------------------------------------------------
+# Orchestrator + report
+# ---------------------------------------------------------------------------
+FIT_POINTS = 500_000   # representative train subsample the scaler/vocab are fit on
+
+
+def build_cache(variant: str = "full", k: int = config.TUNING_YEAR,
+                train_n: int = 1_500_000, T: int = SEQ_LEN, chunk: int = 300_000,
+                seed: int = 0, out_root: str | None = None, verify: bool = True) -> dict:
+    """Build + cache the k sequence training set (a UNIFORM ``train_n`` sample of the train_pool
+    + the export's HT weights — the M26-spike recipe, so val-NLL stays comparable to M26's; NO
+    origin re-balancing, which would distort the marginal) plus the FULL frozen val/test slices,
+    sharded to disk for upload to the GPU pod. Scaler/vocab fit on TRAIN only; no training."""
+    config.require_drive()
+    out = Path(out_root) if out_root else config.OUTPUTS / "seq_cache" / variant / f"k{k}"
+    out.mkdir(parents=True, exist_ok=True)
+    t0 = time.perf_counter()
+    print(f"=== M27a build→cache  variant={variant} k={k} T={T}  "
+          f"train_n={train_n:,} (uniform+HT)  chunk={chunk:,}  out={out} ===", flush=True)
+
+    # (1) TRAIN points — UNIFORM train_pool sample (+ HT weights), NOT origin-balanced --------
+    tr_pts = prediction_points(variant, k, "train", sample_n=train_n, seed=seed)
+    tr_origin = {s: int((tr_pts["state"] == s).sum()) for s in config.ORIGIN_STATES}
+    cur_frac = tr_origin["current"] / max(1, tr_pts.height)
+    print(f"[train] {tr_pts.height:,} UNIFORM points (+ HT weights)  by origin: "
+          + ", ".join(f"{s}={c:,} ({100 * c / tr_pts.height:.0f}%)"
+                      for s, c in tr_origin.items()), flush=True)
+    # Sanity: the sample must keep the natural train_pool mix (current-dominant ~69%), NOT a
+    # balanced 25/25/25/25 — a balanced mix means origin-rebalancing leaked back in (the M26
+    # step-2b distortion that makes val-NLL incomparable to M26's 0.0906).
+    assert cur_frac > 0.5, (f"train origin mix looks balanced ({tr_origin}); expected the "
+                            f"natural current-dominant train_pool mix — uniform sampling broke")
+
+    # (2) fit scaler/vocab on a representative TRAIN subsample (train rows only) ---------------
+    t_fit = time.perf_counter()
+    fit_pts = (tr_pts.sample(n=min(FIT_POINTS, tr_pts.height), seed=seed)
+               if tr_pts.height > FIT_POINTS else tr_pts)
+    scaler, vocab = fit_pipeline(variant, k, fit_pts, T)
+    F.save_pipeline(out, scaler, vocab)
+    print(f"[train] fit scaler({len(scaler.cols)} cont) vocab({len(vocab.cols)} cat, "
+          f"sizes {vocab.vocab_sizes}) on {fit_pts.height:,} pts  "
+          f"[{time.perf_counter() - t_fit:.0f}s] -> scaler.json/vocab.json", flush=True)
+    if verify:                                          # fail fast before the long build
+        verify_sample(variant, k, tr_pts, scaler, vocab, T)
+
+    # (3) materialize shards: train, then the FULL frozen val/test ---------------------------
+    sizes, secs, npoints, nshards = {}, {}, {}, {}
+    npoints["train"], origins = tr_pts.height, {"train": tr_origin}
+    t = time.perf_counter()
+    sizes["train"], nshards["train"] = build_split_to_shards(
+        variant, k, "train", tr_pts, out / "train", scaler, vocab, T, chunk)
+    secs["train"] = time.perf_counter() - t
+    del tr_pts, fit_pts
+
+    for split in ("val", "test"):
+        pts = prediction_points(variant, k, split)          # full frozen slice (no cap/sample)
+        npoints[split] = pts.height
+        origins[split] = {s: int((pts["state"] == s).sum()) for s in config.ORIGIN_STATES}
+        print(f"[{split}] {pts.height:,} points  by origin: "
+              + ", ".join(f"{s}={c:,}" for s, c in origins[split].items()), flush=True)
+        t = time.perf_counter()
+        sizes[split], nshards[split] = build_split_to_shards(
+            variant, k, split, pts, out / split, scaler, vocab, T, chunk)
+        secs[split] = time.perf_counter() - t
+        del pts
+
+    # (4) meta + report --------------------------------------------------------
+    pipe_bytes = sum((out / f).stat().st_size for f in ("scaler.json", "vocab.json"))
+    wall = time.perf_counter() - t0
+    meta = {
+        "task": "M27a build->cache", "created_utc": datetime.datetime.now(
+            datetime.timezone.utc).isoformat(), "variant": variant, "k": k, "seq_len": T,
+        "per_origin_cap": per_origin_cap, "chunk": chunk, "seed": seed,
+        "feature_dims": {"n_cont": len(scaler.cols), "n_cat": len(vocab.cols),
+                         "n_bin": len(F.BINARY), "vocab_sizes": list(vocab.vocab_sizes)},
+        "points": npoints, "points_by_origin": origins, "shards": nshards,
+        "bytes": {**sizes, "pipeline": pipe_bytes,
+                  "total": sum(sizes.values()) + pipe_bytes},
+        "wall_sec": {**secs, "total": wall},
+        "fields_on_disk": {f: np.dtype(_COMPACT[f]).name for f in CACHE_FIELDS},
+        "fields_native": {f: np.dtype(_NATIVE[f]).name for f in CACHE_FIELDS},
+        "aux_fields": ["origin (config.ORIGIN_STATES index)", "t_ym"],
+    }
+    (out / "meta.json").write_text(json.dumps(meta, indent=2))
+    _report_cache(meta, out)
+    return meta
+
+
+def _report_cache(m: dict, out: Path) -> None:
+    gb = lambda b: b / 1e9
+    print("\n" + "=" * 76)
+    print(f"M27a SEQUENCE CACHE — {m['variant']} k={m['k']}  T={m['seq_len']}  "
+          f"({m['feature_dims']['n_cont']} cont, {m['feature_dims']['n_cat']} cat, "
+          f"{m['feature_dims']['n_bin']} bin)")
+    print("=" * 76)
+    print(f"  cache root: {out}")
+    print(f"\n  {'split':>6} | {'points':>12} | {'shards':>6} | {'on-disk':>9} | {'build':>8}")
+    print("  " + "-" * 56)
+    for sp in ("train", "val", "test"):
+        print(f"  {sp:>6} | {m['points'][sp]:>12,} | {m['shards'][sp]:>6} | "
+              f"{gb(m['bytes'][sp]):>6.2f} GB | {m['wall_sec'][sp] / 60:>6.1f}m")
+    print("  " + "-" * 56)
+    print(f"  {'TOTAL':>6} | {sum(m['points'].values()):>12,} | "
+          f"{sum(m['shards'].values()):>6} | {gb(m['bytes']['total']):>6.2f} GB | "
+          f"{m['wall_sec']['total'] / 60:>6.1f}m")
+    print(f"\n  point counts by origin (config.ORIGIN_STATES order):")
+    for sp in ("train", "val", "test"):
+        print(f"    {sp:>5}: " + "  ".join(
+            f"{s}={m['points_by_origin'][sp][s]:,}" for s in config.ORIGIN_STATES))
+    print(f"\n  scaler/vocab: {m['bytes']['pipeline'] / 1e3:.1f} KB  (scaler.json + vocab.json)")
+    print(f"  on-disk dtypes: " + ", ".join(f"{f}:{d}" for f, d in m["fields_on_disk"].items()))
+    print(f"  wrote meta.json  ·  total wall {m['wall_sec']['total'] / 60:.1f} min")
+    print("=" * 76)
+
+
 def main() -> None:
-    ap = argparse.ArgumentParser(description="M26 sequence data-path smoke (no model/training).")
+    ap = argparse.ArgumentParser(description="M26/M27a sequence data path: smoke + build->cache.")
     ap.add_argument("--variant", default="dev", choices=list(config.VARIANTS))
     ap.add_argument("--k", type=int, default=config.TUNING_YEAR)
     ap.add_argument("--n-loans", type=int, default=1000)
     ap.add_argument("--seq-len", type=int, default=SEQ_LEN)
     ap.add_argument("--smoke", action="store_true", help="run the data-path smoke")
+    ap.add_argument("--build-cache", action="store_true",
+                    help="M27a: build + shard the k sequence train/val/test cache to disk")
+    ap.add_argument("--train-n", type=int, default=1_500_000,
+                    help="UNIFORM train_pool sample size (+ HT weights); NOT origin-balanced")
+    ap.add_argument("--chunk", type=int, default=300_000, help="points per cache shard")
+    ap.add_argument("--out", default=None, help="cache root (default OUTPUTS/seq_cache/<variant>/k<k>)")
+    ap.add_argument("--no-verify", action="store_true", help="skip the round-trip + flip-test")
     args = ap.parse_args()
-    smoke(args.variant, args.k, args.n_loans, args.seq_len)
+    if args.build_cache:
+        build_cache(args.variant, args.k, args.train_n, args.seq_len, args.chunk,
+                    out_root=args.out, verify=not args.no_verify)
+    else:
+        smoke(args.variant, args.k, args.n_loans, args.seq_len)
 
 
 if __name__ == "__main__":
