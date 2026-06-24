@@ -281,19 +281,21 @@ def target_indices(df: pl.DataFrame, col: str = TARGET_COL) -> np.ndarray:
 
 
 def encode_frame(df: pl.DataFrame, scaler: Scaler, vocab: Vocab,
-                 encode: str = "index") -> dict:
+                 encode: str = "index", binary_cols: list[str] = BINARY) -> dict:
     """Turn a prepared (``prepare_raw``) frame into model-ready NumPy arrays.
 
     Returns a batch dict: ``cont`` (standardized continuous), ``cat`` (int vocab indices
     for the embedding path, or the one-hot design block when ``encode='onehot'``),
     ``bin`` (0/1), ``y`` (target index), ``w`` (importance weight), plus the ``loan`` /
-    ``period_ym`` keys for eval-time row alignment."""
+    ``period_ym`` keys for eval-time row alignment. ``binary_cols`` defaults to the schema
+    ``BINARY`` block; the M26a augmented net passes ``BINARY + history.HIST_BINARY`` (the
+    scaler/vocab already self-describe their own columns, so only this block is extended)."""
     codes = vocab.transform(df)
     cat = one_hot_block(codes, vocab) if encode == "onehot" else codes
     return {
         "cont": scaler.transform(df),
         "cat": cat,
-        "bin": binary_matrix(df),
+        "bin": binary_matrix(df, binary_cols),
         "y": target_indices(df),
         "w": df.get_column(WEIGHT_COL).cast(pl.Float32).to_numpy(),
         "loan": df.get_column("Loan Identifier").to_numpy(),

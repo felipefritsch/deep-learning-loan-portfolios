@@ -134,13 +134,17 @@ def from_arch(arch: dict) -> "MortgageMLP":
 
 
 def build(scaler: F.Scaler, vocab: F.Vocab, depth: int = 5,
-          dropout: float = 0.2, width_mult: float = 1.0) -> "MortgageMLP":
+          dropout: float = 0.2, width_mult: float = 1.0,
+          n_binary: int | None = None) -> "MortgageMLP":
     """Construct the net for a fitted ``(scaler, vocab)`` at the paper's depth/width (§6).
     ``n_continuous`` from the scaler, ``n_binary`` from the (fixed) binary block, embedding
     cardinalities from the vocab. ``width_mult`` (default 1.0 = paper widths) scales the
-    hidden layers for the M12 width sweep."""
+    hidden layers for the M12 width sweep. ``n_binary`` defaults to ``len(F.BINARY)``; the
+    M26a augmented net overrides it to ``len(F.BINARY) + len(history.HIST_BINARY)`` (the
+    continuous + embedding counts grow automatically via the larger scaler/vocab)."""
     return MortgageMLP(
-        n_continuous=len(scaler.cols), n_binary=len(F.BINARY),
+        n_continuous=len(scaler.cols),
+        n_binary=len(F.BINARY) if n_binary is None else n_binary,
         vocab_sizes=list(vocab.vocab_sizes),
         hidden_dims=depth_to_hidden(depth, width_mult), dropout=dropout)
 
