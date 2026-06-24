@@ -254,6 +254,166 @@ def smoke(variant: str = "dev", k: int = config.TUNING_YEAR, n_loans: int = 1000
     print("\nSMOKE PASS — sequence data path proven (no model, no training).")
 
 
+# ===========================================================================
+# M26 step-2a — MODEL-CONSUMABLE sequences (FF feature set per timestep)
+# ===========================================================================
+# The step-1 path above is the one-per-loan, raw-feature, left-pad DEMO. The model path
+# below is the real thing: prediction points come from the pools (train_pool/eval_pool, the
+# SAME split as M26a), each point's trailing-T history is pulled from the panel, and every
+# timestep carries the FULL FF feature set (scaled continuous incl. macro + embedded
+# categoricals incl. state + binaries, via export.attach_macro + features.Scaler/Vocab fit
+# on TRAIN rows only) — so a GRU vs the FF net differ ONLY in architecture. Sequences are
+# RIGHT-padded (real oldest→newest at [0..len-1]) + lengths, for pack_padded_sequence.
+
+# Panel columns pulled for each timestep, in the pool's pre-macro schema (export.attach_macro
+# then joins macro to reproduce the FF feature row exactly).
+_PANEL_PULL_COLS: list[str] = (
+    ["Loan Identifier", "shard", "period", "period_ym", "orig_ym",
+     "state", "state_next", "censored"] + export.PANEL_FEATURE_COLS)
+
+_MACRO: tuple | None = None
+
+
+def _macro_tables():
+    global _MACRO
+    if _MACRO is None:
+        _MACRO = export._load_macro()
+    return _MACRO
+
+
+@dataclass
+class SeqArrays:
+    """Right-padded model batch: ``cont``/``cat``/``bin`` ``[N, T, ·]`` (real steps at
+    ``[0..len-1]``, oldest→newest; the prediction point is the last real step), ``lengths``
+    ``[N]`` for pack, ``mask`` ``[N, T]``, ``y``/``w`` ``[N]``."""
+    cont: np.ndarray
+    cat: np.ndarray
+    bin: np.ndarray
+    lengths: np.ndarray
+    mask: np.ndarray
+    y: np.ndarray
+    w: np.ndarray
+
+
+def prediction_points(variant: str, k: int, split: str, *, origin_cap: int | None = None,
+                      sample_n: int | None = None, seed: int = 0) -> pl.DataFrame:
+    """Prediction points for ``split`` from the pool (train_pool for train, eval_pool for
+    val/test), masked by ``config.{train,val,test}_bounds(k)`` — the SAME split as M26a.
+    ``origin_cap`` = up to that many points PER origin state (training stratification, so the
+    ~87% current mass doesn't wash out re-delinquency); ``sample_n`` = a random subsample
+    (val orientation, natural class mix). Carries the pool ``weight`` (1/p_keep on train, 1
+    on eval), the target index, and ``t_mi`` (month index of t)."""
+    pool = "train_pool" if split == "train" else "eval_pool"
+    lo, hi = {"train": config.train_bounds, "val": config.val_bounds,
+              "test": config.test_bounds}[split](k)
+    df = (pl.scan_parquet(str(config.TRAINING_DIR / variant / pool / "part-*.parquet"))
+            .filter((pl.col("period_ym") >= lo) & (pl.col("period_ym") < hi))
+            .filter(pl.col("state").is_in(list(config.ORIGIN_STATES)))
+            .filter(pl.col("state_next").is_not_null())
+            .select("Loan Identifier", "period_ym", "state", "state_next", "weight")
+            .collect())
+    rng = np.random.default_rng(seed)
+    if origin_cap is not None:
+        parts = []
+        for s in config.ORIGIN_STATES:
+            sub = df.filter(pl.col("state") == s)
+            if sub.height > origin_cap:
+                sub = sub[np.sort(rng.choice(sub.height, origin_cap, replace=False))]
+            parts.append(sub)
+        df = pl.concat(parts)
+    elif sample_n is not None and df.height > sample_n:
+        df = df[np.sort(rng.choice(df.height, sample_n, replace=False))]
+    return (df.with_columns(
+                (pl.col("period_ym") // 100 * 12 + pl.col("period_ym") % 100 - 1).alias("t_mi"),
+                pl.col("state_next").replace_strict(
+                    list(F.STATE_INDEX), list(F.STATE_INDEX.values()),
+                    default=-1, return_dtype=pl.Int64).alias("target_idx"))
+              .rename({"Loan Identifier": "loan", "period_ym": "t_ym"})
+              .with_row_index("point_id"))
+
+
+def _window_sql(select_cols: list[str], T: int, shard_lt: int) -> str:
+    """Per prediction point, the trailing ≤T panel rows with month-index in
+    ``[t_mi-(T-1), t_mi]`` — the seq analogue of M26a's end-at-t window. ``pos`` =
+    recency rank (1=newest=t), ``cnt`` = real length. Selection uses only loan + period;
+    ``state_next`` is carried but never drives the window."""
+    sel = ", ".join(f'p."{c}"' for c in select_cols)
+    return f"""
+    WITH win AS (
+        SELECT pt.point_id, {sel},
+               row_number() OVER (PARTITION BY pt.point_id ORDER BY p.period DESC) AS pos,
+               count(*)     OVER (PARTITION BY pt.point_id) AS cnt
+        FROM points pt JOIN panel p
+          ON p."Loan Identifier" = pt.loan AND p.shard < {shard_lt}
+         AND (year(p.period) * 12 + month(p.period) - 1)
+             BETWEEN pt.t_mi - {T - 1} AND pt.t_mi
+    )
+    SELECT * FROM win WHERE pos <= {T}
+    """
+
+
+def _scatter(pid, ti, ei, cnt, N, T, cont, cat, binb):
+    """Right-pad scatter: place encoded row ``ei`` at sequence position ``ti = cnt-pos`` of
+    point ``pid``. Pure (no SSD) — unit-tested in tests/test_sequence.py."""
+    Xc = np.zeros((N, T, cont.shape[1]), np.float32)
+    Xk = np.zeros((N, T, cat.shape[1]), np.int64)
+    Xb = np.zeros((N, T, binb.shape[1]), np.float32)
+    mask = np.zeros((N, T), np.float32)
+    lengths = np.zeros(N, np.int64)
+    Xc[pid, ti] = cont[ei]
+    Xk[pid, ti] = cat[ei]
+    Xb[pid, ti] = binb[ei]
+    mask[pid, ti] = 1.0
+    lengths[pid] = cnt
+    return Xc, Xk, Xb, mask, lengths
+
+
+def build_split(variant: str, k: int, split: str, points: pl.DataFrame, T: int = SEQ_LEN,
+                scaler: F.Scaler | None = None, vocab: F.Vocab | None = None
+                ) -> tuple[SeqArrays, F.Scaler, F.Vocab]:
+    """Materialize right-padded ``[N, T, F]`` sequences for ``points``. Pulls each point's
+    trailing window from the panel, reattaches macro (export path) so the per-timestep
+    features are the FF feature row, encodes via Scaler/Vocab (fit on TRAIN rows only when
+    not supplied), and scatters into the tensor. ``state_next`` is never an input feature."""
+    shard_lt = config.VARIANTS[variant]["train_shard_lt"]
+    con = export.connect()
+    con.register("points", points.select("point_id", "loan", "t_ym", "t_mi").to_arrow())
+    win = con.execute(_window_sql(_PANEL_PULL_COLS, T, shard_lt)).pl()
+    con.close()
+
+    # Encode the UNIQUE panel rows once (FF feature row via macro reattach), then gather.
+    nat, st, mkt = _macro_tables()
+    pu = (win.unique(subset=["Loan Identifier", "period_ym"]).select(_PANEL_PULL_COLS)
+            .with_columns(pl.col("period_ym").alias("label_ym"), pl.lit(1.0).alias("weight")))
+    enc_frame = F.prepare_raw(export.attach_macro(pu, nat, st, mkt))
+    if scaler is None:
+        scaler = F.Scaler.fit(enc_frame, cols=F.CONTINUOUS)
+        vocab = F.Vocab.fit(enc_frame, cols=F.CATEGORICAL)
+    cont, cat, binb = scaler.transform(enc_frame), vocab.transform(enc_frame), F.binary_matrix(enc_frame)
+
+    enc_idx = enc_frame.select("Loan Identifier", "period_ym").with_row_index("enc_idx")
+    gather = (win.select("point_id", "Loan Identifier", "period_ym", "pos", "cnt")
+                 .with_columns((pl.col("cnt") - pl.col("pos")).alias("ti"))
+                 .join(enc_idx, on=["Loan Identifier", "period_ym"], how="left"))
+    Xc, Xk, Xb, mask, lengths = _scatter(
+        gather["point_id"].to_numpy(), gather["ti"].to_numpy(), gather["enc_idx"].to_numpy(),
+        gather["cnt"].to_numpy(), points.height, T, cont, cat, binb)
+    return (SeqArrays(Xc, Xk, Xb, lengths, mask,
+                      points["target_idx"].to_numpy().astype(np.int64),
+                      points["weight"].to_numpy().astype(np.float32)), scaler, vocab)
+
+
+def iter_batches(arr: SeqArrays, batch_size: int, shuffle: bool, seed: int = 0, epoch: int = 0):
+    """Minibatch dicts (cont/cat/bin/lengths/y/w) — the torch_common predict contract."""
+    n = arr.y.shape[0]
+    order = (np.random.default_rng([seed, epoch]).permutation(n) if shuffle
+             else np.arange(n))
+    for s in range(0, n, batch_size):
+        idx = order[s:s + batch_size]
+        yield {"cont": arr.cont[idx], "cat": arr.cat[idx], "bin": arr.bin[idx],
+               "lengths": arr.lengths[idx], "y": arr.y[idx], "w": arr.w[idx]}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="M26 sequence data-path smoke (no model/training).")
     ap.add_argument("--variant", default="dev", choices=list(config.VARIANTS))
