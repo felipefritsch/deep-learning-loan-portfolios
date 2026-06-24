@@ -102,22 +102,29 @@ def run_id(args) -> str:
     if args.run_name:
         return args.run_name
     tag = f"k{args.k}_d{args.depth}_do{args.dropout:g}_wd{args.weight_decay:g}"
-    return tag + ("_smoke" if args.smoke else "")
+    return tag + ("_aug" if getattr(args, "augment", False) else "") + ("_smoke" if args.smoke else "")
 
 
 # ---------------------------------------------------------------------------
 # Split preloading — index-encode each split once into RAM (dev scale, §3 note)
 # ---------------------------------------------------------------------------
 def preload_split(variant: str, k: int, split: str, scaler: F.Scaler, vocab: F.Vocab,
-                  cap: int | None) -> dict:
+                  cap: int | None, augment: bool = False) -> dict:
     """Window ``k``'s ``split`` slice (M6 masking) → index-encoded NumPy arrays. ``cap``
     bounds the rows for the smoke path; Polars pushes the ``limit`` into the scan so only
-    ``cap`` rows are read."""
+    ``cap`` rows are read. ``augment`` (M26a): left-join the per-(loan, period_ym) history
+    summaries and encode the extended binary block — the only difference between the two
+    arms is the feature set."""
     pool_dir, bounds = D.window_spec(variant, k, split)
     lf = D._masked_scan(pool_dir, bounds)
     if cap is not None:
         lf = lf.limit(cap)
     df = F.prepare_raw(lf.collect())
+    if augment:
+        from floan.model import history as H
+        df = H.join_history(df, variant, k)
+        return F.encode_frame(df, scaler, vocab, encode="index",
+                              binary_cols=F.BINARY + H.HIST_BINARY)
     return F.encode_frame(df, scaler, vocab, encode="index")
 
 
@@ -312,12 +319,13 @@ def train(args) -> Path:
         verify(args)
         return run
 
+    augment = bool(getattr(args, "augment", False))
     cfg = {"variant": args.variant, "k": args.k, "depth": args.depth,
            "dropout": args.dropout, "weight_decay": args.weight_decay, "lr": args.lr,
            "batch_size": args.batch_size, "max_epochs": max_epochs,
            "patience": args.patience, "seed": args.seed, "smoke": args.smoke,
            "use_amp": use_amp, "cap": cap,
-           "width_mult": getattr(args, "width_mult", 1.0)}
+           "width_mult": getattr(args, "width_mult", 1.0), "augment": augment}
 
     resuming = ckpt_path.exists() and not args.fresh
     if resuming:
@@ -343,11 +351,20 @@ def train(args) -> Path:
               f"best val_nll={best['val_nll']:.6f}@{best['epoch']} → start epoch {start_epoch}")
     else:
         # Fresh: fit scaler/vocab on the train slice only, build the net, seed everything.
+        # M26a augment: fit over the extended blocks (history joined) and size the binary
+        # block accordingly; everything else (loop, loss, eval) is identical across arms.
         tc.set_seed(args.seed)
-        scaler, vocab = D.fit_window(args.variant, args.k)
+        if augment:
+            from floan.model import history as H
+            scaler, vocab = H.fit_window_aug(args.variant, args.k)
+            n_binary = len(F.BINARY) + len(H.HIST_BINARY)
+        else:
+            scaler, vocab = D.fit_window(args.variant, args.k)
+            n_binary = None
         F.save_pipeline(run, scaler, vocab)
         model = N.build(scaler, vocab, depth=args.depth, dropout=args.dropout,
-                        width_mult=getattr(args, "width_mult", 1.0)).to(device)
+                        width_mult=getattr(args, "width_mult", 1.0),
+                        n_binary=n_binary).to(device)
         arch = model.arch()
         opt = torch.optim.Adam(model.parameters(), lr=args.lr,
                                weight_decay=args.weight_decay)
@@ -363,8 +380,8 @@ def train(args) -> Path:
 
     predict = N.make_nn_predict()
     resident = bool(getattr(args, "gpu_resident", False)) and device.type == "cuda"
-    enc_train = preload_split(args.variant, args.k, "train", scaler, vocab, cap)
-    enc_val = preload_split(args.variant, args.k, "val", scaler, vocab, cap)
+    enc_train = preload_split(args.variant, args.k, "train", scaler, vocab, cap, augment)
+    enc_val = preload_split(args.variant, args.k, "val", scaler, vocab, cap, augment)
     print(f"rows: train={enc_train['y'].shape[0]:,} (Σw={enc_train['w'].sum():,.0f})  "
           f"val={enc_val['y'].shape[0]:,}")
     n_train = int(enc_train["y"].shape[0])
@@ -434,7 +451,7 @@ def train(args) -> Path:
 
     # --- finalize: best model, frozen-test NLL, metrics.json ----------------------------
     model.load_state_dict(best["state"])
-    enc_test = preload_split(args.variant, args.k, "test", scaler, vocab, cap)
+    enc_test = preload_split(args.variant, args.k, "test", scaler, vocab, cap, augment)
     if resident:
         # Free the resident train slice before uploading test (keeps the big windows under
         # 20 GB); val is re-scored from T_val, test from a freshly uploaded resident slice.
@@ -462,6 +479,7 @@ def train(args) -> Path:
         "created_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "model": "nn_mlp", "variant": args.variant, "window_k": args.k,
         "tuning_window": (args.k == config.TUNING_YEAR), "smoke": args.smoke,
+        "augment": augment,
         "device": str(device), "use_amp": use_amp, "seed": args.seed,
         "git_commit": _git_commit(),
         "environment": _environment(device),
@@ -651,6 +669,9 @@ def main() -> None:
                          "(removes the per-batch host→device bottleneck; cuda only)")
     ap.add_argument("--smoke", action="store_true",
                     help="CPU pipeline check on ≤100k rows (standing rule 3)")
+    ap.add_argument("--augment", action="store_true",
+                    help="M26a: add the history-summary features (prev_state, "
+                         "months-since-delinq, ever-delinquent, episode count) to the input")
     ap.add_argument("--run-name", default=None,
                     help="override the run-folder name (default: k/depth/dropout/wd tag)")
     ap.add_argument("--fresh", action="store_true",
