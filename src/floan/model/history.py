@@ -184,8 +184,13 @@ def join_history(df: pl.DataFrame, variant: str, k: int) -> pl.DataFrame:
             f"history cache missing under {_hist_dir(variant, k)} — run `python -m "
             f"floan.model.history build --variant {variant} --k {k}` first")
     hist = pl.scan_parquet([str(p) for p in parts])
-    return (df.lazy().join(hist, on=["Loan Identifier", "period_ym"], how="left")
-              .collect(engine="streaming"))
+    # The streaming hash-join does NOT preserve left-row order, so carry an explicit row
+    # index and sort back — callers that pair the joined features with a separately-ordered
+    # target/origin array (e.g. seq_spike's full-val scoring) would otherwise misalign.
+    return (df.lazy().with_row_index("__ord")
+              .join(hist, on=["Loan Identifier", "period_ym"], how="left")
+              .collect(engine="streaming")
+              .sort("__ord").drop("__ord"))
 
 
 # ---------------------------------------------------------------------------
