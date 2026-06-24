@@ -329,15 +329,24 @@ def price_loans_vec(wac: np.ndarray, wam: np.ndarray, upb: np.ndarray, smm: np.n
         tp_sum += total_prin
         wal_num += (h + 1) * total_prin
         B = bal_after - pp
+    # A loan is **priceable** only with positive UPB and finite WAC/WAM (a single non-finite WAC ⇒
+    # NaN cashflow ⇒ NaN value, which would poison the whole pool sum). Drop non-priceable loans from
+    # BOTH the value sum AND the UPB sum — apples-to-apples, matching how the pool-level reference
+    # forms its UPB-weighted WAC/WAM over finite entries only (§4.3); their per-loan price stays NaN
+    # so the loan-level distribution filters them out.
+    finite_terms = np.isfinite(wac) & np.isfinite(wam)
     pos = upb > 0
+    priceable = pos & finite_terms
     price = np.where(pos, 100.0 * pv / np.where(pos, upb, 1.0), np.nan)
-    value = np.where(pos, price * upb / 100.0, 0.0)                 # null/zero-UPB loan ⇒ 0 value
-    wal = np.where(tp_sum > 0, wal_num / (12.0 * np.where(tp_sum > 0, tp_sum, 1.0)), np.nan)
-    pool_upb = float(upb[pos].sum())
-    pool_value = float(value.sum())
+    price = np.where(finite_terms, price, np.nan)
+    value = np.where(priceable, price * upb / 100.0, 0.0)          # non-priceable loan ⇒ 0 value
+    wal = np.where(priceable & (tp_sum > 0), wal_num / (12.0 * np.where(tp_sum > 0, tp_sum, 1.0)), np.nan)
+    pool_upb = float(upb[priceable].sum())
+    pool_value = float(value[priceable].sum())
     pool_price = 100.0 * pool_value / pool_upb if pool_upb > 0 else float("nan")
-    tps = float(tp_sum.sum())
-    pool_wal = float((np.where(tp_sum > 0, wal, 0.0) * tp_sum).sum() / tps) if tps > 0 else float("nan")
+    tp_eff = np.where(priceable, tp_sum, 0.0)
+    tps = float(tp_eff.sum())
+    pool_wal = float((np.where(priceable & (tp_sum > 0), wal, 0.0) * tp_eff).sum() / tps) if tps > 0 else float("nan")
     return {"n_loans": n_loans, "price": price, "wal": wal, "value": value, "upb": upb,
             "total_principal": tp_sum, "pool_value": pool_value, "pool_upb": pool_upb,
             "pool_price": pool_price, "pool_wal": pool_wal,

@@ -38,6 +38,26 @@ def test_price_loans_vec_matches_scalar_heterogeneous():
         assert abs(vec[key] - sca[key]) < 1e-6 * max(1.0, abs(sca[key])), key
 
 
+def test_price_loans_vec_drops_nonfinite_wac_wam():
+    """Full-population robustness (M24 Finding B): a single NaN-WAC (or NaN-WAM) loan must NOT poison
+    the pool aggregate — it is dropped from BOTH the value sum and the UPB sum, leaving the pool
+    price/WAL finite over the priceable loans, and its per-loan price stays NaN (filtered downstream)."""
+    wac = np.array([0.06, np.nan, 0.06, 0.05])
+    wam = np.array([360.0, 360.0, np.nan, 300.0])
+    upb = np.array([1e5, 2e5, 3e5, 4e5])                  # the bad loans carry real UPB
+    smm = np.full((4, 12), 0.02)
+    res = P.price_loans_vec(wac, wam, upb, smm)
+    assert np.isfinite(res["pool_price"]) and np.isfinite(res["pool_wal"])
+    assert np.isnan(res["price"][1]) and np.isnan(res["price"][2])     # non-finite-term loans → NaN price
+    assert np.isfinite(res["price"][0]) and np.isfinite(res["price"][3])
+    # pool aggregates over priceable loans only (loans 0 & 3) — UPB sum excludes the dropped two
+    assert abs(res["pool_upb"] - (1e5 + 4e5)) < 1e-6
+    # equals pricing just the two good loans
+    good = P.price_loans_vec(wac[[0, 3]], wam[[0, 3]], upb[[0, 3]], smm[[0, 3]])
+    assert abs(res["pool_price"] - good["pool_price"]) < 1e-9
+    assert abs(res["pool_wal"] - good["pool_wal"]) < 1e-9
+
+
 def test_price_loans_vec_handles_zero_and_nan_upb():
     """Full-population robustness: null/zero-UPB loans (kept in the M14 pop at 0 weight) contribute 0
     value and are excluded from the pool price — no NaN contamination of the aggregate."""
