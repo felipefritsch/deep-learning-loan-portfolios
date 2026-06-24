@@ -249,8 +249,12 @@ def _anchor_headline(econ: pl.DataFrame) -> dict:
 # Table assembly — from WHATEVER anchors have completed (never requires all 11)
 # ===========================================================================
 def _load_completed(kind: str, smoke: bool) -> pl.DataFrame | None:
-    sm = "_smoke" if smoke else ""
-    parts = sorted(_m24dir().glob(f"{kind}_k*{sm}.parquet"))
+    # Anchor windows are 4-digit years (k2015…k2025) — match `k20[0-9][0-9]` EXACTLY so the
+    # full-run glob can never pick up a `*_smoke.parquet` (the `k*` wildcard used to: `econ_k*`
+    # matched `econ_k2020_smoke`, concatenating the 50k local-smoke subsample into the real grid).
+    pat = (f"{kind}_k20[0-9][0-9]_smoke.parquet" if smoke
+           else f"{kind}_k20[0-9][0-9].parquet")
+    parts = sorted(_m24dir().glob(pat))
     parts = [p for p in parts if not p.name.endswith(".tmp")]
     if not parts:
         return None
