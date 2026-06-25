@@ -251,12 +251,19 @@ def write_table(agg: dict) -> None:
 # ---------------------------------------------------------------------------
 # F5.2 — signed price error by FICO × original-rate-quartile bucket (LTV collapsed, UPB-weighted)
 # ---------------------------------------------------------------------------
-def fig_price_error_buckets(df_k: pl.DataFrame, k: int, *, suffix: str = "") -> Path:
+def fig_price_error_buckets(df_k: pl.DataFrame, k: int, *, suffix: str = "",
+                            models: tuple[str, ...] | None = None,
+                            labels: dict[str, str] | None = None) -> Path:
     """``suffix`` (M24) tags the output filename, e.g. ``_h06`` for the per-horizon F5.2 panels —
-    the M15 call (no suffix) is unchanged."""
+    the M15 call (no suffix) is unchanged. ``models``/``labels`` (M27b) override the panel set and
+    titles for the GRU comparison panel; both default to the §5 ``HEADLINE`` set + ``MODEL_LABELS``,
+    so the M15/M24 calls are byte-identical."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
+    panels = HEADLINE if models is None else tuple(models)
+    lab = MODEL_LABELS if labels is None else labels
 
     char = df_k.filter((pl.col("scheme") == "char") & (pl.col("pool") != MERGED_CELL))
     pid = char.get_column("pool").to_numpy()
@@ -267,7 +274,7 @@ def fig_price_error_buckets(df_k: pl.DataFrame, k: int, *, suffix: str = "") -> 
 
     nF, nR = len(FICO_LABELS), len(RATE_LABELS)
     grids = {}
-    for m in HEADLINE:
+    for m in panels:
         g = np.full((nF, nR), np.nan)
         sel = model == m
         for i in range(nF):
@@ -279,17 +286,17 @@ def fig_price_error_buckets(df_k: pl.DataFrame, k: int, *, suffix: str = "") -> 
         grids[m] = g
 
     vmax = max(1e-6, float(np.nanmax([np.nanmax(np.abs(g)) for g in grids.values()])))
-    fig, axes = plt.subplots(1, len(HEADLINE), figsize=(4.6 * len(HEADLINE), 4.4),
+    fig, axes = plt.subplots(1, len(panels), figsize=(4.6 * len(panels), 4.4),
                              sharey=True)
-    if len(HEADLINE) == 1:
+    if len(panels) == 1:
         axes = [axes]
     im = None
-    for ax, m in zip(axes, HEADLINE):
+    for ax, m in zip(axes, panels):
         g = grids[m]
         im = ax.imshow(g, cmap="RdBu_r", vmin=-vmax, vmax=vmax, aspect="auto")
         ax.set_xticks(range(nR)); ax.set_xticklabels(RATE_LABELS, fontsize=8)
         ax.set_yticks(range(nF)); ax.set_yticklabels(FICO_LABELS, fontsize=8)
-        ax.set_title(MODEL_LABELS[m], fontsize=11)
+        ax.set_title(lab.get(m, m), fontsize=11)
         ax.set_xlabel("orig-rate quartile")
         for i in range(nF):
             for j in range(nR):
