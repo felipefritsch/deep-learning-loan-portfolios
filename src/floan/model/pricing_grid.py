@@ -261,20 +261,26 @@ def _load_completed(kind: str, smoke: bool) -> pl.DataFrame | None:
     return pl.concat([pl.read_parquet(p) for p in parts], how="vertical_relaxed")
 
 
+def _t51_agg(econ: pl.DataFrame) -> pl.DataFrame:
+    """T5.1 aggregation (pure): mean |error| and signed bias by scheme × anchor × k × h × model.
+    Extracted so the M27b GRU-merge can compute the GRU column with the identical reduction."""
+    return (econ.group_by(["scheme", "anchor", "k", "h", "model"])
+            .agg(pl.col("price_err").abs().mean().alias("price_mae"),
+                 pl.col("price_err").mean().alias("price_bias"),
+                 pl.col("cpr_err").abs().mean().alias("cpr_mae"),
+                 pl.col("cpr_err").mean().alias("cpr_bias"),
+                 pl.col("wal_err").abs().mean().alias("wal_mae"),
+                 pl.col("wal_err").mean().alias("wal_bias"))
+            .sort(["scheme", "k", "h", "model"]))
+
+
 def build_T51(smoke: bool = False) -> dict:
     """T5.1 with the H axis: mean |error| and signed bias by scheme × metric × model × anchor × H,
     from every completed ``econ_k*`` artifact. Writes JSON + Markdown under the M24 dir."""
     econ = _load_completed("econ", smoke)
     if econ is None:
         print("T5.1: no completed anchors yet"); return {}
-    agg = (econ.group_by(["scheme", "anchor", "k", "h", "model"])
-           .agg(pl.col("price_err").abs().mean().alias("price_mae"),
-                pl.col("price_err").mean().alias("price_bias"),
-                pl.col("cpr_err").abs().mean().alias("cpr_mae"),
-                pl.col("cpr_err").mean().alias("cpr_bias"),
-                pl.col("wal_err").abs().mean().alias("wal_mae"),
-                pl.col("wal_err").mean().alias("wal_bias"))
-           .sort(["scheme", "k", "h", "model"]))
+    agg = _t51_agg(econ)
     _atomic_parquet(agg, _m24dir() / f"t_m24_econ_errors{'_smoke' if smoke else ''}.parquet")
     out = {"anchors": sorted(econ.get_column("k").unique().to_list()),
            "horizons": list(HORIZONS), "rows": agg.to_dicts()}
@@ -299,13 +305,11 @@ def build_T42(smoke: bool = False) -> dict:
     return out
 
 
-def build_horizon_regime(smoke: bool = False) -> dict:
-    """The headline horizon × regime exhibit + the COVID-inversion-in-dollars. Per anchor × H (char
-    scheme): mean |price error| per model, the ensemble/NN-vs-logit % reduction, and — in dollars —
-    the UPB-weighted pool price error Σ(price_err·upb)/100, shown to deepen with H at k2020."""
-    econ = _load_completed("econ", smoke)
-    if econ is None:
-        print("horizon×regime: no completed anchors yet"); return {}
+def _horizon_regime_grid(econ: pl.DataFrame) -> list[dict]:
+    """Per anchor × H (char scheme): mean |price error| per model, the UPB-weighted dollar price
+    error Σ(price_err·upb)/100, and the ensemble/NN-vs-logit % reduction. Pure; extracted so the
+    M27b GRU-merge reuses the identical per-cell computation (its extra models simply ride the same
+    ``have`` set; the GRU-vs-logit reduction is added by the caller from ``mae_price``)."""
     sub = econ.filter(pl.col("scheme") == "char")
     grid: list[dict] = []
     for (k, h), g in sub.group_by(["k", "h"], maintain_order=True):
@@ -326,8 +330,19 @@ def build_horizon_regime(smoke: bool = False) -> dict:
                     row[f"{m}_vs_logit_pct"] = round(100.0 * (base - mae[m]) / base, 2)
         grid.append(row)
     grid.sort(key=lambda r: (r["k"], r["h"]))
+    return grid
+
+
+def build_horizon_regime(smoke: bool = False) -> dict:
+    """The headline horizon × regime exhibit + the COVID-inversion-in-dollars. Per anchor × H (char
+    scheme): mean |price error| per model, the ensemble/NN-vs-logit % reduction, and — in dollars —
+    the UPB-weighted pool price error Σ(price_err·upb)/100, shown to deepen with H at k2020."""
+    econ = _load_completed("econ", smoke)
+    if econ is None:
+        print("horizon×regime: no completed anchors yet"); return {}
+    grid = _horizon_regime_grid(econ)
     covid = [r for r in grid if r["k"] == COVID_ANCHOR]
-    out = {"anchors": sorted(sub.get_column("k").unique().to_list()), "horizons": list(HORIZONS),
+    out = {"anchors": sorted({r["k"] for r in grid}), "horizons": list(HORIZONS),
            "grid": grid, "covid_inversion_dollars": covid}
     _atomic_text(json.dumps(out, indent=2, default=float),
                  _m24dir() / f"t_m24_horizon_regime{'_smoke' if smoke else ''}.json")

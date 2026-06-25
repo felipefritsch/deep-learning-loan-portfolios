@@ -86,6 +86,9 @@ docs/bib_refs/
 # Scratch/temp files
 *.tmp
 
+# Throwaway run drivers / sidecars (the kept, reproducible versions live in scripts/m27a/).
+scratch_*
+
 # Claude-created scratch notes (plans, audits, changelogs, state) — local only.
 # Files moved here from the repo root/writeup on 2026-06-16; they remain in git
 # history but are untracked going forward. Binding specs (specs/) and the
