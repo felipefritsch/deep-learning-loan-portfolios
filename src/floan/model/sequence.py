@@ -665,7 +665,7 @@ def build_cache(variant: str = "full", k: int = config.TUNING_YEAR,
     meta = {
         "task": "M27a build->cache", "created_utc": datetime.datetime.now(
             datetime.timezone.utc).isoformat(), "variant": variant, "k": k, "seq_len": T,
-        "per_origin_cap": per_origin_cap, "chunk": chunk, "seed": seed,
+        "train_n": train_n, "chunk": chunk, "seed": seed,
         "feature_dims": {"n_cont": len(scaler.cols), "n_cat": len(vocab.cols),
                          "n_bin": len(F.BINARY), "vocab_sizes": list(vocab.vocab_sizes)},
         "points": npoints, "points_by_origin": origins, "shards": nshards,
