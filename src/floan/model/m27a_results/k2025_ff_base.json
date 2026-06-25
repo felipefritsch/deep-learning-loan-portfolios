@@ -1,0 +1,140 @@
+{
+  "k": 2025,
+  "arm": "ff_base",
+  "n_test": 8723591,
+  "test_nll": 0.07604261487722397,
+  "val_nll": 0.07280857115983963,
+  "epochs": 15,
+  "test_auc": [
+    {
+      "origin": "current",
+      "destination": "current",
+      "n": 8579277,
+      "n_pos": 8486896,
+      "auc": 0.7027041676894671
+    },
+    {
+      "origin": "current",
+      "destination": "dpd_30",
+      "n": 8579277,
+      "n_pos": 41002,
+      "auc": 0.7760794366720578
+    },
+    {
+      "origin": "current",
+      "destination": "prepaid",
+      "n": 8579277,
+      "n_pos": 50978,
+      "auc": 0.6980870491723258
+    },
+    {
+      "origin": "dpd_30",
+      "destination": "current",
+      "n": 79376,
+      "n_pos": 31031,
+      "auc": 0.6075673128328939
+    },
+    {
+      "origin": "dpd_30",
+      "destination": "dpd_30",
+      "n": 79376,
+      "n_pos": 34660,
+      "auc": 0.5799405162371929
+    },
+    {
+      "origin": "dpd_30",
+      "destination": "dpd_60",
+      "n": 79376,
+      "n_pos": 12681,
+      "auc": 0.5692587499141821
+    },
+    {
+      "origin": "dpd_30",
+      "destination": "prepaid",
+      "n": 79376,
+      "n_pos": 862,
+      "auc": 0.6772637294591586
+    },
+    {
+      "origin": "dpd_60",
+      "destination": "current",
+      "n": 20514,
+      "n_pos": 3427,
+      "auc": 0.5552701088640773
+    },
+    {
+      "origin": "dpd_60",
+      "destination": "dpd_30",
+      "n": 20514,
+      "n_pos": 3095,
+      "auc": 0.5448917727759254
+    },
+    {
+      "origin": "dpd_60",
+      "destination": "dpd_60",
+      "n": 20514,
+      "n_pos": 6692,
+      "auc": 0.5455906410364966
+    },
+    {
+      "origin": "dpd_60",
+      "destination": "dpd_90plus",
+      "n": 20514,
+      "n_pos": 7035,
+      "auc": 0.5549376631726954
+    },
+    {
+      "origin": "dpd_60",
+      "destination": "prepaid",
+      "n": 20514,
+      "n_pos": 264,
+      "auc": 0.6589616535727647
+    },
+    {
+      "origin": "dpd_90plus",
+      "destination": "current",
+      "n": 44424,
+      "n_pos": 4631,
+      "auc": 0.5373933133549361
+    },
+    {
+      "origin": "dpd_90plus",
+      "destination": "dpd_30",
+      "n": 44424,
+      "n_pos": 638,
+      "auc": 0.5295226842091925
+    },
+    {
+      "origin": "dpd_90plus",
+      "destination": "dpd_60",
+      "n": 44424,
+      "n_pos": 921,
+      "auc": 0.5504548677274943
+    },
+    {
+      "origin": "dpd_90plus",
+      "destination": "dpd_90plus",
+      "n": 44424,
+      "n_pos": 37262,
+      "auc": 0.5259316595583736
+    },
+    {
+      "origin": "dpd_90plus",
+      "destination": "foreclosure",
+      "n": 44424,
+      "n_pos": 222,
+      "auc": 0.5870906538410271
+    },
+    {
+      "origin": "dpd_90plus",
+      "destination": "prepaid",
+      "n": 44424,
+      "n_pos": 648,
+      "auc": 0.6104626076185835
+    }
+  ],
+  "load_s": 18.220806371420622,
+  "train_s": 33.831032022833824,
+  "score_s": 5.192885272204876,
+  "peak_gpu_gb": 0.073985536
+}

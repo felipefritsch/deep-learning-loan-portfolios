@@ -32,6 +32,8 @@ import argparse
 import datetime
 import json
 import resource
+import shutil
+import tempfile
 import time
 import tracemalloc
 from dataclasses import dataclass
@@ -570,13 +572,18 @@ def verify_sample(variant: str, k: int, points: pl.DataFrame, scaler: F.Scaler,
     pts = points.head(n).drop("point_id").with_row_index("point_id")
     arr, _, _ = build_split(variant, k, "train", pts, T, scaler, vocab)
 
-    tmp = Path(config.OUTPUTS) / "seq_cache" / "_verify_tmp"
-    if tmp.exists():
-        for f in tmp.glob("part-*.npz"):
-            f.unlink()
-    save_shard(tmp / "part-0000.npz", arr, _origin_idx(pts), pts["t_ym"].to_numpy())
-    reloaded = to_seqarrays(load_split(tmp))
-    assert_arrays_equal(arr, reloaded)
+    # Per-call unique temp dir: concurrent builds must NOT share a fixed _verify_tmp path —
+    # a shared path races (one build's clear/save clobbers another's reload between save and
+    # load, yielding a spurious "round-trip mismatch"). mkdtemp + rmtree isolates each call.
+    seq_root = Path(config.OUTPUTS) / "seq_cache"
+    seq_root.mkdir(parents=True, exist_ok=True)
+    tmp = Path(tempfile.mkdtemp(prefix="_verify_", dir=seq_root))
+    try:
+        save_shard(tmp / "part-0000.npz", arr, _origin_idx(pts), pts["t_ym"].to_numpy())
+        reloaded = to_seqarrays(load_split(tmp))
+        assert_arrays_equal(arr, reloaded)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
     print(f"  [verify] round-trip OK — {arr.y.shape[0]} seqs save→load byte-identical "
           f"(7/7 fields)", flush=True)
 
