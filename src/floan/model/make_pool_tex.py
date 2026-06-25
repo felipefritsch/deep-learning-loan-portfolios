@@ -5,8 +5,14 @@ M14/M15b JSON tables. Pure formatting; no SSD models, no re-run of the pool pipe
     (the *interpretable* panel; random-pool R² is uninformative by construction, see memo 02c §4).
   * ``table_t51.tex`` — characteristic-bucket economic error: mean |error| by model × metric × anchor
     with the ensemble-vs-logit reduction (the §5.3 headline lives in the price row).
+  * ``table_horizon_regime.tex`` (chapter5) — the 5 ensemble-bearing anchors × H in {1,3,6,12}:
+    logit/NN/ensemble mean |price error|, the ens-vs-logit %, and the ensemble dollar price error.
+  * ``table_t51_full.tex`` (appendix1) — the full 11-anchor × H in {1,3,6,12} grid of mean |price error|.
 
-Both are tabular-only (caption/label in chapter4.tex), Unicode-free, booktabs+multirow — matching the
+M24 source: ``outputs/tables/pool_level/m24/t_m24_horizon_regime.json`` (regime table) and
+``.../m24/t_m24_econ_errors.json`` (full grid); M14/M15b read ``.../pool_level/t_m1{4,5}_*.json``.
+
+All are tabular-only (caption/label in the chapter .tex), Unicode-free, booktabs — matching the
 loan-level ``table_b.tex`` convention. Writes into ``writeup/latex/figs/`` (the LaTeX figs dir).
 
 Run:  .venv/bin/python -m floan.model.make_pool_tex
@@ -18,10 +24,13 @@ import json
 from floan.model import config
 from floan.pipeline.config import REPO_ROOT
 
-ANCHORS = ["Dec2014", "Dec2018", "Dec2019", "Dec2022", "Dec2024"]
+ANCHORS = ["Dec2014", "Dec2018", "Dec2019", "Dec2022", "Dec2024"]   # the 5 ensemble-bearing anchors
 HEAD = ["empirical", "logit", "ensemble"]
 FIGS = REPO_ROOT / "writeup" / "latex" / "figs"
 SRC = config.OUTPUTS / "tables" / "pool_level"
+M24 = SRC / "m24"                                                  # M24 horizon/full-grid econ-error tables
+ANCHORS_FULL = [f"Dec{y}" for y in range(2014, 2025)]             # all 11 backtest anchors (k = 2015 … 2025)
+HORIZONS = (1, 3, 6, 12)                                          # pricing horizons in months (ECONOMIC_ENGINE §2)
 
 
 def _idx_t42():
@@ -96,9 +105,64 @@ def table_t51() -> str:
     return "\n".join(L) + "\n"
 
 
+def _anchor_label(a: str) -> str:
+    """``Dec2014`` -> ``Dec\\,2014`` (thin space before the year)."""
+    return f"{a[:3]}\\,{a[3:]}"
+
+
+def _dollar_m(d: float) -> str:
+    """Ensemble dollar price error as whole $M, sign as a math minus to match the regime table."""
+    m = round(d / 1e6)
+    return f"$-$\\${abs(m)}\\,M" if m < 0 else f"\\${m}\\,M"
+
+
+def table_horizon_regime() -> str:
+    grid = {(g["anchor"], g["h"]): g
+            for g in json.loads((M24 / "t_m24_horizon_regime.json").read_text())["grid"]}
+    L = ["% Generated from ssd_mirror/outputs/tables/pool_level/m24/t_m24_horizon_regime.md (M24).",
+         "% Five ensemble-bearing anchors x horizons {1,3,6,12}. Tabular-only; caption/label in chapter5.tex.",
+         "\\begin{tabular}{llrrrrr}", "\\toprule",
+         "Anchor & $H$ & logit & NN & ens. & ens\\,$-$\\,logit & \\$ err (ens) \\\\", "\\midrule"]
+    for ai, a in enumerate(ANCHORS):
+        for hi, h in enumerate(HORIZONS):
+            g = grid[(a, h)]
+            mp = g["mae_price"]
+            head = _anchor_label(a) if hi == 0 else ""
+            red = f"{g['ensemble_vs_logit_pct']:+.1f}\\%"
+            L.append(f"{head} & {h}\\,m & {mp['logit']:.3f} & {mp['nn']:.3f} & {mp['ensemble']:.3f} "
+                     f"& {red} & {_dollar_m(g['dollar_price_err']['ensemble'])} \\\\")
+        if ai < len(ANCHORS) - 1:
+            L.append("\\midrule")
+    L += ["\\bottomrule", "\\end{tabular}"]
+    return "\n".join(L) + "\n"
+
+
+def table_t51_full() -> str:
+    rows = json.loads((M24 / "t_m24_econ_errors.json").read_text())["rows"]
+    d = {(r["anchor"], r["h"], r["model"]): r for r in rows if r["scheme"] == "char"}
+    L = ["% Generated from ssd_mirror/.../m24/t_m24_econ_errors.md (M24). Full grid: 11 anchors x",
+         "% horizons {1,3,6,12}; mean |price error| per 100 face. Caption/label in appendix1.tex.",
+         "\\begin{tabular}{llrrrr}", "\\toprule",
+         "Anchor & $H$ & empirical & logit & NN & ensemble \\\\", "\\midrule"]
+    for ai, a in enumerate(ANCHORS_FULL):
+        for hi, h in enumerate(HORIZONS):
+            head = _anchor_label(a) if hi == 0 else ""
+            cells = [f"{d[(a, h, m)]['price_mae']:.3f}" if (a, h, m) in d else "---"
+                     for m in ("empirical", "logit", "nn", "ensemble")]
+            L.append(f"{head} & {h}\\,m & " + " & ".join(cells) + " \\\\")
+        if ai < len(ANCHORS_FULL) - 1:
+            L.append("\\midrule")
+    L += ["\\bottomrule", "\\end{tabular}"]
+    return "\n".join(L) + "\n"
+
+
 if __name__ == "__main__":
     FIGS.mkdir(parents=True, exist_ok=True)
     (FIGS / "table_t42.tex").write_text(table_t42())
     (FIGS / "table_t51.tex").write_text(table_t51())
+    (FIGS / "table_horizon_regime.tex").write_text(table_horizon_regime())
+    (FIGS / "table_t51_full.tex").write_text(table_t51_full())
     print(f"wrote {FIGS/'table_t42.tex'}")
     print(f"wrote {FIGS/'table_t51.tex'}")
+    print(f"wrote {FIGS/'table_horizon_regime.tex'}")
+    print(f"wrote {FIGS/'table_t51_full.tex'}")
