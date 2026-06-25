@@ -1,6 +1,3 @@
-<!-- AI-drafted coordination note (2026-06-18). Cross-task results index so the parallel
-     GBT analyses do not recompute each other's work. Voice-pass optional — this is scratch. -->
-
 # Shared results index — GBT analyses (read before re-scoring anything)
 
 Two GBT analyses are running in parallel against the **same frozen eval slices**. They are
