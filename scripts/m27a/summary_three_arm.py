@@ -23,7 +23,7 @@ def main():
         }
 
     print("=" * 96)
-    print("M27a THREE-ARM ROLLING TABLE — test NLL (single seed 0, SAME 1.5M train points, full test)")
+    print("M27a THREE-ARM ROLLING TABLE — test NLL (single seed 0, matched per-window train sample S, full test)")
     print("=" * 96)
     print(f"{'test_yr':>7} | {'ff_base':>9} {'ff_hist':>9} {'gru':>9} | "
           f"{'gru−base':>9} {'gru−hist':>9} | {'n_test':>11}")

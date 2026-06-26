@@ -1,10 +1,15 @@
-"""M27a matched baselines — ff_base / ff_hist rolling on all 11 windows, SAME 1.5M train points
+"""M27a matched baselines — ff_base / ff_hist rolling on all 11 windows, SAME train points
 as the GRU caches (prediction_points seed 0), full-val early-stop, full-test scoring on cuda.
-Reuses seq_spike (ff_encode/train_arm/score_probs/_ff_batches), net, history, evaluate. Resumable."""
+Reuses seq_spike (ff_encode/train_arm/score_probs/_ff_batches), net, history, evaluate. Resumable.
+
+Train sample size is the SEQ_TRAIN_N knob (default 1_500_000, byte-identical to the banked build),
+read from the same env var build_window.py uses so the FF arms stay matched to the GRU caches at the
+W1 scale-up S (prediction_points caps at the per-window pool, so full-pool runs match automatically)."""
 from __future__ import annotations
 
 import json
 import gc
+import os
 import sys
 import time
 from pathlib import Path
@@ -27,7 +32,9 @@ from floan.model import torch_common as tc
 VARIANT = "full"
 WINDOWS = list(range(2015, 2026))
 ARMS = ("ff_base", "ff_hist")
-TRAIN_N = 1_500_000
+# Match the GRU caches' per-window sample S (build_window.py reads the same env var). Default
+# 1.5M keeps the banked build byte-identical; set SEQ_TRAIN_N to scale all three arms together.
+TRAIN_N = int(os.environ.get("SEQ_TRAIN_N", "1500000"))
 FF_BATCH, SCORE_BATCH = 4096, 16384
 MAX_EPOCHS = 40
 RESULTS = mc.OUTPUTS / "m27a_gpu_runs"
@@ -56,7 +63,9 @@ def train_sample(k) -> pl.DataFrame:
     pool = SP._scan_pool(VARIANT, k, "train").collect()
     keys = pts.select(pl.col("loan").alias("Loan Identifier"), pl.col("t_ym").alias("period_ym"))
     df = pool.join(keys, on=["Loan Identifier", "period_ym"], how="semi")
-    assert df.height == TRAIN_N, f"train sample {df.height} != {TRAIN_N} (key join broke)"
+    # Match the exact rows prediction_points returned (which is min(TRAIN_N, pool) — the cap bites
+    # at full pool), NOT the requested TRAIN_N, so the semi-join contract holds at any S.
+    assert df.height == pts.height, f"train sample {df.height} != {pts.height} (key join broke)"
     return df
 
 
