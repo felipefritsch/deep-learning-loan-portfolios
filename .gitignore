@@ -72,6 +72,9 @@ reports/
 writeup/latex/main.pdf
 # Figure preview PNGs (generators emit .png next to the tracked .pdf; figs is PDF-only)
 writeup/latex/figs/*.png
+# Local writeup working notes (review punchlists; not part of the dissertation)
+writeup/EDITORIAL_PUNCHLIST.md
+writeup/TONE_REVIEW.md
 
 
 # Local SSD backup mirror (small irreplaceable artifacts; not for git)
