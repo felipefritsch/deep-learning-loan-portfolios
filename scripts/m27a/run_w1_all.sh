@@ -16,12 +16,23 @@ REPO=/workspace/repo
 PY=/workspace/.venv/bin/python
 OUTPUTS=/workspace/dissertation/outputs
 CACHE="$OUTPUTS/seq_cache/full"
-LOGDIR="${W1_LOGDIR:-/tmp/claude-0/-workspace/8123ac67-065e-4829-bd5c-469cf941fa66/scratchpad}"
+# Keep ALL scratch on /workspace (the large network volume), NOT the small overlay root /.
+# A full overlay killed an earlier run: torch/triton/CUDA compile caches + tmp + VSCode logs
+# accumulate on / (≈30 GB, mostly base image) and tip it to 0 bytes, after which every write
+# (including this driver's own stage logs) hits ENOSPC and the pipeline dies mid-window.
+export TMPDIR="${TMPDIR:-$OUTPUTS/tmp}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-/workspace/.cache}"
+export TORCHINDUCTOR_CACHE_DIR="${TORCHINDUCTOR_CACHE_DIR:-/workspace/.torchinductor}"
+export TRITON_CACHE_DIR="${TRITON_CACHE_DIR:-/workspace/.triton}"
+export CUDA_CACHE_PATH="${CUDA_CACHE_PATH:-/workspace/.nv}"
+export MPLCONFIGDIR="${MPLCONFIGDIR:-/workspace/.mpl}"
+LOGDIR="${W1_LOGDIR:-$OUTPUTS/w1_logs}"          # default to /workspace, NOT /tmp (which is on /)
 WINDOWS="2015 2016 2017 2018 2019 2020 2021 2022 2023 2024 2025"
 GATE_TIMEOUT_S="${W1_GATE_TIMEOUT_S:-7200}"   # backstop wait for the externally-built k2015
 
 cd "$REPO"
-mkdir -p "$LOGDIR"
+mkdir -p "$LOGDIR" "$TMPDIR" "$XDG_CACHE_HOME" "$TORCHINDUCTOR_CACHE_DIR" \
+         "$TRITON_CACHE_DIR" "$CUDA_CACHE_PATH" "$MPLCONFIGDIR"
 
 ts()  { date '+%Y-%m-%d %H:%M:%S'; }
 log() { echo "[$(ts)] $*"; }
