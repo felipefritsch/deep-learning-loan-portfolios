@@ -3,68 +3,90 @@
 Research project and dissertation for the University of Oxford MSc in Mathematical
 and Computational Finance.
 
-The commercial and residential loan market is one of the largest asset classes, with
-over \$20 trillion in value. Banks hold large loan portfolios and investment funds trade
-asset-backed securities (ABS) whose cashflows are a function of how many underlying loans
-are **current, delinquent, prepaid, or defaulted**. Each loan carries a high-dimensional
-feature set that can be used to model its likelihood of becoming delinquent or defaulting.
+## What this project is
 
-This project develops and trains a deep-learning model to predict mortgage **delinquency
-and prepayment**, benchmarked against simpler statistical models (empirical transition
-matrices and logistic regression) and a gradient-boosted-tree baseline. Models are trained
-and evaluated on the **Fannie Mae Single-Family Loan Performance** dataset (~800 GB, ~100
-acquisition vintages, 2000–2025; 30M+ loans, billions of monthly observations).
+Residential and commercial loans are one of the largest asset classes in the world (\$20T+).
+A loan's value — and the value of any asset-backed security written on a pool of loans — is
+driven by how its borrowers move month to month between **paying, delinquency, default, and
+prepayment**. This project models that movement directly and asks how much modern machine
+learning buys you over classical credit models, both statistically and in the price an investor
+actually pays.
 
-The core model is a **seven-state monthly transition model** over the states, replicating the approach in Sirignano et al 2021.
+Concretely, it estimates a **seven-state monthly transition model** — the conditional
+distribution of next month's state given the loan's current state and covariates — on the
+**Fannie Mae Single-Family Loan Performance** dataset (~800 GB, ~100 quarterly vintages,
+2000–2025; 57.6M loans, 3.3B loan-month observations). The state machine, following
+Sadhwani, Giesecke & Sirignano (2021):
 
 ```
-current → dpd_30 → dpd_60 → dpd_90plus → foreclosure → REO        (+ prepaid)
+current → 30 / 60 / 90+ days delinquent → foreclosure → REO        (+ prepaid)
 ```
 
-estimated per rolling backtest window, with cashflow/valuation error measured at the loan
-pool level.
+Everything is estimated **strictly out of sample** under an expanding-window rolling backtest,
+one window per test year **2015–2025**, so regime shifts (the 2020 COVID forbearance episode,
+the 2022–23 rate shock) appear as legible test-year effects rather than hinging on one split.
+
+## The three questions, and the model ladder
+
+The estimators are arranged as a nested **ladder of flexibility** — each rung relaxes one
+restriction on how next-month state depends on covariates, so the gap between two adjacent rungs
+*attributes* predictive power to a specific freedom rather than being a leaderboard position:
+
+| Rung | Model | What it adds |
+|---|---|---|
+| floor | **empirical transition matrix** | covariate-free base rates |
+| | **multinomial logit** | linear, additive covariate effects |
+| | **spline-logit** | univariate nonlinear shapes (no interactions) |
+| | **gradient-boosted trees** | arbitrary nonlinearity + interactions, piecewise-constant |
+| headline | **deep neural network** | the same, on a smooth surface (learned interactions) |
+| | **ensemble** | variance reduction over independently trained nets |
+
+Three research questions sit on top:
+
+1. **Is the dependence nonlinear and interactive?** (the central claim of the reference paper) —
+   measured by the gap from logit to the flexible learners, decomposed into shapes vs interactions
+   vs smoothness.
+2. **Does the path matter — is the first-order Markov assumption right?** Tested by adding
+   engineered borrower-history features, then by *learned* memory: a **GRU** and a **transformer**
+   read each loan's trailing-12-month sequence. (The reference paper hand-engineers history; the
+   learned sequence models are the genuine extension here.)
+3. **What is the economic value?** The fitted monthly models are composed across horizons (1–12
+   months), carried to the **pool** level, and run through a pass-through cashflow engine, so the
+   comparison is restated in errors of prepayment speed (CPR), weighted-average life (WAL), and
+   **price**. Sequence models, being path-dependent, are priced by **Monte-Carlo path simulation**.
 
 ## Repository layout
 
-The code is an installable Python package (`floan`) under a `src/` layout; modules import
-each other by package path (no `sys.path` manipulation). The package is named **`floan`**
-("f" + *loan*) — short and a valid Python identifier. Per the standard `src/` convention this
-import name is deliberately distinct from the long repository name (cf. `scikit-learn` →
-`sklearn`), and it is what every `import floan …` / `python -m floan.…` command below uses.
+The code is an installable package (**`floan`** = "f" + *loan*) under a `src/` layout; modules
+import each other by package path. Each code/results directory carries its own README with
+per-file detail.
 
 ```
 .
-├── pyproject.toml          # package metadata, dependencies, pytest config
+├── pyproject.toml              # package metadata, dependencies, pytest config
 ├── src/floan/
-│   ├── pipeline/           # data pipeline: inventory → parquet → clean → panel → sample → QA
-│   │   ├── config.py       # single ROOT / REPO_ROOT anchor; require_drive()
-│   │   ├── schema.py       # 113-field positional schema + seven-state target derivation
-│   │   ├── run.py          # stage dispatch entry point
-│   │   └── s1_inventory … s6_qa
-│   ├── analysis/           # Phase-1 EDA tables (T*) and figures (F*) + shared helpers
-│   └── model/              # Phases 2–3: benchmarks, logit, nets, GBT, pools, economics, backtest
-├── tests/                  # hermetic unit suite (synthetic data; no SSD/GPU/network)
-├── scripts/                # shell helpers (backtest sweep, depth check, SSD backup)
-├── specs/
-│   ├── pipeline/           # data-pipeline specification (00_OVERVIEW … HOWTO_RUN)
-│   └── model/              # analysis & modelling specification (00_OVERVIEW … 06_GBT_BASELINE)
-├── writeup/                # dissertation text (latex/) and interim result memos (memos/)
-├── docs/                   # source material: dataset glossary/tutorial PDFs, reference paper
-└── reports/                # disposable DuckDB catalog (lake.duckdb) — gitignored
+│   ├── pipeline/               # data pipeline: inventory → parquet → clean → panel → sample → QA   (README)
+│   ├── analysis/               # Phase-1 exploratory tables (T*) and figures (F*)                   (README)
+│   └── model/                  # Phases 2–3: the model ladder, sequence models, pools, pricing      (README)
+├── tests/                      # hermetic unit suite (synthetic data; no SSD/GPU/network)
+├── scripts/                    # runnable drivers (backtest, GBT sweep, sequence-model pipeline)     (README)
+├── specs/{pipeline,model}/     # the executable specifications (schema, stages, sequenced tasks, ADRs)
+├── writeup/
+│   ├── latex/                  # the dissertation text (chapters, main.tex)
+│   └── memos/                  # interim result memos behind each chapter
+├── docs/                       # source material: dataset glossary/tutorial PDFs, the reference paper
+└── reports/                    # disposable DuckDB catalog (gitignored)
 ```
+
+> A note on naming: some of the codebase was built task-by-task against `specs/model/04_TASKS.md`,
+> so a few comments reference task codes (e.g. "M8", "M27a"). The directory READMEs translate every
+> file into **what it does**, not which task built it.
 
 ## Installation
 
-Requires Python ≥ 3.9.
-
-```bash
-pip install -e .
-```
-
-This installs the `floan` package and its dependencies (DuckDB, Polars, PyArrow, NumPy,
-pandas, matplotlib, scikit-learn, PyTorch, LightGBM). The pinned `torch==2.8.0` resolves to
-a CUDA build on the default index; on a CPU-only machine install the CPU wheel first so the
-pin is satisfied without pulling CUDA:
+Requires Python ≥ 3.9. `pip install -e .` installs `floan` and its dependencies (DuckDB, Polars,
+PyArrow, NumPy, pandas, matplotlib, scikit-learn, PyTorch, LightGBM). On a CPU-only machine install
+the CPU torch wheel first so the `torch==2.8.0` pin doesn't pull CUDA:
 
 ```bash
 pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
@@ -73,72 +95,53 @@ pip install -e .
 
 ## Data
 
-The raw dataset is **not** in this repository. It lives on an external SSD, rooted at
-`/Volumes/SSD Felipe/dissertation/`, in the standard immutable-raw layout
-`raw/ → interim/ → processed/` (plus `models/`, `outputs/`, `logs/`). All paths derive from a
-single `ROOT` in `src/floan/pipeline/config.py`; every stage calls `require_drive()` and fails
-fast if the drive is not mounted. `raw/` is treated as immutable — no code writes there. Only
-the disposable DuckDB catalog `reports/lake.duckdb` lives on the internal disk.
-
-Pipeline and model commands therefore require the mounted SSD and the dataset; the unit suite
-(below) does not.
+The raw dataset is **not** in this repository. It lives on an external SSD rooted at
+`/Volumes/SSD Felipe/dissertation/`, in an immutable-raw layout `raw/ → interim/ → processed/`
+(plus `models/`, `outputs/`, `logs/`). All paths derive from a single `ROOT` in
+`src/floan/pipeline/config.py`; every data/model command calls `require_drive()` and fails fast
+if the drive is not mounted. `raw/` is never written. The unit suite needs none of this.
 
 ## Usage
 
-Always run modules with `python -m` (not by file path), so package imports resolve.
-
-**Pipeline** — the stages are idempotent and per-quarter; data is streamed via
-DuckDB/Polars/PyArrow (a full quarter is never loaded into memory):
+Always run modules with `python -m` so package imports resolve.
 
 ```bash
-python -m floan.pipeline.run inventory   # Stage 1: vintage inventory + QA gate (run first)
-python -m floan.pipeline.run convert     # Stage 2: CSV → projected/typed Parquet
-python -m floan.pipeline.run clean       # Stage 3: standardisation transform
-python -m floan.pipeline.run panel       # Stage 4: seven-state transition panel
-python -m floan.pipeline.run sample      # Stage 5: balanced sample + train-only scaler
-python -m floan.pipeline.run qa          # Stage 6: reconciliation / QA report
-python -m floan.pipeline.run pipeline    # Stages 2→3→4 end-to-end, per quarter
+# Data pipeline (idempotent, per-quarter, memory-bounded) — see specs/pipeline/HOWTO_RUN.md
+python -m floan.pipeline.run inventory      # catalogue + integrity gate (run first)
+python -m floan.pipeline.run pipeline       # convert → clean → panel, end-to-end per quarter
+python -m floan.pipeline.run sample --cutoff-ym 201501   # balanced sample + train-only scaler
+
+# Exploratory analysis (one entry point per table/figure)
+python -m floan.analysis.t2_1_transition_matrix          # pooled empirical transition matrix
+python -m floan.analysis.f3_2_prepay_incentive           # the refinancing S-curve
+
+# Modelling: the ladder and the rolling backtest
+python -m floan.model.benchmarks            # empirical transition-matrix floor, all windows
+python -m floan.model.train                 # train the deep net on the tuning window
+python -m floan.model.gbt                   # gradient-boosted-tree baseline
+python -m floan.model.backtest              # roll the frozen config across all 11 windows
+python -m floan.model.evaluate              # per-window NLL / AUC / calibration tables
 ```
 
-See `specs/pipeline/HOWTO_RUN.md` for the operator guide.
-
-**Analysis (Phase 1 EDA)** — each table/figure script is its own entry point, e.g.:
-
-```bash
-python -m floan.analysis.t1_1_coverage
-python -m floan.analysis.t2_1_transition_matrix
-python -m floan.analysis.f2_2_transition_rates
-```
-
-**Modelling (Phases 2–3)** — benchmarks, models, and the rolling backtest, e.g.:
-
-```bash
-python -m floan.model.benchmarks         # M5 empirical transition-matrix benchmark
-python -m floan.model.train              # train a single net on the tuning window
-python -m floan.model.gbt                # M16 LightGBM GBT baseline
-python -m floan.model.backtest           # rolling-window backtest across all windows
-```
-
-Convenience shell wrappers live in `scripts/` (e.g. `scripts/run_backtest.sh`,
-`scripts/run_gbt_sweep.sh`); they compute the repo root automatically and invoke the package.
+The sequence-model (GRU / transformer) training and pricing pipeline lives in `scripts/` (it runs
+on a GPU and needs the per-window sequence caches built first) — see `scripts/README.md`.
 
 ## Testing
 
-The unit suite is **hermetic** — synthetic data only, no SSD, no GPU, no network — so it runs
-anywhere:
+The unit suite is **hermetic** — synthetic data only, no SSD/GPU/network:
 
 ```bash
 python -m pytest
 ```
 
-It is configured in `pyproject.toml` (`testpaths = ["tests"]`). A few model tests that import
-PyTorch skip cleanly if `torch` is not installed. GitHub Actions runs the suite on every push
-to `main` and every pull request (`.github/workflows/tests.yml`).
+GitHub Actions runs it on every push to `main` and every PR. PyTorch-dependent tests skip cleanly
+if `torch` is absent.
 
 ## Documentation
 
-- **`specs/pipeline/`** and **`specs/model/`** — the executable specifications (schema, stages,
-  tasks with acceptance criteria, macro-data spec).
-- **`writeup/`** — the dissertation text (`latex/`) and interim result memos (`memos/`).
+- **`specs/pipeline/`, `specs/model/`** — the executable specifications (schema, stages, sequenced
+  tasks with acceptance criteria, the economic-engine spec, and the architecture decision records
+  `ADR-001`/`ADR-002`).
+- **`writeup/`** — the dissertation text and the result memos behind each chapter.
 - **`docs/`** — dataset glossary/tutorial PDFs and the reference paper.
-- **`CLAUDE.md`** files — working guidelines and the binding repo map for each area.
+- **Directory READMEs** — per-file detail for `pipeline/`, `analysis/`, `model/`, and `scripts/`.
