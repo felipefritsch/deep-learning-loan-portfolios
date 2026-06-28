@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # m27a/W2 — unattended runner for the transformer 4th-arm rolling evaluation.
-# Trains+scores scripts/m27a/gpu_train_transformer.py over all 11 windows (+ key seeds),
-# then publishes the result JSONs to the repo, commits, pushes, and drops a done-marker.
-# All scratch is forced onto the persistent /workspace volume (the container overlay is
-# ephemeral and is wiped on pod restart). Resumable: finished (window,seed) runs are SKIPped.
+# Drives gpu_train_transformer.py's run_one() over all 11 windows (+ key-window seeds 1,2),
+# ONE FRESH PROCESS PER RUN so RAM is fully reclaimed between windows (the container has a
+# ~58 GiB cgroup cap; a single long-lived process accumulates and gets OOM-killed mid-roll).
+# Resumable: run_one SKIPs finished (window,seed) pairs. All scratch is forced onto /workspace
+# (the overlay is ephemeral). On full completion: publish JSONs, commit, push, drop done-marker.
 set -euo pipefail
 
 cd /workspace/repo
@@ -19,42 +20,46 @@ mkdir -p "$TMPDIR" "$XDG_CACHE_HOME" "$TORCHINDUCTOR_CACHE_DIR" \
          "$TRITON_CACHE_DIR" "$CUDA_CACHE_PATH" "$MPLCONFIGDIR"
 
 PY=/workspace/.venv/bin/python
+export PYTHONPATH=/workspace/repo/scripts/m27a${PYTHONPATH:+:$PYTHONPATH}
 OUTDIR=/workspace/dissertation/outputs                 # mc.OUTPUTS via /Volumes/SSD Felipe symlink
-RESULTS="$OUTDIR/m27a_gpu_runs"                         # where gpu_train_transformer.py writes k*_xf_s*
+RESULTS="$OUTDIR/m27a_gpu_runs"                         # where run_one writes k*_xf_s*
 TRACKED=src/floan/model/m27a_results_10m               # tracked-in-repo metrics dir
-SENTINEL="=== ALL TRANSFORMER RUNS COMPLETE ==="
-RUNLOG="$OUTDIR/finish_xf.run.log"
 DONE="$OUTDIR/XF_DONE.txt"
 mkdir -p "$OUTDIR"
 
-echo "[finish_xf] start  repo=$(git rev-parse --short HEAD) branch=$(git rev-parse --abbrev-ref HEAD)"
+echo "[finish_xf] start $(date -u +%FT%TZ)  repo=$(git rev-parse --short HEAD) branch=$(git rev-parse --abbrev-ref HEAD)"
 
-# --- train + score (k2015 seed0 runs first → a NaN/OOM aborts early; pipefail propagates) -
-# set -e + pipefail: if the python aborts, the script stops here — no commit, no done-marker.
-"$PY" -u scripts/m27a/gpu_train_transformer.py 2>&1 | tee "$RUNLOG"
+# --- canonical (window,seed) plan straight from the trainer module -----------------------
+mapfile -t PAIRS < <("$PY" -c "from gpu_train_transformer import WINDOWS,KEY,EXTRA_SEEDS
+runs=[(k,0) for k in WINDOWS]+[(k,s) for k in KEY for s in EXTRA_SEEDS]
+print('\n'.join(f'{k} {s}' for k,s in runs))")
+echo "[finish_xf] ${#PAIRS[@]} (window,seed) runs planned"
 
-if ! grep -qF "$SENTINEL" "$RUNLOG"; then
-    echo "[finish_xf] ERROR: python exited 0 but completion sentinel not found — aborting" >&2
-    exit 1
-fi
+# --- run each pair in a FRESH process (k2015 seed0 first; a NaN/OOM aborts the script) ----
+# set -e: a killed/failed run stops here — no commit, no done-marker (no false 'SAFE TO STOP').
+for p in "${PAIRS[@]}"; do
+    k=${p% *}; s=${p#* }
+    echo "[finish_xf] >>> k${k} seed${s}  ($(date -u +%T))"
+    "$PY" -u -c "from gpu_train_transformer import run_one; run_one(${k}, ${s})"
+done
+
+# --- completion = every planned artifact present -----------------------------------------
+missing=0
+for p in "${PAIRS[@]}"; do
+    k=${p% *}; s=${p#* }
+    [ -f "$RESULTS/k${k}_xf_s${s}.json" ] || { echo "[finish_xf] MISSING k${k}_xf_s${s}.json" >&2; missing=1; }
+done
+[ "$missing" -eq 0 ] || { echo "[finish_xf] incomplete — not publishing" >&2; exit 1; }
+echo "=== ALL TRANSFORMER RUNS COMPLETE ==="
 
 # --- publish results to the repo ---------------------------------------------------------
-shopt -s nullglob
-xf=( "$RESULTS"/k*_xf_s*.json )
-shopt -u nullglob
-if (( ${#xf[@]} == 0 )); then
-    echo "[finish_xf] ERROR: no k*_xf_s*.json in $RESULTS — aborting" >&2
-    exit 1
-fi
-cp "${xf[@]}" "$TRACKED"/
+cp "$RESULTS"/k*_xf_s*.json "$TRACKED"/
 git add "$TRACKED"
-
 if git diff --cached --quiet; then
-    echo "[finish_xf] no result changes to commit (already published) — continuing to verify/push"
+    echo "[finish_xf] no result changes to commit (already published)"
 else
     git commit -m "m27a/W2: transformer 4th-arm rolling results"
 fi
-
 git push origin HEAD
 
 # --- verify remote sync ------------------------------------------------------------------
@@ -68,7 +73,7 @@ else
 fi
 
 # --- per-window transformer test NLL table + done-marker ---------------------------------
-"$PY" - "$TRACKED" <<'PY' > "$DONE"
+"$PY" - "$TRACKED" <<'PYEOF' > "$DONE"
 import json, sys, glob, os
 tracked = sys.argv[1]
 rows = []
@@ -84,7 +89,7 @@ for k, s, tn, vn, ee in rows:
     vn_s = f"{vn:.6f}" if isinstance(vn, (int, float)) else "—"
     ee_s = str(ee) if ee is not None else "—"
     print(f"{k:>7} {s:>4} {tn:>12.6f} {vn_s:>12} {ee_s:>7}")
-PY
+PYEOF
 {
     echo
     echo "$HEAD_CHECK"
