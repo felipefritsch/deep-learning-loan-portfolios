@@ -1,0 +1,142 @@
+{
+  "k": 2025,
+  "seed": 1,
+  "model": "transformer",
+  "n_test": 8723591,
+  "test_nll": 0.06897725909948349,
+  "val_nll": 0.06600157916545868,
+  "best_epoch": 27,
+  "eff_epochs": 28,
+  "test_auc": [
+    {
+      "origin": "current",
+      "destination": "current",
+      "n": 8579277,
+      "n_pos": 8486896,
+      "auc": 0.7541257692009987
+    },
+    {
+      "origin": "current",
+      "destination": "dpd_30",
+      "n": 8579277,
+      "n_pos": 41002,
+      "auc": 0.8597116129290587
+    },
+    {
+      "origin": "current",
+      "destination": "prepaid",
+      "n": 8579277,
+      "n_pos": 50978,
+      "auc": 0.7062864966765193
+    },
+    {
+      "origin": "dpd_30",
+      "destination": "current",
+      "n": 79376,
+      "n_pos": 31031,
+      "auc": 0.7414886089092649
+    },
+    {
+      "origin": "dpd_30",
+      "destination": "dpd_30",
+      "n": 79376,
+      "n_pos": 34660,
+      "auc": 0.7302689630839128
+    },
+    {
+      "origin": "dpd_30",
+      "destination": "dpd_60",
+      "n": 79376,
+      "n_pos": 12681,
+      "auc": 0.6706516072046244
+    },
+    {
+      "origin": "dpd_30",
+      "destination": "prepaid",
+      "n": 79376,
+      "n_pos": 862,
+      "auc": 0.7570460411777538
+    },
+    {
+      "origin": "dpd_60",
+      "destination": "current",
+      "n": 20514,
+      "n_pos": 3427,
+      "auc": 0.657552684130848
+    },
+    {
+      "origin": "dpd_60",
+      "destination": "dpd_30",
+      "n": 20514,
+      "n_pos": 3095,
+      "auc": 0.6386119793243799
+    },
+    {
+      "origin": "dpd_60",
+      "destination": "dpd_60",
+      "n": 20514,
+      "n_pos": 6692,
+      "auc": 0.7134302470752941
+    },
+    {
+      "origin": "dpd_60",
+      "destination": "dpd_90plus",
+      "n": 20514,
+      "n_pos": 7035,
+      "auc": 0.6867932443597409
+    },
+    {
+      "origin": "dpd_60",
+      "destination": "prepaid",
+      "n": 20514,
+      "n_pos": 264,
+      "auc": 0.7339582865693977
+    },
+    {
+      "origin": "dpd_90plus",
+      "destination": "current",
+      "n": 44424,
+      "n_pos": 4631,
+      "auc": 0.5866939011413866
+    },
+    {
+      "origin": "dpd_90plus",
+      "destination": "dpd_30",
+      "n": 44424,
+      "n_pos": 638,
+      "auc": 0.7080369120717791
+    },
+    {
+      "origin": "dpd_90plus",
+      "destination": "dpd_60",
+      "n": 44424,
+      "n_pos": 921,
+      "auc": 0.8416568073743239
+    },
+    {
+      "origin": "dpd_90plus",
+      "destination": "dpd_90plus",
+      "n": 44424,
+      "n_pos": 37262,
+      "auc": 0.6172038519184987
+    },
+    {
+      "origin": "dpd_90plus",
+      "destination": "foreclosure",
+      "n": 44424,
+      "n_pos": 222,
+      "auc": 0.8030160777038746
+    },
+    {
+      "origin": "dpd_90plus",
+      "destination": "prepaid",
+      "n": 44424,
+      "n_pos": 648,
+      "auc": 0.6453741882073045
+    }
+  ],
+  "load_s": 55.57520918175578,
+  "train_s": 2356.2612479515374,
+  "score_s": 29.90857983008027,
+  "peak_gpu_gb": 0.655117312
+}
