@@ -39,6 +39,7 @@ from floan.model import features as F
 from floan.model import pool as PL
 from floan.model import seq_model as SM
 from floan.model import seq_train as ST
+from floan.model import seq_transformer as XF
 from floan.model import sequence as S
 from floan.model import smm_paths as SP
 from floan.model import torch_common as tc
@@ -57,18 +58,55 @@ WEIGHTS_ROOT = config.OUTPUTS / "m27b_gpu_runs"
 
 
 # ===========================================================================
+# Architecture seam (W3b) — map an ``arch`` tag to its builder / ``predict`` callback /
+# weights filename, so train-or-load + scoring serve BOTH the GRU (M27b) and the transformer
+# (W2) without forking either path. The transformer reuses the GRU's frozen TRAINING config
+# verbatim (the BATCH/LR/WD/MAX_EPOCHS/PATIENCE above + the ReduceLROnPlateau schedule below —
+# identical to scripts/m27a/gpu_train_transformer.py); ONLY the architecture differs, and its
+# d_model 64 / 4 heads / 2 layers live in ``seq_transformer.build``'s frozen defaults. Weights
+# names keep the arms distinct WITHIN a weights dir: GRU ``k{k}_s{seed}.pt``, transformer
+# ``k{k}_xf_s{seed}.pt`` (the dir is ``train_or_load``'s ``weights_root`` — M27b's H=1 path keeps
+# the default ``WEIGHTS_ROOT``=m27b_gpu_runs/; the W3b 10M MC driver routes to its own dir so the
+# two samples never clobber each other).
+ARCHS = ("gru", "xf")
+
+
+def _build_model(arch: str, scaler, vocab):
+    if arch == "gru":
+        return SM.build(scaler, vocab, hidden=HIDDEN)
+    if arch == "xf":
+        return XF.build(scaler, vocab)                      # frozen d_model 64 / 4 heads / 2 layers
+    raise ValueError(f"unknown arch {arch!r} (expected one of {ARCHS})")
+
+
+def _seq_predict(arch: str):
+    """The arch's ``predict(model, batch, device) -> [N,7]`` callback. SM's and XF's are
+    byte-identical (both tensor-ise the batch and call ``model(...)``), so ``arch='gru'``
+    reproduces the M27b scoring exactly."""
+    return (XF if arch == "xf" else SM).make_seq_predict()
+
+
+def _weights_name(arch: str, k: int, seed: int) -> str:
+    return f"k{k}_{'xf_' if arch == 'xf' else ''}s{seed}.pt"
+
+
+# ===========================================================================
 # Train / load the window-k GRU (weights persisted so reruns + the identity check reproduce)
 # ===========================================================================
-def train_or_load(k: int, seed: int, device, *, cache_root: Path = CACHE_ROOT,
+def train_or_load(k: int, seed: int, device, *, arch: str = "gru", cache_root: Path = CACHE_ROOT,
                   weights_root: Path = WEIGHTS_ROOT, retrain: bool = False):
-    """The window-``k`` seed-``seed`` GRU + its (scaler, vocab). Loads a persisted ``state_dict``
-    if present (the M27a GPU run saved only predictions, so first call retrains with the frozen
-    config and saves the weights); the cached pipeline is the one the sequence cache was built with."""
+    """The window-``k`` seed-``seed`` model (``arch`` ``"gru"`` or ``"xf"``) + its (scaler, vocab).
+    Loads a persisted ``state_dict`` if present (the M27a/W2 GPU runs saved only predictions, so the
+    first call retrains with the frozen config and ``torch.save``s the best weights); the cached
+    pipeline is the one the sequence cache was built with. ``arch`` selects the builder / predict
+    callback / weights filename via the W3b architecture seam; the training protocol (optimiser,
+    schedule, batch, early stopping) is identical across arms (so a GRU-vs-transformer price
+    difference is attributable to architecture alone). ``arch="gru"`` is byte-identical to M27b."""
     weights_root = Path(weights_root)
     weights_root.mkdir(parents=True, exist_ok=True)
-    wpath = weights_root / f"k{k}_s{seed}.pt"
+    wpath = weights_root / _weights_name(arch, k, seed)
     scaler, vocab = F.load_pipeline(cache_root / f"k{k}")
-    model = SM.build(scaler, vocab, hidden=HIDDEN).to(device)
+    model = _build_model(arch, scaler, vocab).to(device)
 
     if wpath.exists() and not retrain:
         model.load_state_dict(torch.load(wpath, map_location=device))
@@ -76,7 +114,7 @@ def train_or_load(k: int, seed: int, device, *, cache_root: Path = CACHE_ROOT,
         return model, scaler, vocab
 
     tc.set_seed(seed)
-    predict = SM.make_seq_predict()
+    predict = _seq_predict(arch)
     tr = S.to_seqarrays(S.load_split(cache_root / f"k{k}" / "train"))
     va = S.to_seqarrays(S.load_split(cache_root / f"k{k}" / "val"))
     opt = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=WD)
@@ -97,14 +135,16 @@ def train_or_load(k: int, seed: int, device, *, cache_root: Path = CACHE_ROOT,
             best_state = copy.deepcopy(model.state_dict())
         else:
             since += 1
-        print(f"  [k{k} s{seed}] ep {ep:>2} val_nll {val_nll:.6f} "
+        print(f"  [k{k} {arch} s{seed}] ep {ep:>2} val_nll {val_nll:.6f} "
               f"lr {opt.param_groups[0]['lr']:.1e}{'  *best' if since == 0 else ''}", flush=True)
         if since >= PATIENCE:
             break
     model.load_state_dict(best_state)
     model.eval()
+    # The default weights_root (m27b_gpu_runs/) holds M27b's 1.5M H=1 weights; the W3b 10M MC weights
+    # are a DIFFERENT sample and must not clobber them — the W3b MC driver routes to its own dir.
     torch.save(best_state, wpath)
-    print(f"  [k{k} s{seed}] trained: best val_nll {best_nll:.6f} (ep {best_ep}, "
+    print(f"  [k{k} {arch} s{seed}] trained: best val_nll {best_nll:.6f} (ep {best_ep}, "
           f"{best_ep + 1} eff) in {time.perf_counter() - t0:.0f}s -> {wpath.name}", flush=True)
     return model, scaler, vocab
 
@@ -215,14 +255,15 @@ class SeqPredictor:
 # H=1 identity check (built-in regression guard) — the parameterized M13 Accept #2 for the GRU
 # ===========================================================================
 def gru_eval_probs(models, k: int, scaler, vocab, points: pl.DataFrame, device,
-                   *, T: int = S.SEQ_LEN, batch: int = BATCH) -> np.ndarray:
-    """The GRU's ``evaluate`` one-step prediction on ``points``' anchor sequences — built fresh via
-    :func:`sequence.build_split` (true anchor state) and scored through the unmodified
+                   *, arch: str = "gru", T: int = S.SEQ_LEN, batch: int = BATCH) -> np.ndarray:
+    """The sequence model's ``evaluate`` one-step prediction on ``points``' anchor sequences — built
+    fresh via :func:`sequence.build_split` (true anchor state) and scored through the unmodified
     ``seq_train._val_probs`` softmax path (the M27a metric path). The independent reference the
-    composed H=1 must reproduce."""
+    composed (M27b) / Monte-Carlo (W3b) H=1 must reproduce. ``arch`` (``"gru"``/``"xf"``) selects the
+    predict callback; the default keeps the M27b GRU call byte-identical (the callbacks are the same)."""
     pts = points.drop("point_id").with_row_index("point_id")
     arr, _, _ = S.build_split(VARIANT, k, "test", pts, T, scaler, vocab)
-    return _origin_probs(models, SM.make_seq_predict(), arr, device, batch)
+    return _origin_probs(models, _seq_predict(arch), arr, device, batch)
 
 
 def identity_check(models, k: int, scaler, vocab, device, pop: pl.DataFrame,
