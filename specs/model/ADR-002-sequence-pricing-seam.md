@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-06-26
-**Deciders:** Felipe (author); supervisor (asked for sequence-model pricing + Monte-Carlo paths)
+**Deciders:** Felipe + supervisor (discussed extending analysis to sequence-model pricing + Monte-Carlo paths)
 **Implemented by:** W3 / M28 in `writeup/memos/final_week_plan.md`; extends ADR-001
 **Supersedes:** the deferral flagged in ADR-001 §"To revisit" / Action Item 5
 
