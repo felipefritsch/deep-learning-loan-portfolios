@@ -67,6 +67,7 @@ def figure(df: pl.DataFrame):
     for ax, (col, title, color) in zip(axes, panels):
         ax.plot(x, [v * 100 for v in df[col].to_list()], color=color, lw=1.0)
         ax.axvspan(_d(2007, 12), _d(2011, 12), color="grey", alpha=0.10, lw=0)  # GFC default wave
+        ax.axvspan(_d(2020, 3), _d(2021, 12), color="grey", alpha=0.10, lw=0)   # COVID forbearance episode
         ax.set_title(title, fontsize=10, loc="left")
         ax.set_ylabel("% / month", fontsize=9)
         ax.grid(True, alpha=0.25)
