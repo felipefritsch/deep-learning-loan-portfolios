@@ -175,8 +175,12 @@ else push_ok=false; log "FINAL PUSH FAILED — leaving pod UP so results are not
 if [ ! -f "$STOP" ] && [ -z "$missing" ] && [ "$push_ok" = true ]; then
   if [ -n "${RUNPOD_POD_ID:-}" ]; then
     # runpodctl authenticates from $RUNPOD_API_KEY (this CLI version does not pick up the key in
-    # ~/.runpod/config.toml for pod ops). Source it from that config so the secret stays out of the
-    # repo/script/logs and never appears in args.
+    # ~/.runpod/config.toml for pod ops). Source the persisted secret from the network volume HERE,
+    # immediately before the stop — a fresh post-restart relaunch (overlay wiped, new nohup shell)
+    # will NOT have inherited an exported key, so we must not rely on one. The secret stays out of
+    # the repo/script/logs and never appears in args. Fall back to an already-exported key, then to
+    # ~/.runpod/config.toml, only if the secrets file is absent.
+    [ -f /workspace/.secrets/runpod.env ] && . /workspace/.secrets/runpod.env
     export RUNPOD_API_KEY="${RUNPOD_API_KEY:-$(grep -iE 'apikey|api_key' "$HOME/.runpod/config.toml" 2>/dev/null | head -1 | sed -E 's/.*=[[:space:]]*"?([^"]*)"?/\1/')}"
     log "clean full run, all results pushed — stopping pod $RUNPOD_POD_ID to halt GPU billing"
     if [ -n "$RUNPOD_API_KEY" ] && runpodctl stop pod "$RUNPOD_POD_ID"; then log "pod stop requested OK"
