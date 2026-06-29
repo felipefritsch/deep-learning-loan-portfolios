@@ -373,6 +373,13 @@ def run_anchor(k: int, device, *, archs: tuple[str, ...] = SQ.ARCHS, seed: int =
     MC_OUT.mkdir(parents=True, exist_ok=True)
     chosen_n, conv, arms = n_paths, None, {}
     for arch in archs:
+        arm_json = MC_OUT / f"k{k}_{arch}_h.json"
+        if arm_json.exists() and not retrain:                  # per-arm resume: this arm already priced
+            arms[arch] = json.loads(arm_json.read_text())
+            if chosen_n is None:                               # recover the anchor's N from the done arm
+                chosen_n = int(arms[arch]["meta"]["n_paths"])
+            print(f"  [k{k} {arch}] already priced (N={chosen_n}) — skip (resume)", flush=True)
+            continue
         t0 = time.perf_counter()
         model, scaler, vocab = SQ.train_or_load(k, seed, device, arch=arch,
                                                 weights_root=MC_WEIGHTS_ROOT, retrain=retrain)

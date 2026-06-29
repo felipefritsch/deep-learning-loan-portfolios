@@ -386,7 +386,11 @@ def _simulate_paths_reference(predictor: SeqPredictor, base: pl.DataFrame, t0: i
 # ---------------------------------------------------------------------------
 SIM_LOAN_BATCH_CAP = 4096              # max loans per vectorized chunk (bounds the transient [B,P,T,·] arrays)
 SIM_SEQ_TARGET = 1_048_576            # target sequences (B·P) per chunk; B = clip(SIM_SEQ_TARGET // P)
-SIM_GPU_BATCH = 262_144               # sequences per on-GPU model forward (the GPU sub-batch in _score_paths_gpu)
+SIM_GPU_BATCH = 32_768                # sequences per on-GPU model forward (= EVAL_BATCH). MUST stay below the
+                                      # CUDA 65535 grid-dim limit the transformer's attention kernels hit
+                                      # (the GRU tolerates larger; the transformer raises "invalid configuration
+                                      # argument"). The per-month CPU reductions dominate anyway, so a bigger
+                                      # forward batch buys little.
 
 
 def _loan_batch_for(P: int) -> int:
