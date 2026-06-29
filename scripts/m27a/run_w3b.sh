@@ -109,16 +109,18 @@ for k in $ANCHORS; do
   if anchor_done "$k"; then log "k$k already complete (both arms) — skip"; continue; fi
 
   alog="$LOGDIR/w3b_k${k}.log"
-  # --subsample-n 0 => price the FULL pop (the vectorized simulator makes this tractable); the COVID
-  # N-sweep runs on a 20k subsample (driver default) since N is a path-count, not a pop, property.
+  # SUB_N = priced loans-per-anchor cap (ADR-002): 150k seeded char-cell-stratified subsample, both
+  # arms, so the transformer (~6x slower than the GRU; full-pop would be ~30h) finishes overnight.
+  # The COVID N-sweep runs on a 20k subsample (driver default) since N is a path-count, not pop, property.
+  SUB_N=150000
   if N=$(read_N); then
-    log "k$k — full-pop pricing with fixed N=$N (retrain only if 10M weights absent)"
+    log "k$k — pricing ${SUB_N}-loan subsample with fixed N=$N (retrain only if 10M weights absent)"
     "$PY" -u -m floan.model.seq_price_mc --anchors "$k" --archs gru xf --device cuda --seed 0 \
-          --subsample-n 0 --n-paths "$N" 2>&1 | tee "$alog"
+          --subsample-n "$SUB_N" --n-paths "$N" 2>&1 | tee "$alog"
   else
-    log "k$k (COVID) — convergence sweep (on 20k subsample) will fix N; full-pop pricing"
+    log "k$k (COVID) — convergence sweep (20k subsample) will fix N; pricing ${SUB_N}-loan subsample"
     "$PY" -u -m floan.model.seq_price_mc --anchors "$k" --archs gru xf --device cuda --seed 0 \
-          --subsample-n 0 2>&1 | tee "$alog"
+          --subsample-n "$SUB_N" 2>&1 | tee "$alog"
   fi
   status=${PIPESTATUS[0]}            # driver exit (left of the tee pipe)
 
