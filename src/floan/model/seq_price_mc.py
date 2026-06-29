@@ -96,7 +96,13 @@ MC_WEIGHTS_ROOT = config.OUTPUTS / "m27b_mc"           # 10M GRU/transformer wei
 # Size chosen within ADR-002's cap: the char pools (pools.char_cell_ids, MIN_CELL=2000) thin with
 # the sample, so ~0.6–0.72M-loan anchors retain ~15 of their 39 full-pop char cells at 100k (≈11 at
 # 75k, ≈21 at 150k) — 100k balances pool coverage against the ~9–10h overnight budget.
+# ``0`` is the "no cap / full pop" sentinel (the vectorized full-population run).
 SUBSAMPLE_N = 100_000
+# Paths-convergence is a Monte-Carlo-variance property (how many paths stabilise the pool price), not
+# a function of pop size, so the COVID N-sweep runs on a seeded stratified subsample of this many
+# loans (ADR-002) — picking N cheaply — while pricing still runs on the full pop. ``0`` => sweep on
+# the (already-capped) pricing pop itself.
+CONV_SUBSAMPLE_N = 20_000
 
 
 # ===========================================================================
@@ -147,9 +153,10 @@ def subsample_pop(pop: pl.DataFrame, k: int, *, target_n: int = SUBSAMPLE_N, see
     — hence no char pool — drops out), ``f = target_n / pop.height``, drawn without replacement from a
     generator seeded on ``(seed, k)``. The result is re-sorted by ``Loan Identifier`` to preserve the
     membership/order invariant the downstream ``smm_paths``/``anchor_base``/``anchor_points`` rely on.
-    Returns ``pop`` unchanged if it is already ≤ ``target_n``."""
+    Returns ``pop`` unchanged if it is already ≤ ``target_n``, or if ``target_n <= 0`` (the
+    "no cap / full pop" sentinel — used for the vectorized full-population run)."""
     n = pop.height
-    if n <= target_n:
+    if target_n <= 0 or n <= target_n:
         return pop
     cell, _ = PP.char_cell_ids(pop)
     rng = np.random.default_rng([seed, k])
@@ -349,7 +356,7 @@ def _econ_headline(econ: pl.DataFrame, model_name: str) -> dict:
 def run_anchor(k: int, device, *, archs: tuple[str, ...] = SQ.ARCHS, seed: int = 0,
                n_paths: int | None = None, calibrator: PL.Calibrator | None = None,
                horizon: int = PL.HORIZON, retrain: bool = False, conv_grid=PATHS_GRID,
-               subsample_n: int = SUBSAMPLE_N) -> dict:
+               subsample_n: int = SUBSAMPLE_N, conv_subsample_n: int = CONV_SUBSAMPLE_N) -> dict:
     """Price every ``arch`` at anchor ``k`` and persist per-arm artifacts under :data:`MC_OUT`
     (``k{k}_{arch}_h.json`` summary + ``_econ.parquet`` + ``_smm_paths.parquet``). If ``n_paths`` is
     ``None`` the first arm runs the :func:`paths_convergence` sweep and the chosen ``N`` is reused
@@ -370,9 +377,13 @@ def run_anchor(k: int, device, *, archs: tuple[str, ...] = SQ.ARCHS, seed: int =
         model, scaler, vocab = SQ.train_or_load(k, seed, device, arch=arch,
                                                 weights_root=MC_WEIGHTS_ROOT, retrain=retrain)
         if chosen_n is None:                                   # convergence sweep (once per anchor)
-            conv = paths_convergence(model, scaler, vocab, device, k, pop, arch=arch,
+            conv_pop = subsample_pop(pop, k, target_n=conv_subsample_n, seed=seed)   # sweep N on a subsample
+            conv = paths_convergence(model, scaler, vocab, device, k, conv_pop, arch=arch,
                                      horizon=horizon, grid=conv_grid, calibrator=calibrator, seed=seed)
+            conv["conv_n_loans"] = int(conv_pop.height)        # N picked on this many loans (priced on full pop)
             chosen_n = conv["n_paths"]
+            print(f"  [k{k}] convergence N={chosen_n} picked on {conv_pop.height:,} loans "
+                  f"(converged={conv['converged']}); pricing on {pop.height:,}", flush=True)
         res = price_anchor_mc(model, scaler, vocab, device, k, pop, horizon=horizon,
                               n_paths=chosen_n, calibrator=calibrator, seed=seed, arch=arch)
         res["econ"].write_parquet(MC_OUT / f"k{k}_{arch}_econ.parquet")
@@ -397,7 +408,8 @@ def run_anchor(k: int, device, *, archs: tuple[str, ...] = SQ.ARCHS, seed: int =
 
 def run(anchors: list[int], device, *, archs: tuple[str, ...] = SQ.ARCHS, seed: int = 0,
         n_paths: int | None = None, calibrator: PL.Calibrator | None = None,
-        horizon: int = PL.HORIZON, retrain: bool = False, subsample_n: int = SUBSAMPLE_N) -> dict:
+        horizon: int = PL.HORIZON, retrain: bool = False, subsample_n: int = SUBSAMPLE_N,
+        conv_subsample_n: int = CONV_SUBSAMPLE_N) -> dict:
     """Price ``anchors`` **COVID-first** (so the headline anchor + the paths-convergence sweep land
     first), reusing the COVID-chosen ``N`` for the rest. One anchor's failure does not sink the
     others (each is caught + reported)."""
@@ -410,7 +422,7 @@ def run(anchors: list[int], device, *, archs: tuple[str, ...] = SQ.ARCHS, seed: 
         try:
             res = run_anchor(k, device, archs=archs, seed=seed, n_paths=chosen_n,
                              calibrator=calibrator, horizon=horizon, retrain=retrain,
-                             subsample_n=subsample_n)
+                             subsample_n=subsample_n, conv_subsample_n=conv_subsample_n)
             chosen_n = res["n_paths"]                          # adopt the COVID-anchor convergence N
             out[k] = res
         except Exception as e:                                 # one anchor must not sink the rest
@@ -428,13 +440,15 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--retrain", action="store_true", help="force retrain even if weights exist")
     ap.add_argument("--subsample-n", type=int, default=SUBSAMPLE_N,
-                    help=f"ADR-002 loans-per-anchor cap (stratified subsample; default {SUBSAMPLE_N:,})")
+                    help=f"loans-per-anchor pricing cap; 0 = full pop (default {SUBSAMPLE_N:,})")
+    ap.add_argument("--conv-subsample-n", type=int, default=CONV_SUBSAMPLE_N,
+                    help=f"loans used for the COVID N-sweep; 0 = use the pricing pop (default {CONV_SUBSAMPLE_N:,})")
     args = ap.parse_args()
     config.require_drive()
     device = (torch.device("cuda") if args.device == "cuda" else tc.resolve_device(args.device))
     anchors = args.anchors if args.anchors else ANCHORS
     run(anchors, device, archs=tuple(args.archs), seed=args.seed, n_paths=args.n_paths,
-        retrain=args.retrain, subsample_n=args.subsample_n)
+        retrain=args.retrain, subsample_n=args.subsample_n, conv_subsample_n=args.conv_subsample_n)
 
 
 if __name__ == "__main__":
