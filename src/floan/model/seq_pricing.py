@@ -45,6 +45,8 @@ index per step — which keeps the per-loan MC tractable (one batched model forw
 
 from __future__ import annotations
 
+import time
+
 import numpy as np
 import polars as pl
 import torch
@@ -144,10 +146,15 @@ class SeqPredictor:
         if history is not None and history.height:
             hc, hk, hb = encode_rows(history, scaler, vocab)
             loans = history.get_column("Loan Identifier").to_numpy()
-            # rows arrive grouped/period-ordered per loan (the panel window order); index by loan.
-            for loan in dict.fromkeys(loans.tolist()):
-                m = loans == loan
-                self._hist[loan] = (hc[m], hk[m], hb[m])
+            # Group rows per loan in ONE pass: a STABLE sort by loan keeps each loan's rows in their
+            # incoming period order, then split on the run boundaries. (The previous per-loan boolean
+            # mask `loans == loan` was O(n_loans · n_rows) — quadratic, hours at the ~0.6M-loan anchor
+            # scale; the grouped result is byte-identical.)
+            order = np.argsort(loans, kind="stable")
+            ls = loans[order]
+            bounds = np.flatnonzero(ls[1:] != ls[:-1]) + 1 if ls.shape[0] > 1 else np.empty(0, np.int64)
+            for g in np.split(order, bounds):
+                self._hist[loans[g[0]]] = (hc[g], hk[g], hb[g])
 
     def history_for(self, loan):
         """The loan's encoded fixed history ``(hc, hk, hb)`` (rows < t0) or ``(None, None, None)``."""
@@ -550,6 +557,8 @@ def simulate_paths(predictor: SeqPredictor, base: pl.DataFrame, t0: int, *,
 
     B = loan_batch or _loan_batch_for(P)
     li0 = 0
+    next_report = max(1, L // 10)                              # progress every ~10% (observability for the
+    t_start = time.perf_counter()                              # multi-hour full-pop run — silent otherwise)
     while li0 < L:
         Bc = min(B, L - li0)
         idx = np.arange(li0, li0 + Bc)
@@ -567,6 +576,10 @@ def simulate_paths(predictor: SeqPredictor, base: pl.DataFrame, t0: int, *,
             continue
         state_dist[idx], cum_prepaid[idx], alive_before[idx] = sd, cp, ab
         li0 += Bc
+        if li0 >= next_report and li0 < L:
+            print(f"    [simulate_paths] {li0:,}/{L:,} loans (P={P}, {li0/(time.perf_counter()-t_start):,.0f} loans/s)",
+                  flush=True)
+            next_report += max(1, L // 10)
 
     smm = PL.per_loan_smm(cum_prepaid.astype(np.float32), alive_before.astype(np.float32))
     return {"n_loans": L, "horizon": horizon, "n_paths": P, "t0": t0,
