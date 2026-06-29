@@ -172,7 +172,14 @@ else push_ok=false; log "FINAL PUSH FAILED — leaving pod UP so results are not
 # Self-stop ONLY on a fully-clean run: no STOP flag (no guard/OOM/disk-watchdog abort), every anchor
 # complete, AND the push succeeded. Use `stop` (not remove/terminate): GPU billing halts while
 # /workspace and the pod persist for restart + inspection. Any failure path leaves the pod UP.
-if [ ! -f "$STOP" ] && [ -z "$missing" ] && [ "$push_ok" = true ]; then
+#
+# W3B_NO_AUTOSTOP=1 makes this driver run to completion exactly as normal (same summary, push, and
+# guard accounting) but NEVER issue the stop, so a wrapper (e.g. finish_overnight.sh) can own the
+# single final stop after its own later stages. The clean-run conditions below are unchanged — the
+# wrapper is responsible for re-checking them before it stops.
+if [ "${W3B_NO_AUTOSTOP:-0}" = 1 ]; then
+  log "W3B_NO_AUTOSTOP=1 — run finished; deferring pod stop to the wrapper (STOP=$([ -f "$STOP" ] && echo yes || echo no) missing=[${missing:- none}] push_ok=$push_ok)"
+elif [ ! -f "$STOP" ] && [ -z "$missing" ] && [ "$push_ok" = true ]; then
   if [ -n "${RUNPOD_POD_ID:-}" ]; then
     # runpodctl authenticates from $RUNPOD_API_KEY (this CLI version does not pick up the key in
     # ~/.runpod/config.toml for pod ops). Source the persisted secret from the network volume HERE,
