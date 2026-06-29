@@ -248,11 +248,16 @@ def _sample(probs: np.ndarray, rng: np.random.Generator) -> np.ndarray:
     return (u[:, None] < cdf).argmax(axis=1)
 
 
-def simulate_paths(predictor: SeqPredictor, base: pl.DataFrame, t0: int, *,
+def _simulate_paths_reference(predictor: SeqPredictor, base: pl.DataFrame, t0: int, *,
                    horizon: int = PL.HORIZON, n_paths: int = 256,
                    calibrator: PL.Calibrator | None = None, zero_impossible: bool = True,
                    seed: int = 0, T: int | None = None) -> dict:
-    """Monte-Carlo roll-forward of ``predictor`` over the loans in ``base`` (the anchor slice at
+    """**Reference (oracle) implementation** — the original per-loan Monte-Carlo roll-forward,
+    preserved verbatim as the known-correct ground truth that :func:`simulate_paths` (the vectorized
+    production path) is differentially gated against (``tests/test_seq_price_mc.py`` /
+    ``_differential_check``). Kept for that gate and as a fallback; do not delete.
+
+    Monte-Carlo roll-forward of ``predictor`` over the loans in ``base`` (the anchor slice at
     ``t0``: one raw row per loan, with ``state`` the loan's transient origin, plus ``Loan Age`` /
     ``Remaining Months to Maturity`` / ``orig_ym`` / ``period_ym`` and the feature columns).
 
@@ -359,6 +364,239 @@ def simulate_paths(predictor: SeqPredictor, base: pl.DataFrame, t0: int, *,
             "state_dist": state_dist, "cum_prepaid": cum_prepaid,
             "alive_before": alive_before, "smm": smm,
             "h1_dist": state_dist[:, 0, :]}
+
+
+# ---------------------------------------------------------------------------
+# Vectorized roll-forward — the production path. Batches B loans × P paths into ONE
+# SeqPredictor.score call per (loan-chunk, month), instead of the reference's per-loan score call.
+# It is the SAME algorithm as _simulate_paths_reference (identical window assembly, post-processing,
+# per-loan RNG streams drawn in month order, and reductions); the ONLY numerical difference is the
+# batched GPU forward's float-rounding (batched cuDNN/matmul is not bit-associative), which is pure
+# Monte-Carlo-tolerance noise and is gated against the reference. Both seq archs are per-sequence
+# (GRU pack_padded; transformer within-sequence attention), so a mixed-loan batch is mathematically
+# identical to the per-loan batch. Histories are ≤ T−1 rows (anchor_history pulls T−1 trailing
+# months), so the per-chunk combined buffer is tiny (≤ T−1+horizon columns).
+# ---------------------------------------------------------------------------
+SIM_LOAN_BATCH_CAP = 4096              # max loans per vectorized chunk (bounds the transient [B,P,T,·] arrays)
+SIM_SEQ_TARGET = 1_048_576            # target sequences (B·P) per chunk; B = clip(SIM_SEQ_TARGET // P)
+SIM_GPU_BATCH = 262_144               # sequences per on-GPU model forward (the GPU sub-batch in _score_paths_gpu)
+
+
+def _loan_batch_for(P: int) -> int:
+    return max(1, min(SIM_LOAN_BATCH_CAP, SIM_SEQ_TARGET // max(1, int(P))))
+
+
+def _apply_post_batched(probs: np.ndarray, cur: np.ndarray, calibrator, zero_impossible: bool) -> np.ndarray:
+    """Vectorized :func:`_apply_post` over a ``[B, P, 7]`` block (``cur`` ``[B, P]`` from-states).
+    Fast path for ``calibrator is None`` (this run's case — M23 no-op for the torch path); falls
+    back to the exact per-loan :func:`_apply_post` when a calibrator is supplied, preserving its
+    per-origin semantics bit-for-bit."""
+    if calibrator is not None:
+        out = np.array(probs, dtype=np.float64, copy=True)
+        for j in range(probs.shape[0]):
+            out[j] = _apply_post(probs[j], cur[j], calibrator, zero_impossible)
+        return out
+    probs = np.array(probs, dtype=np.float64, copy=True)
+    if zero_impossible:
+        cmask = cur == CURRENT
+        if cmask.any():
+            sub = probs[cmask]
+            sub[:, IMPOSSIBLE_FROM_CURRENT] = 0.0
+            sub /= sub.sum(axis=1, keepdims=True)
+            probs[cmask] = sub
+    return probs
+
+
+@torch.no_grad()
+def _score_paths_gpu(predictor, wc, wb, wk, statecol, keep, state_col, gpu_batch):
+    """Score one (loan-chunk, month) batch, expanding paths **on the GPU**. ``wc``/``wb``/``wk``
+    ``[B,T,·]`` are per-loan (path-invariant — cont/bin and non-``state`` cat are identical across
+    paths), ``statecol`` ``[B,P,T]`` is the per-path ``state`` vocab index. Only these (not the
+    P-expanded windows) cross the bus; the model then sees ``[B·P,T,·]`` via ``torch.expand`` +
+    contiguous reshape on-device. Numerically identical to :meth:`SeqPredictor.score` (eval, no-grad,
+    float64 softmax) — avoiding the per-path numpy materialization that dominated the naive
+    vectorization. Returns ``[B,P,7]`` float64."""
+    dev = predictor.device
+    B, T, nc = wc.shape
+    P = statecol.shape[1]
+    ncat, nb = wk.shape[2], wb.shape[2]
+    model = predictor.model
+    model.eval()
+    cont = torch.as_tensor(wc, dtype=torch.float32, device=dev).unsqueeze(1).expand(B, P, T, nc).reshape(B * P, T, nc)
+    binb = torch.as_tensor(wb, dtype=torch.float32, device=dev).unsqueeze(1).expand(B, P, T, nb).reshape(B * P, T, nb)
+    cat = torch.as_tensor(wk, dtype=torch.long, device=dev).unsqueeze(1).expand(B, P, T, ncat).clone()
+    cat[:, :, :, state_col] = torch.as_tensor(statecol, dtype=torch.long, device=dev)
+    cat = cat.reshape(B * P, T, ncat)
+    lengths = torch.as_tensor(np.repeat(keep, P), dtype=torch.long)        # CPU for pack_padded
+    n = B * P
+    out = np.empty((n, N_CLASSES), np.float64)
+    for s in range(0, n, gpu_batch):
+        sl = slice(s, s + gpu_batch)
+        logits = model(cont[sl].contiguous(), cat[sl].contiguous(), binb[sl].contiguous(), lengths[sl])
+        out[sl] = torch.softmax(logits.double(), dim=1).cpu().numpy()
+    return out.reshape(B, P, N_CLASSES)
+
+
+def _simulate_loan_chunk(predictor, idx, Lh_all, fcont, fcat, fbin, origin_class, loans, *,
+                         horizon, T, P, seed, calibrator, zero_impossible, eye, state_col, svi,
+                         gpu_batch):
+    """Roll one chunk of loans (global indices ``idx``) forward, batched. Returns ``(state_dist
+    [Bc,H,7], cum_prepaid [Bc,H], alive_before [Bc,H])`` — the reference's per-loan outputs for these
+    loans, computed together."""
+    Bc = len(idx)
+    nc, ncat, nb = fcont.shape[2], fcat.shape[2], fbin.shape[2]
+    Lh = Lh_all[idx]
+    Lhmax = int(Lh.max())
+    W = Lhmax + horizon
+    # Combined per-loan sequence buffer: history at cols [Lhmax-Lh : Lhmax], future at [Lhmax : W].
+    seqc = np.zeros((Bc, W, nc), np.float32)
+    seqk = np.zeros((Bc, W, ncat), np.int64)
+    seqb = np.zeros((Bc, W, nb), np.float32)
+    seqc[:, Lhmax:, :] = np.transpose(fcont[:, idx, :], (1, 0, 2))
+    seqk[:, Lhmax:, :] = np.transpose(fcat[:, idx, :], (1, 0, 2))          # state col is a placeholder
+    seqb[:, Lhmax:, :] = np.transpose(fbin[:, idx, :], (1, 0, 2))
+    for j in range(Bc):                                                    # history fill (once per chunk)
+        lh = int(Lh[j])
+        if lh:
+            hc, hk, hb = predictor.history_for(loans[idx[j]])
+            seqc[j, Lhmax - lh:Lhmax, :] = hc
+            seqk[j, Lhmax - lh:Lhmax, :] = hk
+            seqb[j, Lhmax - lh:Lhmax, :] = hb
+
+    oc = origin_class[idx]
+    # zero-init (not empty): the batched state gather may read not-yet-written future indices at
+    # masked-out (t≥keep) window positions; those reads must be a valid class (0) the mask discards.
+    states = np.zeros((Bc, P, horizon + 1), np.int64)
+    states[:, :, 0] = oc[:, None]
+    alive = np.ones((Bc, P), bool)
+    cur = np.repeat(oc[:, None], P, axis=1)
+    rngs = [np.random.default_rng([seed, int(idx[j])]) for j in range(Bc)]  # per-loan streams (loan order)
+    ar = np.arange(Bc)[:, None]
+    t_ar = np.arange(T)
+
+    for h in range(1, horizon + 1):
+        keep = np.minimum(Lh + h, T)                                      # [Bc]
+        start = Lhmax + h - keep                                          # [Bc]
+        col = np.clip(start[:, None] + t_ar[None, :], 0, W - 1)           # [Bc,T]
+        valid = (t_ar[None, :] < keep[:, None])                          # [Bc,T]
+        wc = seqc[ar, col] * valid[..., None]
+        wb = seqb[ar, col] * valid[..., None]
+        wk = seqk[ar, col] * valid[..., None]
+        is_future = (col >= Lhmax) & valid                               # [Bc,T]
+        month = np.clip(col - Lhmax, 0, horizon)                         # future-row index (0..h-1)
+        gathered = np.take_along_axis(states, month[:, None, :], axis=2)  # [Bc,P,T]
+        statecol = np.where(is_future[:, None, :], svi[gathered],
+                            np.broadcast_to(wk[:, None, :, state_col], (Bc, P, T)))   # [Bc,P,T] state vocab idx
+        # Score with on-GPU path expansion (the per-path windows never materialize in numpy).
+        probs = _score_paths_gpu(predictor, wc, wb, wk, statecol, keep, state_col, gpu_batch)
+        probs = _apply_post_batched(probs, cur, calibrator, zero_impossible)
+        u = np.empty((Bc, P), np.float64)
+        for j in range(Bc):
+            u[j] = rngs[j].random(P)                                      # draw in month order → reference stream
+        cdf = np.cumsum(probs, axis=2)
+        cdf[:, :, -1] = 1.0
+        nxt = (u[:, :, None] < cdf).argmax(axis=2)                       # [Bc,P]
+        nxt = np.where(alive, nxt, cur)
+        states[:, :, h] = nxt
+        alive &= np.isin(nxt, ORIGIN_ROWS)
+        cur = nxt
+
+    sd = eye[states[:, :, 1:]].mean(axis=1)                              # [Bc,H,7]
+    cp = (states[:, :, 1:] == PREPAID).mean(axis=1)                      # [Bc,H]
+    ab = np.isin(states[:, :, 0:horizon], ORIGIN_ROWS).mean(axis=1)     # [Bc,H]
+    return sd, cp, ab
+
+
+def simulate_paths(predictor: SeqPredictor, base: pl.DataFrame, t0: int, *,
+                   horizon: int = PL.HORIZON, n_paths: int = 256,
+                   calibrator: PL.Calibrator | None = None, zero_impossible: bool = True,
+                   seed: int = 0, T: int | None = None, loan_batch: int | None = None) -> dict:
+    """Vectorized Monte-Carlo roll-forward (production path) — the throughput version of
+    :func:`_simulate_paths_reference` with an identical contract and (to Monte-Carlo tolerance)
+    identical output. It batches ``loan_batch`` loans × ``n_paths`` paths into one
+    :meth:`SeqPredictor.score` call per month (the reference scores one loan at a time), collapsing
+    the ~``L·H`` tiny GPU forwards that left the GPU idle into a few large, well-utilized ones. The
+    window assembly, :func:`_apply_post`, per-loan ``rng = default_rng([seed, loan_index])`` streams
+    (drawn in month order), terminal absorption, and reductions all match the reference exactly; only
+    the batched forward's float-rounding differs (gated against the reference, ``_differential_check``
+    / ``tests``). ``loan_batch`` defaults to :func:`_loan_batch_for`; on CUDA OOM it is halved and the
+    chunk retried (never reducing ``n_paths`` or the pop). See :func:`_simulate_paths_reference` for
+    the full algorithm docstring."""
+    T = T or predictor.T
+    P = int(n_paths)
+    L = base.height
+    _assert_state_only_path_dependence(predictor.scaler, predictor.vocab)
+    loans = base.get_column("Loan Identifier").to_numpy()
+    origin_class = base.select(pl.col("state").replace_strict(
+        list(SI), list(SI.values()), default=-1, return_dtype=pl.Int64)).to_numpy().reshape(-1)
+
+    f0c, f0k, f0b = encode_rows(PL.advance_frame(base, t0, 1), predictor.scaler, predictor.vocab)
+    nc, ncat, nb = f0c.shape[1], f0k.shape[1], f0b.shape[1]
+    fcont = np.empty((horizon, L, nc), np.float32)
+    fcat = np.empty((horizon, L, ncat), np.int64)
+    fbin = np.empty((horizon, L, nb), np.float32)
+    fcont[0], fcat[0], fbin[0] = f0c, f0k, f0b
+    for h in range(2, horizon + 1):
+        c, k, b = encode_rows(PL.advance_frame(base, t0, h), predictor.scaler, predictor.vocab)
+        fcont[h - 1], fcat[h - 1], fbin[h - 1] = c, k, b
+
+    Lh_all = np.array([(hc.shape[0] if (hc := predictor.history_for(loans[i])[0]) is not None else 0)
+                       for i in range(L)], dtype=np.int64)
+    state_dist = np.zeros((L, horizon, N_CLASSES), np.float64)
+    cum_prepaid = np.zeros((L, horizon), np.float64)
+    alive_before = np.zeros((L, horizon), np.float64)
+    eye = np.eye(N_CLASSES)
+    state_col, svi = predictor.state_col, predictor._svi
+
+    B = loan_batch or _loan_batch_for(P)
+    li0 = 0
+    while li0 < L:
+        Bc = min(B, L - li0)
+        idx = np.arange(li0, li0 + Bc)
+        try:
+            sd, cp, ab = _simulate_loan_chunk(
+                predictor, idx, Lh_all, fcont, fcat, fbin, origin_class, loans,
+                horizon=horizon, T=T, P=P, seed=seed, calibrator=calibrator,
+                zero_impossible=zero_impossible, eye=eye, state_col=state_col, svi=svi,
+                gpu_batch=min(SIM_GPU_BATCH, Bc * P))
+        except torch.cuda.OutOfMemoryError:
+            torch.cuda.empty_cache()
+            if B == 1:
+                raise
+            B = max(1, B // 2)                                            # reduce B (never P / the pop), retry
+            continue
+        state_dist[idx], cum_prepaid[idx], alive_before[idx] = sd, cp, ab
+        li0 += Bc
+
+    smm = PL.per_loan_smm(cum_prepaid.astype(np.float32), alive_before.astype(np.float32))
+    return {"n_loans": L, "horizon": horizon, "n_paths": P, "t0": t0,
+            "state_dist": state_dist, "cum_prepaid": cum_prepaid,
+            "alive_before": alive_before, "smm": smm,
+            "h1_dist": state_dist[:, 0, :]}
+
+
+def _differential_check(predictor: SeqPredictor, base: pl.DataFrame, t0: int, *,
+                        horizon: int = PL.HORIZON, n_paths: int = 500, seed: int = 0,
+                        calibrator: PL.Calibrator | None = None) -> dict:
+    """Run the reference and the vectorized simulator on the SAME inputs/seed and report their
+    agreement — the differential gate for :func:`simulate_paths`. Returns per-array max abs diffs
+    (``state_dist``/``cum_prepaid``/``alive_before``/``smm``), the pool-level ``price``/``wal`` diffs
+    (through the unchanged :func:`price_paths`), ``bit_exact`` (all per-loan arrays identical), and
+    the O(1/√N) band ``mc_tol`` for the caller to assert against. Callers (tests / the pre-run gate)
+    must fail loudly if it is neither bit-exact nor within tolerance."""
+    ref = _simulate_paths_reference(predictor, base, t0, horizon=horizon, n_paths=n_paths,
+                                    seed=seed, calibrator=calibrator)
+    vec = simulate_paths(predictor, base, t0, horizon=horizon, n_paths=n_paths,
+                         seed=seed, calibrator=calibrator)
+    arr = ("state_dist", "cum_prepaid", "alive_before", "smm")
+    d = {a: float(np.abs(ref[a] - vec[a]).max()) for a in arr}
+    pr_ref, pr_vec = price_paths(ref, base), price_paths(vec, base)
+    d["pool_price"] = abs(float(pr_ref["pool_price"]) - float(pr_vec["pool_price"]))
+    d["pool_wal"] = abs(float(pr_ref["pool_wal"]) - float(pr_vec["pool_wal"]))
+    d["bit_exact"] = all(d[a] == 0.0 for a in arr)
+    d["mc_tol"] = 6.0 / np.sqrt(max(1, n_paths))            # O(1/√N) band for the distribution arrays
+    d["n_paths"] = int(n_paths)
+    return d
 
 
 # ===========================================================================

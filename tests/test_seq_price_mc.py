@@ -21,6 +21,7 @@ import sys
 
 import numpy as np
 import polars as pl
+import pytest
 import torch
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))   # robust intra-tests import
@@ -31,6 +32,7 @@ from floan.model import pool as PL             # noqa: E402
 from floan.model import seq_model as SM        # noqa: E402
 from floan.model import seq_pricing as MC      # noqa: E402
 from floan.model import seq_price_mc as MX     # noqa: E402
+from floan.model import seq_transformer as XF  # noqa: E402
 
 K = 2020                  # config._dec(2019) == 201912 == t0 (the COVID anchor)
 T0 = 201912
@@ -147,6 +149,63 @@ def test_price_simulation_four_horizons_and_aggregation():
     print(f"\n[price_simulation] H={sorted(set(econ.get_column('h').to_list()))}  "
           f"rows={econ.height}  agg|Δ|={out['aggregation']['abs_diff']:.2e}  "
           f"pool_price(H12)={out['pool_price']:.3f}")
+
+
+def _history_variable(loans, rng):
+    """Histories of varying length (``0,1,…,T_WIN-1`` cycled across loans), so the **zero / partial /
+    full-T** trailing-window regimes are all exercised. ``period_ym`` strictly < t0, period-ordered."""
+    rows = [(loan, T0 - (i % TS.T_WIN) + m, 20.0 + m, TS.ORIGIN_STATES[(i + m) % 4])
+            for i, loan in enumerate(loans) for m in range(i % TS.T_WIN)]
+    if not rows:
+        return None
+    return TS._rows(len(rows), loans=[r[0] for r in rows], period_ym=[r[1] for r in rows],
+                    orig_ym=201001, age=[r[2] for r in rows], rem=340.0, rate=5.0, upb=2e5,
+                    states=[r[3] for r in rows], rng=rng)
+
+
+# ===========================================================================
+# Vectorized simulate_paths vs the reference oracle — the differential equivalence gate
+# ===========================================================================
+@pytest.mark.parametrize("arch", ["gru", "xf"])
+def test_vectorized_matches_reference_variable_history(arch):
+    """:func:`seq_pricing.simulate_paths` (vectorized production path) reproduces
+    :func:`seq_pricing._simulate_paths_reference` (oracle) **bit-for-bit on CPU** — identical per-loan
+    RNG streams + batch-invariant CPU forward — across variable history lengths (zero / partial /
+    full-T) for **both** archs. Proves the vectorization is a pure performance refactor. (On GPU the
+    batched forward's float-rounding gives Monte-Carlo-tolerance agreement instead — gated separately
+    by ``seq_pricing._differential_check`` on real data.)"""
+    rng = np.random.default_rng(11)
+    scaler, vocab = TS._fit_pipeline(rng)
+    torch.manual_seed(11)
+    model = SM.build(scaler, vocab, hidden=8) if arch == "gru" else XF.build(scaler, vocab)
+    n = 10
+    loans = [f"L{i}" for i in range(n)]
+    states = [TS.ORIGIN_STATES[i % 4] for i in range(n)]
+    base = F.prepare_raw(TS._rows(n, loans=loans, period_ym=T0, orig_ym=201001, age=24.0, rem=336.0,
+                                  rate=5.0, upb=rng.uniform(8e4, 4e5, n), states=states, rng=rng))
+    Lhs = {i % TS.T_WIN for i in range(n)}
+    assert 0 in Lhs and (TS.T_WIN - 1) in Lhs and any(0 < x < TS.T_WIN - 1 for x in Lhs)  # spans regimes
+    pred = MC.SeqPredictor(model, scaler, vocab, device="cpu", history=_history_variable(loans, rng), T=TS.T_WIN)
+
+    ref = MC._simulate_paths_reference(pred, base, T0, horizon=HORIZON, n_paths=1500, seed=4)
+    vec = MC.simulate_paths(pred, base, T0, horizon=HORIZON, n_paths=1500, seed=4)
+    for key in ("state_dist", "cum_prepaid", "alive_before", "smm"):
+        d = float(np.abs(ref[key] - vec[key]).max())
+        assert d == 0.0, f"{arch} {key} CPU max|Δ|={d} (must be bit-exact)"
+    # multi-chunk path: a small loan_batch forces >1 chunk; per-loan RNG keys on the GLOBAL loan index
+    # so chunk boundaries must not change the result.
+    vec_chunked = MC.simulate_paths(pred, base, T0, horizon=HORIZON, n_paths=1500, seed=4, loan_batch=3)
+    assert np.array_equal(vec["state_dist"], vec_chunked["state_dist"]), f"{arch}: chunking changed output"
+    print(f"\n[vec vs ref · {arch}] bit-exact on CPU across zero/partial/full-T histories; chunk-invariant")
+
+
+def test_simulate_paths_deterministic():
+    """Same seed twice → identical output (the seeded per-loan sampler is reproducible)."""
+    pred, base = _fixture(seed=9)
+    a = MC.simulate_paths(pred, base, T0, horizon=HORIZON, n_paths=800, seed=2)
+    b = MC.simulate_paths(pred, base, T0, horizon=HORIZON, n_paths=800, seed=2)
+    for key in ("state_dist", "cum_prepaid", "alive_before", "smm"):
+        assert np.array_equal(a[key], b[key]), key
 
 
 def test_smm_tbl_uses_mc_masses():
