@@ -1,0 +1,90 @@
+{
+  "meta": {
+    "k": 2020,
+    "t0": 201912,
+    "arch": "gru",
+    "model_name": "gru",
+    "n_pop": 149998,
+    "horizon": 12,
+    "n_paths": 1000,
+    "seed": 0,
+    "calibrated": false,
+    "servicing_spread": 0.0025,
+    "pool_price_h12": 101.0802310262984,
+    "pool_wal_h12": 5.163546728330964,
+    "E_cum_prepaid_h12": 0.14946449952666035,
+    "E_alive_before_h1": 1.0
+  },
+  "guards": {
+    "h1_identity": {
+      "mean_abs": 0.0010319580889054355,
+      "max_abs": 0.04977432466060738,
+      "tol_mean": 0.018973665961010275,
+      "tol_max": 0.18973665961010278,
+      "n_paths": 1000,
+      "pass": true
+    },
+    "aggregation": {
+      "pool_value": 27935762172.467255,
+      "value_sum": 27935762172.467255,
+      "pool_price": 101.0802310262984,
+      "abs_diff": 0.0,
+      "tol": 1e-06,
+      "pass": true
+    }
+  },
+  "subsample": {
+    "target_n": 150000,
+    "actual_n": 149998,
+    "full_pop_n": 606845,
+    "seed": 0,
+    "stratify": "char_cell_ids(FICO\u00d7rate\u00d7LTV)"
+  },
+  "convergence": {
+    "k": 2020,
+    "arch": "gru",
+    "grid": [
+      500,
+      1000,
+      2000,
+      3200
+    ],
+    "prices": [
+      101.10209436751647,
+      101.07381938423596,
+      101.06435167701751,
+      101.05792500354644
+    ],
+    "tol": 0.05,
+    "n_paths": 1000,
+    "converged": true,
+    "conv_n_loans": 19998
+  },
+  "headline": {
+    "1": {
+      "mean_abs_price_err": 0.10389057594607227,
+      "mean_price": 101.02005220923127,
+      "n_pools": 21
+    },
+    "3": {
+      "mean_abs_price_err": 0.20586033539129966,
+      "mean_price": 100.92873661515077,
+      "n_pools": 21
+    },
+    "6": {
+      "mean_abs_price_err": 0.3580913613098379,
+      "mean_price": 100.89346313745686,
+      "n_pools": 21
+    },
+    "12": {
+      "mean_abs_price_err": 0.4847806670730027,
+      "mean_price": 100.97294474237093,
+      "n_pools": 21
+    }
+  },
+  "econ_parquet": "k2020_gru_econ.parquet",
+  "smm_parquet": "k2020_gru_smm_paths.parquet",
+  "git_commit": "0e25198365eb2e98a8fba329ada8f970df6175ab",
+  "created_utc": "2026-06-29T12:19:59.993829+00:00",
+  "wall_sec": 1647.4
+}

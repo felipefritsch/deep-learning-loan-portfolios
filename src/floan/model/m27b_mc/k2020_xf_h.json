@@ -1,0 +1,90 @@
+{
+  "meta": {
+    "k": 2020,
+    "t0": 201912,
+    "arch": "xf",
+    "model_name": "xf",
+    "n_pop": 149998,
+    "horizon": 12,
+    "n_paths": 1000,
+    "seed": 0,
+    "calibrated": false,
+    "servicing_spread": 0.0025,
+    "pool_price_h12": 101.07027630203837,
+    "pool_wal_h12": 5.105311130963491,
+    "E_cum_prepaid_h12": 0.1504075521006947,
+    "E_alive_before_h1": 1.0
+  },
+  "guards": {
+    "h1_identity": {
+      "mean_abs": 0.001033987562917296,
+      "max_abs": 0.04821904456056153,
+      "tol_mean": 0.018973665961010275,
+      "tol_max": 0.18973665961010278,
+      "n_paths": 1000,
+      "pass": true
+    },
+    "aggregation": {
+      "pool_value": 27933010963.782852,
+      "value_sum": 27933010963.782845,
+      "pool_price": 101.07027630203837,
+      "abs_diff": 7.62939453125e-06,
+      "tol": 1e-06,
+      "pass": true
+    }
+  },
+  "subsample": {
+    "target_n": 150000,
+    "actual_n": 149998,
+    "full_pop_n": 606845,
+    "seed": 0,
+    "stratify": "char_cell_ids(FICO\u00d7rate\u00d7LTV)"
+  },
+  "convergence": {
+    "k": 2020,
+    "arch": "gru",
+    "grid": [
+      500,
+      1000,
+      2000,
+      3200
+    ],
+    "prices": [
+      101.10209436751647,
+      101.07381938423596,
+      101.06435167701751,
+      101.05792500354644
+    ],
+    "tol": 0.05,
+    "n_paths": 1000,
+    "converged": true,
+    "conv_n_loans": 19998
+  },
+  "headline": {
+    "1": {
+      "mean_abs_price_err": 0.09367678747952368,
+      "mean_price": 101.01391657234038,
+      "n_pools": 21
+    },
+    "3": {
+      "mean_abs_price_err": 0.18796663141836167,
+      "mean_price": 100.9112287396227,
+      "n_pools": 21
+    },
+    "6": {
+      "mean_abs_price_err": 0.3652764923742164,
+      "mean_price": 100.90064826852124,
+      "n_pools": 21
+    },
+    "12": {
+      "mean_abs_price_err": 0.49290651048610407,
+      "mean_price": 100.98107058578402,
+      "n_pools": 21
+    }
+  },
+  "econ_parquet": "k2020_xf_econ.parquet",
+  "smm_parquet": "k2020_xf_smm_paths.parquet",
+  "git_commit": "0e25198365eb2e98a8fba329ada8f970df6175ab",
+  "created_utc": "2026-06-29T13:47:24.817032+00:00",
+  "wall_sec": 5244.7
+}
