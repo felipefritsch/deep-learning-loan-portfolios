@@ -118,6 +118,7 @@ for k in $ANCHORS; do
     "$PY" -u -m floan.model.seq_price_mc --anchors "$k" --archs gru xf --device cuda --seed 0 \
           2>&1 | tee "$alog"
   fi
+  status=${PIPESTATUS[0]}            # driver exit (left of the tee pipe)
 
   # 1) disk stop takes precedence (watchdog killed the driver) — don't mislabel it a guard failure.
   if [ -f "$STOP" ]; then log "halting at k$k — $(cat "$STOP")"; break; fi
@@ -127,6 +128,13 @@ for k in $ANCHORS; do
     reason=$(grep -iE "W3b k${k} FAILED|out of memory|CUDA error" "$alog" | tail -1)
     echo "guard/OOM/crash at k$k: ${reason:-see $alog}" > "$STOP"
     log "GUARD/OOM/CRASH at k$k — STOP (no skip-ahead). $reason"
+    break
+  fi
+  # 3) any other non-completion (e.g. SIGKILL by the OOM-killer leaves no marker) — never skip ahead
+  #    past an anchor that produced no artifacts, or a later anchor would run without the COVID N.
+  if ! anchor_done "$k"; then
+    echo "k$k did not complete (driver exit=$status, no k${k}_{gru,xf}_h.json) — STOP" > "$STOP"
+    log "k$k incomplete after driver exit=$status (no artifacts) — STOP (no skip-ahead)"
     break
   fi
 
@@ -162,8 +170,13 @@ else push_ok=false; log "FINAL PUSH FAILED — leaving pod UP so results are not
 # /workspace and the pod persist for restart + inspection. Any failure path leaves the pod UP.
 if [ ! -f "$STOP" ] && [ -z "$missing" ] && [ "$push_ok" = true ]; then
   if [ -n "${RUNPOD_POD_ID:-}" ]; then
+    # runpodctl authenticates from $RUNPOD_API_KEY (this CLI version does not pick up the key in
+    # ~/.runpod/config.toml for pod ops). Source it from that config so the secret stays out of the
+    # repo/script/logs and never appears in args.
+    export RUNPOD_API_KEY="${RUNPOD_API_KEY:-$(grep -iE 'apikey|api_key' "$HOME/.runpod/config.toml" 2>/dev/null | head -1 | sed -E 's/.*=[[:space:]]*"?([^"]*)"?/\1/')}"
     log "clean full run, all results pushed — stopping pod $RUNPOD_POD_ID to halt GPU billing"
-    runpodctl stop pod "$RUNPOD_POD_ID" || log "runpodctl stop FAILED (not authed?) — pod left UP, stop it manually"
+    if [ -n "$RUNPOD_API_KEY" ] && runpodctl stop pod "$RUNPOD_POD_ID"; then log "pod stop requested OK"
+    else log "runpodctl stop FAILED (key missing/unauthorised?) — pod left UP, stop it manually"; fi
   else
     log "RUNPOD_POD_ID unset — cannot self-stop; stop the pod manually"
   fi
