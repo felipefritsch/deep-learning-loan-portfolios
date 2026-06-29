@@ -57,6 +57,7 @@ from floan.model import config
 from floan.model import economics as EC
 from floan.model import export
 from floan.model import pool as PL
+from floan.model import pools as PP                  # char_cell_ids — stratification key for the subsample
 from floan.model import seq_predict as SQ           # anchor_*, train_or_load, gru_eval_probs, arch seam
 from floan.model import seq_pricing as MC           # SeqPredictor, simulate_paths, price_paths, _apply_post
 from floan.model import sequence as S               # _window_sql / _PANEL_PULL_COLS / _macro_tables / SEQ_LEN
@@ -84,6 +85,18 @@ MC_OUT = Path(__file__).resolve().parent / "m27b_mc"   # per-anchor artifacts (c
 # The W3b weights are retrained at the 10M sample — a DIFFERENT sample from M27b's 1.5M H=1 weights in
 # seq_predict.WEIGHTS_ROOT (m27b_gpu_runs/) — so they land in their own SSD dir, leaving M27b untouched.
 MC_WEIGHTS_ROOT = config.OUTPUTS / "m27b_mc"           # 10M GRU/transformer weights (k{k}[_xf]_s{seed}.pt)
+
+# Loans-per-anchor cap (ADR-002 §Mitigations: "simulate on a subsample of loans per anchor … seed
+# the sampler for reproducibility"). The per-loan MC roll-forward (seq_pricing.simulate_paths) costs
+# ~L·H GPU forwards; the full anchor pops are ~0.6–0.72M loans, so the swept full-pop run is ~2 days.
+# We instead price a seeded, FICO×rate×LTV-stratified subsample of this size (stratified on
+# pools.char_cell_ids so every characteristic cell — hence every char pool — stays populated). The
+# H=1 identity + aggregation guards re-verify on the subsample; the size/seed are recorded in each
+# anchor JSON for Ch.5 disclosure. seq_pricing.simulate_paths is left untouched.
+# Size chosen within ADR-002's cap: the char pools (pools.char_cell_ids, MIN_CELL=2000) thin with
+# the sample, so ~0.6–0.72M-loan anchors retain ~15 of their 39 full-pop char cells at 100k (≈11 at
+# 75k, ≈21 at 150k) — 100k balances pool coverage against the ~9–10h overnight budget.
+SUBSAMPLE_N = 100_000
 
 
 # ===========================================================================
@@ -125,6 +138,28 @@ def _origin_classes(base: pl.DataFrame) -> np.ndarray:
     """Per-loan origin **class index** (0..6) from the base frame's ``state`` column."""
     return base.select(pl.col("state").replace_strict(
         list(MC.SI), list(MC.SI.values()), default=-1, return_dtype=pl.Int64)).to_numpy().reshape(-1)
+
+
+def subsample_pop(pop: pl.DataFrame, k: int, *, target_n: int = SUBSAMPLE_N, seed: int = 0) -> pl.DataFrame:
+    """A seeded, **stratified** subsample of ``anchor_pop(k)`` to ~``target_n`` loans (ADR-002
+    loans-per-anchor cap). Strata are the FICO×rate×LTV characteristic cells :func:`pools.char_cell_ids`
+    uses to form the ``char`` pools: within each cell we keep ``round(f·cell_n)`` loans (≥1 so no cell
+    — hence no char pool — drops out), ``f = target_n / pop.height``, drawn without replacement from a
+    generator seeded on ``(seed, k)``. The result is re-sorted by ``Loan Identifier`` to preserve the
+    membership/order invariant the downstream ``smm_paths``/``anchor_base``/``anchor_points`` rely on.
+    Returns ``pop`` unchanged if it is already ≤ ``target_n``."""
+    n = pop.height
+    if n <= target_n:
+        return pop
+    cell, _ = PP.char_cell_ids(pop)
+    rng = np.random.default_rng([seed, k])
+    f = target_n / n
+    keep = np.zeros(n, dtype=bool)
+    for c in np.unique(cell):
+        idx = np.where(cell == c)[0]
+        n_keep = min(len(idx), max(1, int(round(len(idx) * f))))
+        keep[rng.choice(idx, size=n_keep, replace=False)] = True
+    return pop.filter(pl.Series(keep)).sort("Loan Identifier")
 
 
 # ===========================================================================
@@ -313,12 +348,21 @@ def _econ_headline(econ: pl.DataFrame, model_name: str) -> dict:
 
 def run_anchor(k: int, device, *, archs: tuple[str, ...] = SQ.ARCHS, seed: int = 0,
                n_paths: int | None = None, calibrator: PL.Calibrator | None = None,
-               horizon: int = PL.HORIZON, retrain: bool = False, conv_grid=PATHS_GRID) -> dict:
+               horizon: int = PL.HORIZON, retrain: bool = False, conv_grid=PATHS_GRID,
+               subsample_n: int = SUBSAMPLE_N) -> dict:
     """Price every ``arch`` at anchor ``k`` and persist per-arm artifacts under :data:`MC_OUT`
     (``k{k}_{arch}_h.json`` summary + ``_econ.parquet`` + ``_smm_paths.parquet``). If ``n_paths`` is
     ``None`` the first arm runs the :func:`paths_convergence` sweep and the chosen ``N`` is reused
-    for the remaining arm(s) at this anchor. Returns the chosen ``N`` + per-arm payloads."""
-    pop = SQ.anchor_pop(k)
+    for the remaining arm(s) at this anchor. ``subsample_n`` caps the priced loans-per-anchor
+    (ADR-002) via :func:`subsample_pop`; the same subsample feeds the sweep, the pricing, and the
+    guards. Returns the chosen ``N`` + per-arm payloads."""
+    full_pop = SQ.anchor_pop(k)
+    pop = subsample_pop(full_pop, k, target_n=subsample_n, seed=seed)
+    sub_meta = {"target_n": int(subsample_n), "actual_n": int(pop.height),
+                "full_pop_n": int(full_pop.height), "seed": int(seed),
+                "stratify": "char_cell_ids(FICO×rate×LTV)"}
+    print(f"  [k{k}] subsample {pop.height:,}/{full_pop.height:,} loans "
+          f"(target {subsample_n:,}, seed {seed}, char-cell stratified)", flush=True)
     MC_OUT.mkdir(parents=True, exist_ok=True)
     chosen_n, conv, arms = n_paths, None, {}
     for arch in archs:
@@ -334,6 +378,7 @@ def run_anchor(k: int, device, *, archs: tuple[str, ...] = SQ.ARCHS, seed: int =
         res["econ"].write_parquet(MC_OUT / f"k{k}_{arch}_econ.parquet")
         res["smm_frame"].write_parquet(MC_OUT / f"k{k}_{arch}_smm_paths.parquet")
         payload = {"meta": res["meta"], "guards": res["guards"],
+                   "subsample": sub_meta,                       # ADR-002 loans-per-anchor cap (Ch.5 disclosure)
                    "convergence": conv,                        # only the sweeping arm carries it
                    "headline": _econ_headline(res["econ"], res["meta"]["model_name"]),
                    "econ_parquet": f"k{k}_{arch}_econ.parquet",
@@ -352,19 +397,20 @@ def run_anchor(k: int, device, *, archs: tuple[str, ...] = SQ.ARCHS, seed: int =
 
 def run(anchors: list[int], device, *, archs: tuple[str, ...] = SQ.ARCHS, seed: int = 0,
         n_paths: int | None = None, calibrator: PL.Calibrator | None = None,
-        horizon: int = PL.HORIZON, retrain: bool = False) -> dict:
+        horizon: int = PL.HORIZON, retrain: bool = False, subsample_n: int = SUBSAMPLE_N) -> dict:
     """Price ``anchors`` **COVID-first** (so the headline anchor + the paths-convergence sweep land
     first), reusing the COVID-chosen ``N`` for the rest. One anchor's failure does not sink the
     others (each is caught + reported)."""
     ordered = ([COVID_ANCHOR] if COVID_ANCHOR in anchors else []) + [a for a in anchors if a != COVID_ANCHOR]
     print(f"=== W3b MC sequence pricing · anchors={ordered} (COVID-first) · archs={list(archs)} · "
-          f"device={device}{'  n_paths=' + str(n_paths) if n_paths else '  (convergence sweep)'} ===",
-          flush=True)
+          f"device={device}{'  n_paths=' + str(n_paths) if n_paths else '  (convergence sweep)'} · "
+          f"subsample_n={subsample_n:,} ===", flush=True)
     chosen_n, out = n_paths, {}
     for k in ordered:
         try:
             res = run_anchor(k, device, archs=archs, seed=seed, n_paths=chosen_n,
-                             calibrator=calibrator, horizon=horizon, retrain=retrain)
+                             calibrator=calibrator, horizon=horizon, retrain=retrain,
+                             subsample_n=subsample_n)
             chosen_n = res["n_paths"]                          # adopt the COVID-anchor convergence N
             out[k] = res
         except Exception as e:                                 # one anchor must not sink the rest
@@ -381,12 +427,14 @@ def main() -> None:
     ap.add_argument("--n-paths", type=int, default=None, help="fix N (skip the convergence sweep)")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--retrain", action="store_true", help="force retrain even if weights exist")
+    ap.add_argument("--subsample-n", type=int, default=SUBSAMPLE_N,
+                    help=f"ADR-002 loans-per-anchor cap (stratified subsample; default {SUBSAMPLE_N:,})")
     args = ap.parse_args()
     config.require_drive()
     device = (torch.device("cuda") if args.device == "cuda" else tc.resolve_device(args.device))
     anchors = args.anchors if args.anchors else ANCHORS
     run(anchors, device, archs=tuple(args.archs), seed=args.seed, n_paths=args.n_paths,
-        retrain=args.retrain)
+        retrain=args.retrain, subsample_n=args.subsample_n)
 
 
 if __name__ == "__main__":
