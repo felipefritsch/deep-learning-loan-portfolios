@@ -52,31 +52,47 @@ def _load(k: int) -> pl.DataFrame:
     return pl.read_parquet(SRC / f"k{k}_matched.parquet")
 
 
+# 2x3 panel layout: the two pre-COVID calm anchors on the top row, then COVID
+# leading the bottom row of stress/recovery anchors. The empty top-right cell
+# holds the legend. Wider panels (3 columns, not 5) keep the curves legible.
+GRID = [[2015, 2019, None],
+        [2020, 2023, 2025]]
+
+
 def make_figure() -> None:
     plt.rcParams.update({"font.family": "serif", "font.size": 9,
                          "axes.titlesize": 9, "mathtext.fontset": "cm"})
-    fig, axes = plt.subplots(1, len(ANCHORS), figsize=(11.0, 2.65), sharey=True)
-    for ax, k in zip(axes, ANCHORS):
-        df = _load(k)
-        for model, _lab, colour, ls, mk in LINES:
-            sub = df.filter(pl.col("model") == model).sort("h")
-            ax.plot(sub["h"].to_list(), sub["mae_price"].to_list(),
-                    color=colour, linestyle=ls, marker=mk, markersize=4,
-                    linewidth=1.4, markerfacecolor="white" if ls == "--" else colour)
-        ax.set_title(ANCHOR_LABEL[k], fontweight="bold" if k == COVID else "normal")
-        ax.set_xticks(HORIZONS)
-        ax.set_xlabel("Horizon (months)")
-        ax.grid(True, alpha=0.25, linewidth=0.5)
-        ax.margins(x=0.05)
-        if k == COVID:
-            ax.set_facecolor("#F4F1EA")
-    axes[0].set_ylabel("Mean $|$price error$|$\n(per 100 face)")
+    fig, axes = plt.subplots(2, 3, figsize=(9.0, 5.2), sharey=True)
+    legend_ax = None
+    for r, row in enumerate(GRID):
+        for c, k in enumerate(row):
+            ax = axes[r][c]
+            if k is None:
+                ax.axis("off")
+                legend_ax = ax
+                continue
+            df = _load(k)
+            for model, _lab, colour, ls, mk in LINES:
+                sub = df.filter(pl.col("model") == model).sort("h")
+                ax.plot(sub["h"].to_list(), sub["mae_price"].to_list(),
+                        color=colour, linestyle=ls, marker=mk, markersize=4,
+                        linewidth=1.4, markerfacecolor="white" if ls == "--" else colour)
+            ax.set_title(ANCHOR_LABEL[k], fontweight="bold" if k == COVID else "normal")
+            ax.set_xticks(HORIZONS)
+            ax.grid(True, alpha=0.25, linewidth=0.5)
+            ax.margins(x=0.05)
+            if r == len(GRID) - 1:        # x-label on the bottom row only
+                ax.set_xlabel("Horizon (months)")
+            if c == 0:                    # y-label on the left column only (sharey)
+                ax.set_ylabel("Mean $|$price error$|$\n(per 100 face)")
+            if k == COVID:
+                ax.set_facecolor("#F4F1EA")
     handles = [plt.Line2D([], [], color=c, linestyle=ls, marker=mk, markersize=4,
                           linewidth=1.4, markerfacecolor="white" if ls == "--" else c)
                for _m, _l, c, ls, mk in LINES]
-    fig.legend(handles, [lab for _m, lab, *_ in LINES], loc="lower center",
-               ncol=4, frameon=False, bbox_to_anchor=(0.5, -0.04))
-    fig.tight_layout(rect=(0, 0.06, 1, 1))
+    legend_ax.legend(handles, [lab for _m, lab, *_ in LINES], loc="center",
+                     frameon=False, handlelength=2.4, borderaxespad=0.0)
+    fig.tight_layout()
     out = FIGS / "F5.4_value_of_memory.pdf"
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
