@@ -284,7 +284,7 @@ def build_matched_table(k: int, econ: pl.DataFrame) -> dict:
     column is the same population, same engine. Writes ``k{k}_matched.{md,parquet}`` next to the
     per-arm artifacts; returns the in-memory table. Missing sequence arms simply leave blank columns."""
     parts = [econ.select(["scheme", "k", "model", "h", "price_err"])]
-    for arm in ("gru", "xf"):
+    for arm in ("ff_hist", "gru", "xf"):                 # engineered (MC) + learned (MC) arms
         p = MC_OUT / f"k{k}_{arm}_econ.parquet"
         if p.exists():
             parts.append(pl.read_parquet(p).select(["scheme", "k", "model", "h", "price_err"]))
@@ -297,14 +297,19 @@ def build_matched_table(k: int, econ: pl.DataFrame) -> dict:
     MC_OUT.mkdir(parents=True, exist_ok=True)
     mae.write_parquet(MC_OUT / f"k{k}_matched.parquet")
 
-    order = [m for m in (*COMPARATORS, "gru", "xf") if m in mae.get_column("model").unique().to_list()]
-    labels = {**COMPARATOR_LABELS, "gru": "GRU (MC)", "xf": "Transformer (MC)"}
+    # Ladder order: memoryless (composition) -> engineered history (MC) -> learned memory (MC).
+    order = [m for m in (*COMPARATORS, "ff_hist", "gru", "xf")
+             if m in mae.get_column("model").unique().to_list()]
+    labels = {**COMPARATOR_LABELS, "ff_hist": "FF + history (MC)",
+              "gru": "GRU (MC)", "xf": "Transformer (MC)"}
     lines = [f"# W3b matched comparison — anchor Dec{k-1} (k={k}), char scheme",
              "",
              "Mean |price error| per 100 face (signed bias in parentheses), by model × horizon, on "
-             f"the **identical {SUBSAMPLE_N:,}-loan subsample**. Comparators priced by exact matrix "
-             "composition; GRU / transformer by Monte-Carlo path simulation. Same population, pools, "
-             "realized reference and cashflow engine — the gap is the learner.",
+             f"the **identical {SUBSAMPLE_N:,}-loan subsample**. The ladder runs memoryless "
+             "(empirical / logit / FF-current / ensemble, priced by exact matrix composition) → "
+             "engineered history (FF + history, Monte-Carlo) → learned memory (GRU / transformer, "
+             "Monte-Carlo). Same population, pools, realized reference and cashflow engine — the gap "
+             "is the learner.",
              "",
              "| H | " + " | ".join(labels.get(m, m) for m in order) + " |",
              "|" + "---|" * (len(order) + 1)]
