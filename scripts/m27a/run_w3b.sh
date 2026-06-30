@@ -16,6 +16,9 @@ set -uo pipefail          # NOT -e: we manage per-anchor failures explicitly so 
 # overlay-safe cache redirects, so a re-launch after a pod restart needs no hand-recovery.
 # ---------------------------------------------------------------------------
 [ -e "/Volumes/SSD Felipe" ] || { mkdir -p /Volumes && ln -s /workspace "/Volumes/SSD Felipe"; }
+# Re-point git at the PAT store on the volume — the file persists, but the --global config that
+# names it lives on the wiped overlay (same situation as the symlink above), so re-point every pod.
+git config --global credential.helper 'store --file=/workspace/.secrets/git-credentials'
 
 REPO=/workspace/repo
 PY=/workspace/.venv/bin/python
