@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "k": 2019,
+    "t0": 201812,
+    "arch": "ff_hist",
+    "model_name": "ff_hist",
+    "n_pop": 149998,
+    "horizon": 12,
+    "n_paths": 1000,
+    "seed": 0,
+    "calibrated": false,
+    "servicing_spread": 0.0025,
+    "pool_price_h12": 101.48970183552035,
+    "pool_wal_h12": 7.464700014554244,
+    "E_cum_prepaid_h12": 0.09134867131561754,
+    "E_alive_before_h1": 1.0
+  },
+  "guards": {
+    "h1_identity": {
+      "mean_abs": 0.0007966806310024499,
+      "max_abs": 0.05009543798875771,
+      "tol_mean": 0.018973665961010275,
+      "tol_max": 0.18973665961010278,
+      "n_paths": 1000,
+      "pass": true
+    },
+    "aggregation": {
+      "pool_value": 25050860359.837017,
+      "value_sum": 25050860359.83702,
+      "pool_price": 101.48970183552035,
+      "abs_diff": 3.814697265625e-06,
+      "tol": 1e-06,
+      "pass": true
+    }
+  },
+  "subsample": {
+    "target_n": 150000,
+    "actual_n": 149998,
+    "full_pop_n": 589880,
+    "seed": 0,
+    "stratify": "char_cell_ids(FICO\u00d7rate\u00d7LTV)"
+  },
+  "headline": {
+    "1": {
+      "mean_abs_price_err": 0.2567682320271229,
+      "mean_price": 101.52671280657779,
+      "n_pools": 22
+    },
+    "3": {
+      "mean_abs_price_err": 0.19146189503511254,
+      "mean_price": 101.40263558848115,
+      "n_pools": 22
+    },
+    "6": {
+      "mean_abs_price_err": 0.12969129991949044,
+      "mean_price": 101.33404229030783,
+      "n_pools": 22
+    },
+    "12": {
+      "mean_abs_price_err": 0.3975911226335866,
+      "mean_price": 101.39701029210693,
+      "n_pools": 22
+    }
+  },
+  "econ_parquet": "k2019_ff_hist_econ.parquet",
+  "smm_parquet": "k2019_ff_hist_smm_paths.parquet",
+  "git_commit": "2fbbdfc1002d2a1a1eb58a531f768d1cffe2d941",
+  "created_utc": "2026-06-30T13:26:30.631817+00:00",
+  "wall_sec": 1405.8
+}
