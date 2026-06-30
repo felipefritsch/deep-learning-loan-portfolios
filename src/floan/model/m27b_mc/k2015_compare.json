@@ -1,0 +1,265 @@
+{
+  "meta": {
+    "k": 2015,
+    "t0": 201412,
+    "n_pop": 150001,
+    "full_pop_n": 493614,
+    "seed": 0,
+    "target_n": 150000,
+    "stratify": "char_cell_ids(FICO\u00d7rate\u00d7LTV)",
+    "horizons": [
+      1,
+      3,
+      6,
+      12
+    ]
+  },
+  "priced": [
+    "empirical",
+    "logit",
+    "nn",
+    "ensemble"
+  ],
+  "missing": {},
+  "guards": {
+    "population": {
+      "checked": true,
+      "actual_n": 150001,
+      "n_char_cells": 15,
+      "seq_actual_n": 150001,
+      "seq_seed": 0,
+      "seq_target_n": 150000,
+      "seq_stratify": "char_cell_ids(FICO\u00d7rate\u00d7LTV)",
+      "pass": true
+    },
+    "pool_alignment": {
+      "checked": true,
+      "ref": "k2015_gru_econ.parquet",
+      "n_pools": 2060,
+      "n_loans_exact": true,
+      "max_abs": {
+        "wac": 0.0,
+        "wam": 0.0,
+        "upb": 0.0,
+        "cpr_real": 0.0,
+        "wal_real": 0.0,
+        "price_real": 0.0
+      },
+      "tol": 1e-09,
+      "pass": true
+    },
+    "h1_identity": {
+      "empirical": {
+        "max_abs": 0.0,
+        "tol": 1e-05,
+        "n": 150001,
+        "pass": true
+      },
+      "logit": {
+        "max_abs": 0.0,
+        "tol": 1e-05,
+        "n": 150001,
+        "pass": true
+      },
+      "nn": {
+        "max_abs": 0.0,
+        "tol": 1e-05,
+        "n": 150001,
+        "pass": true
+      },
+      "ensemble": {
+        "max_abs": 0.0,
+        "tol": 1e-05,
+        "n": 150001,
+        "pass": true
+      }
+    }
+  },
+  "subsample_parquet": "k2015_subsample.parquet",
+  "econ_parquet": "k2015_compare_econ.parquet",
+  "matched_table": {
+    "table_parquet": "k2015_matched.parquet",
+    "table_md": "k2015_matched.md",
+    "models": [
+      "empirical",
+      "logit",
+      "nn",
+      "ensemble",
+      "gru",
+      "xf"
+    ],
+    "rows": [
+      {
+        "model": "empirical",
+        "h": 1,
+        "mae_price": 0.43014700437290876,
+        "bias_price": -0.43014700437290876,
+        "n_pools": 15
+      },
+      {
+        "model": "empirical",
+        "h": 3,
+        "mae_price": 0.2201321770932547,
+        "bias_price": -0.016799471918187692,
+        "n_pools": 15
+      },
+      {
+        "model": "empirical",
+        "h": 6,
+        "mae_price": 0.184088243315468,
+        "bias_price": -0.057541886307874775,
+        "n_pools": 15
+      },
+      {
+        "model": "empirical",
+        "h": 12,
+        "mae_price": 0.2056746702794963,
+        "bias_price": -0.20029510325641411,
+        "n_pools": 15
+      },
+      {
+        "model": "ensemble",
+        "h": 1,
+        "mae_price": 0.2631697653871659,
+        "bias_price": -0.26165667842261275,
+        "n_pools": 15
+      },
+      {
+        "model": "ensemble",
+        "h": 3,
+        "mae_price": 0.12539514534554902,
+        "bias_price": 0.004622096248930537,
+        "n_pools": 15
+      },
+      {
+        "model": "ensemble",
+        "h": 6,
+        "mae_price": 0.10903467474137188,
+        "bias_price": -0.08339402898886306,
+        "n_pools": 15
+      },
+      {
+        "model": "ensemble",
+        "h": 12,
+        "mae_price": 0.11836671485453583,
+        "bias_price": -0.09256303730399888,
+        "n_pools": 15
+      },
+      {
+        "model": "gru",
+        "h": 1,
+        "mae_price": 0.35675440894039906,
+        "bias_price": -0.35675440894039906,
+        "n_pools": 15
+      },
+      {
+        "model": "gru",
+        "h": 3,
+        "mae_price": 0.08775797863366487,
+        "bias_price": -0.057656031268560545,
+        "n_pools": 15
+      },
+      {
+        "model": "gru",
+        "h": 6,
+        "mae_price": 0.11775212618064283,
+        "bias_price": -0.11058002196107755,
+        "n_pools": 15
+      },
+      {
+        "model": "gru",
+        "h": 12,
+        "mae_price": 0.16294565943261052,
+        "bias_price": -0.1573548305644806,
+        "n_pools": 15
+      },
+      {
+        "model": "logit",
+        "h": 1,
+        "mae_price": 0.1857431731491412,
+        "bias_price": -0.1722592268959526,
+        "n_pools": 15
+      },
+      {
+        "model": "logit",
+        "h": 3,
+        "mae_price": 0.1967605567714865,
+        "bias_price": 0.15843572785892662,
+        "n_pools": 15
+      },
+      {
+        "model": "logit",
+        "h": 6,
+        "mae_price": 0.14809083030125217,
+        "bias_price": 0.12347450352629798,
+        "n_pools": 15
+      },
+      {
+        "model": "logit",
+        "h": 12,
+        "mae_price": 0.11566797964252658,
+        "bias_price": 0.1101182782220756,
+        "n_pools": 15
+      },
+      {
+        "model": "nn",
+        "h": 1,
+        "mae_price": 0.27268270090438496,
+        "bias_price": -0.2705820990378063,
+        "n_pools": 15
+      },
+      {
+        "model": "nn",
+        "h": 3,
+        "mae_price": 0.11388038628583104,
+        "bias_price": -0.03287246942068691,
+        "n_pools": 15
+      },
+      {
+        "model": "nn",
+        "h": 6,
+        "mae_price": 0.1400906802674617,
+        "bias_price": -0.13645647423799973,
+        "n_pools": 15
+      },
+      {
+        "model": "nn",
+        "h": 12,
+        "mae_price": 0.12580676975754368,
+        "bias_price": -0.10922192474695389,
+        "n_pools": 15
+      },
+      {
+        "model": "xf",
+        "h": 1,
+        "mae_price": 0.39843463207560226,
+        "bias_price": -0.39843463207560226,
+        "n_pools": 15
+      },
+      {
+        "model": "xf",
+        "h": 3,
+        "mae_price": 0.12041531194486765,
+        "bias_price": -0.1035130018164125,
+        "n_pools": 15
+      },
+      {
+        "model": "xf",
+        "h": 6,
+        "mae_price": 0.1599957880549103,
+        "bias_price": -0.14720498228971338,
+        "n_pools": 15
+      },
+      {
+        "model": "xf",
+        "h": 12,
+        "mae_price": 0.21248698051361525,
+        "bias_price": -0.20648748970192798,
+        "n_pools": 15
+      }
+    ]
+  },
+  "git_commit": "6df5dd125a0f11bf6e3e56a706c8c9ceaba67d50",
+  "created_utc": "2026-06-30T11:51:21.066411+00:00",
+  "wall_sec": 19.6
+}

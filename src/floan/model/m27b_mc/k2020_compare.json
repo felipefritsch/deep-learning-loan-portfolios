@@ -1,0 +1,265 @@
+{
+  "meta": {
+    "k": 2020,
+    "t0": 201912,
+    "n_pop": 149998,
+    "full_pop_n": 606845,
+    "seed": 0,
+    "target_n": 150000,
+    "stratify": "char_cell_ids(FICO\u00d7rate\u00d7LTV)",
+    "horizons": [
+      1,
+      3,
+      6,
+      12
+    ]
+  },
+  "priced": [
+    "empirical",
+    "logit",
+    "nn",
+    "ensemble"
+  ],
+  "missing": {},
+  "guards": {
+    "population": {
+      "checked": true,
+      "actual_n": 149998,
+      "n_char_cells": 21,
+      "seq_actual_n": 149998,
+      "seq_seed": 0,
+      "seq_target_n": 150000,
+      "seq_stratify": "char_cell_ids(FICO\u00d7rate\u00d7LTV)",
+      "pass": true
+    },
+    "pool_alignment": {
+      "checked": true,
+      "ref": "k2020_gru_econ.parquet",
+      "n_pools": 2084,
+      "n_loans_exact": true,
+      "max_abs": {
+        "wac": 0.0,
+        "wam": 0.0,
+        "upb": 0.0,
+        "cpr_real": 0.0,
+        "wal_real": 0.0,
+        "price_real": 0.0
+      },
+      "tol": 1e-09,
+      "pass": true
+    },
+    "h1_identity": {
+      "empirical": {
+        "max_abs": 0.0,
+        "tol": 1e-05,
+        "n": 149998,
+        "pass": true
+      },
+      "logit": {
+        "max_abs": 0.0,
+        "tol": 1e-05,
+        "n": 149998,
+        "pass": true
+      },
+      "nn": {
+        "max_abs": 0.0,
+        "tol": 1e-05,
+        "n": 149998,
+        "pass": true
+      },
+      "ensemble": {
+        "max_abs": 0.0,
+        "tol": 1e-05,
+        "n": 149998,
+        "pass": true
+      }
+    }
+  },
+  "subsample_parquet": "k2020_subsample.parquet",
+  "econ_parquet": "k2020_compare_econ.parquet",
+  "matched_table": {
+    "table_parquet": "k2020_matched.parquet",
+    "table_md": "k2020_matched.md",
+    "models": [
+      "empirical",
+      "logit",
+      "nn",
+      "ensemble",
+      "gru",
+      "xf"
+    ],
+    "rows": [
+      {
+        "model": "empirical",
+        "h": 1,
+        "mae_price": 0.24976714300095454,
+        "bias_price": -0.046247482609976215,
+        "n_pools": 21
+      },
+      {
+        "model": "empirical",
+        "h": 3,
+        "mae_price": 0.344174550622438,
+        "bias_price": 0.29282745088459283,
+        "n_pools": 21
+      },
+      {
+        "model": "empirical",
+        "h": 6,
+        "mae_price": 0.5048418571604071,
+        "bias_price": 0.5048418571604071,
+        "n_pools": 21
+      },
+      {
+        "model": "empirical",
+        "h": 12,
+        "mae_price": 0.5531668160432723,
+        "bias_price": 0.5531668160432723,
+        "n_pools": 21
+      },
+      {
+        "model": "ensemble",
+        "h": 1,
+        "mae_price": 0.12306925792426798,
+        "bias_price": 0.10669529323800002,
+        "n_pools": 21
+      },
+      {
+        "model": "ensemble",
+        "h": 3,
+        "mae_price": 0.31263940473256874,
+        "bias_price": 0.3048115617992165,
+        "n_pools": 21
+      },
+      {
+        "model": "ensemble",
+        "h": 6,
+        "mae_price": 0.5109576970186923,
+        "bias_price": 0.5109576970186923,
+        "n_pools": 21
+      },
+      {
+        "model": "ensemble",
+        "h": 12,
+        "mae_price": 0.5822602470796772,
+        "bias_price": 0.5822602470796772,
+        "n_pools": 21
+      },
+      {
+        "model": "gru",
+        "h": 1,
+        "mae_price": 0.10389057594607227,
+        "bias_price": -0.06730463191310389,
+        "n_pools": 21
+      },
+      {
+        "model": "gru",
+        "h": 3,
+        "mae_price": 0.20586033539129966,
+        "bias_price": 0.1816859116872495,
+        "n_pools": 21
+      },
+      {
+        "model": "gru",
+        "h": 6,
+        "mae_price": 0.3580913613098379,
+        "bias_price": 0.3580913613098379,
+        "n_pools": 21
+      },
+      {
+        "model": "gru",
+        "h": 12,
+        "mae_price": 0.4847806670730027,
+        "bias_price": 0.4847806670730027,
+        "n_pools": 21
+      },
+      {
+        "model": "logit",
+        "h": 1,
+        "mae_price": 0.14801017423203264,
+        "bias_price": -0.023809105610866476,
+        "n_pools": 21
+      },
+      {
+        "model": "logit",
+        "h": 3,
+        "mae_price": 0.2499319071858936,
+        "bias_price": 0.22715299968911987,
+        "n_pools": 21
+      },
+      {
+        "model": "logit",
+        "h": 6,
+        "mae_price": 0.4412332946525698,
+        "bias_price": 0.4412332946525698,
+        "n_pools": 21
+      },
+      {
+        "model": "logit",
+        "h": 12,
+        "mae_price": 0.5604194373098533,
+        "bias_price": 0.5604194373098533,
+        "n_pools": 21
+      },
+      {
+        "model": "nn",
+        "h": 1,
+        "mae_price": 0.10067992277375094,
+        "bias_price": 0.07469635059483234,
+        "n_pools": 21
+      },
+      {
+        "model": "nn",
+        "h": 3,
+        "mae_price": 0.28464649419171567,
+        "bias_price": 0.27342010428681907,
+        "n_pools": 21
+      },
+      {
+        "model": "nn",
+        "h": 6,
+        "mae_price": 0.479370021678831,
+        "bias_price": 0.479370021678831,
+        "n_pools": 21
+      },
+      {
+        "model": "nn",
+        "h": 12,
+        "mae_price": 0.5653120952857978,
+        "bias_price": 0.5653120952857978,
+        "n_pools": 21
+      },
+      {
+        "model": "xf",
+        "h": 1,
+        "mae_price": 0.09367678747952368,
+        "bias_price": -0.07344026880402257,
+        "n_pools": 21
+      },
+      {
+        "model": "xf",
+        "h": 3,
+        "mae_price": 0.18796663141836167,
+        "bias_price": 0.16417803615920454,
+        "n_pools": 21
+      },
+      {
+        "model": "xf",
+        "h": 6,
+        "mae_price": 0.3652764923742164,
+        "bias_price": 0.3652764923742164,
+        "n_pools": 21
+      },
+      {
+        "model": "xf",
+        "h": 12,
+        "mae_price": 0.49290651048610407,
+        "bias_price": 0.49290651048610407,
+        "n_pools": 21
+      }
+    ]
+  },
+  "git_commit": "6df5dd125a0f11bf6e3e56a706c8c9ceaba67d50",
+  "created_utc": "2026-06-30T11:51:54.270798+00:00",
+  "wall_sec": 16.2
+}
