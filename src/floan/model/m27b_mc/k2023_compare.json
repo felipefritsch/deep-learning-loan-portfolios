@@ -85,6 +85,7 @@
       "logit",
       "nn",
       "ensemble",
+      "ff_hist",
       "gru",
       "xf"
     ],
@@ -143,6 +144,34 @@
         "h": 12,
         "mae_price": 0.16906955408501076,
         "bias_price": 0.06666444212140377,
+        "n_pools": 20
+      },
+      {
+        "model": "ff_hist",
+        "h": 1,
+        "mae_price": 0.14519429490191982,
+        "bias_price": 0.025848255540461197,
+        "n_pools": 20
+      },
+      {
+        "model": "ff_hist",
+        "h": 3,
+        "mae_price": 0.3069745054957259,
+        "bias_price": 0.26783705424761806,
+        "n_pools": 20
+      },
+      {
+        "model": "ff_hist",
+        "h": 6,
+        "mae_price": 0.2563465918821855,
+        "bias_price": 0.1813886248075626,
+        "n_pools": 20
+      },
+      {
+        "model": "ff_hist",
+        "h": 12,
+        "mae_price": 0.16647554382828317,
+        "bias_price": 0.07015123304564738,
         "n_pools": 20
       },
       {
@@ -259,7 +288,7 @@
       }
     ]
   },
-  "git_commit": "6df5dd125a0f11bf6e3e56a706c8c9ceaba67d50",
-  "created_utc": "2026-06-30T11:52:11.450426+00:00",
-  "wall_sec": 17.2
+  "git_commit": "2fbbdfc1002d2a1a1eb58a531f768d1cffe2d941",
+  "created_utc": "2026-06-30T14:42:20.863073+00:00",
+  "wall_sec": 18.3
 }
