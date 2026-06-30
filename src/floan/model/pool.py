@@ -432,6 +432,10 @@ class TorchPredictor:
 
     def __init__(self, model, scaler, vocab, device):
         self.model, self.scaler, self.vocab, self.device = model, scaler, vocab, device
+        # Resolve the per-origin `state` vocab indices from THIS predictor's own vocab, so scoring
+        # works on any entry path (the ADR-001 seam `roll_forward_predictor` never sets the module
+        # global `_STATE_IDX` — only the M24 batch `roll_forward` does). Self-contained, no global.
+        self._state_idx = {s: vocab.maps["state"][s] for s in ORIGIN_STATES}
 
     def _encode(self, frame_h: pl.DataFrame):
         """Frame → ``(cont, cat, binb)`` device tensors — moved verbatim from ``_chunk_matrices``."""
@@ -448,7 +452,7 @@ class TorchPredictor:
         scores = []
         for s in ORIGIN_STATES:
             cat_o = cat.clone()
-            cat_o[:, STATE_COL] = config_state_index(s)
+            cat_o[:, STATE_COL] = self._state_idx[s]
             scores.append(_forward_probs(self.model, cont, cat_o, binb))
         return scores
 
