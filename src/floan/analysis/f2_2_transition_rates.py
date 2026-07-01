@@ -72,7 +72,7 @@ def figure(df: pl.DataFrame):
         ax.set_ylabel("% / month", fontsize=9)
         ax.grid(True, alpha=0.25)
     axes[-1].set_xlabel("calendar month")
-    fig.suptitle("F2.2  Monthly transition rates, 2000–2025", fontsize=12)
+    # No in-figure title — the LaTeX caption supplies it.
     fig.tight_layout()
     return fig
 

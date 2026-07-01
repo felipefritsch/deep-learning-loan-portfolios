@@ -76,15 +76,18 @@ def figure(rate, fx, fy):
     ax.set_xticklabels(_labels(fx, "≤", "≥"), rotation=45, ha="right", fontsize=8)
     ax.set_yticks(range(rate.shape[0]))
     ax.set_yticklabels(_labels(fy, "≤", "≥"), fontsize=8)
-    ax.set_xlabel("origination FICO (octiles)")
-    ax.set_ylabel("origination LTV (octiles)")
-    ax.set_title("F3.4  current→dpd_30+ rate (% / mo) by FICO × LTV",
-                 fontsize=12, loc="left")
+    ax.set_xlabel("origination FICO (octiles)", fontweight="bold", fontsize=11)
+    ax.set_ylabel("origination LTV (octiles)", fontweight="bold", fontsize=11)
+    # No in-figure title — the LaTeX caption supplies it. In-cell values are set
+    # larger and bold, in white on the darker (higher-rate) cells for contrast.
     for j in range(rate.shape[0]):
         for i in range(rate.shape[1]):
             if not np.isnan(rate[j, i]):
-                ax.text(i, j, f"{rate[j, i]*100:.2f}", ha="center", va="center",
-                        fontsize=6.5, color="black")
+                val = rate[j, i] * 100
+                rr, gg, bb, _ = im.cmap(im.norm(val))
+                tc = "white" if (0.299 * rr + 0.587 * gg + 0.114 * bb) < 0.55 else "black"
+                ax.text(i, j, f"{val:.2f}", ha="center", va="center",
+                        fontsize=9, fontweight="bold", color=tc)
     fig.colorbar(im, ax=ax, label="dpd_30+ rate (% / month)")
     fig.tight_layout()
     return fig

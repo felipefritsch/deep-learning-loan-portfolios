@@ -62,8 +62,7 @@ ax.set_ylim(1e-6, 3e-3)
 ax.set_xticks(list(x))
 ax.set_xticklabels([f"k={k}" for k in windows], fontsize=9)
 ax.set_ylabel("mean impossible mass / row", fontsize=11)
-ax.set_title("The threshold never moves: correcting the mask clears every window",
-             fontsize=12, fontweight="bold", color=TEAL, pad=10)
+# No in-figure title — the LaTeX caption supplies it.
 ax.legend(loc="lower left", fontsize=9, frameon=False)
 for s in ("top", "right"):
     ax.spines[s].set_visible(False)

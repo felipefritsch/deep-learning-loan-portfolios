@@ -78,9 +78,7 @@ ax.text(0.012, 0.97, "above 0: single net ahead", transform=ax.transAxes,
         va="top", ha="left", fontsize=9, color=TEAL)
 ax.text(0.012, 0.03, "below 0: GBT ahead", transform=ax.transAxes,
         va="bottom", ha="left", fontsize=9, color=BROWN)
-ax.set_title("The net's lead over the tree is thin in every window and does not "
-             "order by regime calm", fontsize=12, fontweight="bold", color=TEAL,
-             pad=12)
+# No in-figure title — the LaTeX caption supplies it.
 for s in ("top", "right"):
     ax.spines[s].set_visible(False)
 ax.tick_params(length=0)

@@ -231,7 +231,7 @@ try:
             ax.set_xlabel("Mean predicted"); ax.grid(alpha=0.3)
             if ci == 0:
                 ax.set_ylabel("Observed freq"); ax.legend()
-    fig.suptitle("GBT raw-softmax calibration — 5 regime windows (current origin, ~20% subsample)")
+    # No in-figure title — the LaTeX caption supplies it.
     p = OUT / "F_gbt_regime_calibration"
     fig.savefig(f"{p}.png", dpi=150, bbox_inches="tight")
     fig.savefig(f"{p}.pdf", bbox_inches="tight")

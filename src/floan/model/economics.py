@@ -297,17 +297,17 @@ def fig_price_error_buckets(df_k: pl.DataFrame, k: int, *, suffix: str = "",
         ax.set_xticks(range(nR)); ax.set_xticklabels(RATE_LABELS, fontsize=8)
         ax.set_yticks(range(nF)); ax.set_yticklabels(FICO_LABELS, fontsize=8)
         ax.set_title(lab.get(m, m), fontsize=11)
-        ax.set_xlabel("orig-rate quartile")
+        ax.set_xlabel("orig-rate quartile", fontweight="bold")
         for i in range(nF):
             for j in range(nR):
                 if not np.isnan(g[i, j]):
-                    ax.text(j, i, f"{g[i, j]:+.2f}", ha="center", va="center", fontsize=7,
-                            color="black")
-    axes[0].set_ylabel("FICO band")
+                    rr, gg, bb, _ = im.cmap(im.norm(g[i, j]))   # white text on dark cells
+                    tc = "white" if (0.299 * rr + 0.587 * gg + 0.114 * bb) < 0.55 else "black"
+                    ax.text(j, i, f"{g[i, j]:+.2f}", ha="center", va="center", fontsize=8.5,
+                            fontweight="bold", color=tc)
+    axes[0].set_ylabel("FICO band", fontweight="bold")
     fig.colorbar(im, ax=axes, fraction=0.046, pad=0.04, label="signed price error (/100 face)")
-    fig.suptitle(f"F5.2 — pool price error by characteristic bucket  ·  anchor Dec{k-1} (k={k})\n"
-                 "UPB-weighted, LTV collapsed; +ve = model over-values (under-predicts prepay). "
-                 "High-incentive = top orig-rate quartile (right).", y=1.06, fontsize=10)
+    # No in-figure title — the LaTeX caption supplies it.
     p = _figdir() / f"F5.2_price_error_buckets_k{k}{suffix}"
     fig.savefig(f"{p}.png", dpi=200, bbox_inches="tight")
     fig.savefig(f"{p}.pdf", bbox_inches="tight")

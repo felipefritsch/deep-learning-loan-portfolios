@@ -52,7 +52,7 @@ def figure(curve: pl.DataFrame):
     ax.plot(x, rate, color="tab:green", lw=1.4, marker="o", ms=3, label="current → prepaid")
     ax.set_xlabel("loan age (months)")
     ax.set_ylabel("prepayment rate (% / month)")
-    ax.set_title("F3.1  Prepayment vs loan age — the seasoning hump", fontsize=12, loc="left")
+    # No in-figure title — the LaTeX caption supplies it.
     ax.grid(True, alpha=0.25)
     ax.legend(fontsize=9, loc="upper right")
     fig.tight_layout()

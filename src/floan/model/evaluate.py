@@ -341,7 +341,8 @@ def fig_nll_by_year(table_b: dict) -> Path:
         vv = [v for v in ys if v is not None]
         ax.plot(xs, vv, marker="o", label=MODEL_LABELS[m])
     ax.set_xlabel("Test year"); ax.set_ylabel("Out-of-sample NLL")
-    ax.set_title("Table B — out-of-sample NLL by test year and model")
+    # No in-figure title: the LaTeX caption supplies it (this internal "Table B"
+    # label does not correspond to any table number in the write-up).
     ax.set_xticks(years); ax.grid(alpha=0.3); ax.legend()
     p = _figdir() / "F_tableB_nll_by_year"
     fig.savefig(f"{p}.png", dpi=200, bbox_inches="tight")
@@ -369,35 +370,44 @@ def fig_calibration(pooled: dict) -> list[Path]:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.ticker import PercentFormatter
     y = pooled["y"].astype(np.int64)
     origin = pooled["origin"]
     label_year = pooled["label_ym"] // 100
     cur = origin == OI["current"]
     covid = cur & np.isin(label_year, [2020, 2021])
-    other = cur & ~np.isin(label_year, [2020, 2021])
 
-    paths = []
-    for dest, di, dname in ((PREPAID, PREPAID, "prepaid"), (DPD30, DPD30, "dpd_30")):
-        fig, axes = plt.subplots(1, 3, figsize=(15, 4.6), sharex=True, sharey=True)
-        for ax, (title, mask) in zip(axes, [("Pooled (all years)", cur),
-                                            ("2020–21 (COVID)", covid),
-                                            ("Other years", other)]):
-            ax.plot([0, 1], [0, 1], ls="--", c="grey", lw=1, label="perfect")
+    # Single 2x2 grid: rows = transition (prepayment / delinquency), columns =
+    # regime (all years pooled vs the 2020–21 forbearance window). The bold row
+    # transition is carried in each panel title so the two rows are self-evident;
+    # the "Other years" panel is dropped (it tracks the pooled column closely).
+    rows = [(PREPAID, "Prepaid"), (DPD30, "30+ DPD")]
+    cols = [("Pooled", cur), ("2020–21 (COVID)", covid)]
+    fig, axes = plt.subplots(2, 2, figsize=(9.0, 8.4))
+    for r, (di, tname) in enumerate(rows):
+        lim = max(0.02, float((y[cur] == di).mean()) * 4)
+        for c, (cname, mask) in enumerate(cols):
+            ax = axes[r][c]
+            ax.plot([0, lim], [0, lim], ls="--", c="grey", lw=1, label="perfect")
             for mname in ("logit", "nn"):
                 _reliability(ax, pooled["probs"][mname][mask][:, di],
                              (y[mask] == di).astype(np.float64), MODEL_LABELS[mname])
-            lim = max(0.02, float((y[cur] == di).mean()) * 4)
             ax.set_xlim(0, lim); ax.set_ylim(0, lim)
-            ax.set_title(title); ax.set_xlabel("Mean predicted prob")
+            ax.set_title(f"Current$\\to${tname}  ·  {cname}", fontweight="bold", fontsize=11)
+            ax.xaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=1))
+            ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=1))
             ax.grid(alpha=0.3)
-        axes[0].set_ylabel("Observed frequency"); axes[0].legend()
-        fig.suptitle(f"Calibration — current→{dname}")
-        p = _figdir() / f"F_calibration_current_to_{dname}"
-        fig.savefig(f"{p}.png", dpi=200, bbox_inches="tight")
-        fig.savefig(f"{p}.pdf", bbox_inches="tight")
-        plt.close(fig)
-        paths.append(p)
-    return paths
+            if r == len(rows) - 1:
+                ax.set_xlabel("Mean predicted probability")
+            if c == 0:
+                ax.set_ylabel("Observed frequency")
+    axes[0][0].legend(loc="upper left")
+    fig.tight_layout()
+    p = _figdir() / "F_calibration_current"
+    fig.savefig(f"{p}.png", dpi=200, bbox_inches="tight")
+    fig.savefig(f"{p}.pdf", bbox_inches="tight")
+    plt.close(fig)
+    return [p]
 
 
 def fig_rate_overlay(pooled: dict) -> Path:
@@ -410,6 +420,8 @@ def fig_rate_overlay(pooled: dict) -> Path:
     months = np.unique(ym)
     x = _ym_to_frac(months)
 
+    from matplotlib.ticker import PercentFormatter
+    pretty = {"prepaid": "Prepaid", "dpd_30": "30+ DPD"}
     fig, axes = plt.subplots(2, 1, figsize=(11, 8), sharex=True)
     for ax, (di, dname) in zip(axes, ((PREPAID, "prepaid"), (DPD30, "dpd_30"))):
         realized = np.array([float((y[cur][ym == mo] == di).mean()) for mo in months])
@@ -418,10 +430,12 @@ def fig_rate_overlay(pooled: dict) -> Path:
             P = pooled["probs"][mname][cur][:, di]
             pred = np.array([float(P[ym == mo].mean()) for mo in months])
             ax.plot(x, pred, lw=1.3, alpha=0.85, label=f"predicted ({MODEL_LABELS[mname]})")
-        ax.set_ylabel(f"monthly current→{dname} rate")
+        ax.set_ylabel(f"Monthly Current$\\to${pretty[dname]} Rate",
+                      fontweight="bold", fontsize=12)
+        ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=1))
         ax.grid(alpha=0.3); ax.legend(loc="upper right")
     axes[-1].set_xlabel("Transition (label) month")
-    fig.suptitle("Predicted vs realized monthly transition rates (current origin), 2015–2025")
+    # No suptitle: the LaTeX caption supplies it.
     p = _figdir() / "F_rate_overlay"
     fig.savefig(f"{p}.png", dpi=200, bbox_inches="tight")
     fig.savefig(f"{p}.pdf", bbox_inches="tight")
@@ -450,7 +464,7 @@ def fig_ensemble_curve() -> Path | None:
     if not plotted:
         plt.close(fig); return None
     ax.set_xlabel("Ensemble size"); ax.set_ylabel("Out-of-sample NLL")
-    ax.set_title("Ensemble-size curve (paper Fig 7) — key windows")
+    # No in-figure title: the LaTeX caption supplies it (and cites the paper figure).
     ax.grid(alpha=0.3); ax.legend()
     pp = _figdir() / "F_ensemble_size_curve"
     fig.savefig(f"{pp}.png", dpi=200, bbox_inches="tight")
