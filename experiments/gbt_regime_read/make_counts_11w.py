@@ -136,8 +136,7 @@ ax.set_yticklabels([label for _, _, _, label in CELLS], fontsize=11)
 ax.set_xscale("log")
 ax.set_xlim(0.4, 5e3)
 ax.set_xlabel("realised count in held-out data  (range across the eleven windows, log scale)", fontsize=11)
-ax.set_title("The flagged mass sits on transitions that genuinely occur",
-             fontsize=13, fontweight="bold", color=TEAL, pad=10)
+# No in-figure title — the LaTeX caption supplies it.
 ax.text(0.985, 0.46, "legal\n(teal)", transform=ax.transAxes, ha="right", va="top",
         fontsize=10, fontweight="bold", color=TEAL)
 ax.text(0.985, 0.12, f"impossible\n(red): {imp_lo}–{imp_hi} errors", transform=ax.transAxes,

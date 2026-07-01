@@ -265,16 +265,22 @@ def _scatter_panel(counts, k, outcome, metrics, scheme, title_tail, fname):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     models = list(counts)
-    fig, axes = plt.subplots(1, len(models), figsize=(5 * len(models), 4.8),
-                             sharex=True, sharey=True)
+    # Independent axes per panel: a shared y-axis is sized to whichever model is
+    # drawn last and clips any model whose predictions fall outside that range —
+    # e.g. the empirical matrix over-predicts pool counts to a near-constant far
+    # above the well-calibrated models, and was clipped to an empty panel.
+    fig, axes = plt.subplots(1, len(models), figsize=(5 * len(models), 4.8))
     if len(models) == 1:
         axes = [axes]
     for ax, m in zip(axes, models):
         c = counts[m]
         ax.scatter(c["realized"], c["pred"], s=8, alpha=0.35, edgecolors="none")
-        lim = max(float(c["realized"].max()), float(c["pred"].max())) * 1.05 or 1.0
-        ax.plot([0, lim], [0, lim], ls="--", c="grey", lw=1)
-        ax.set_xlim(0, lim); ax.set_ylim(0, lim)
+        # x-axis on the realised range (shared across panels); y-axis per model,
+        # so an over-predicting model extends only upward, not sideways.
+        xmax = float(c["realized"].max()) * 1.05 or 1.0
+        ymax = max(float(c["realized"].max()), float(c["pred"].max())) * 1.05 or 1.0
+        ax.plot([0, max(xmax, ymax)], [0, max(xmax, ymax)], ls="--", c="grey", lw=1)
+        ax.set_xlim(0, xmax); ax.set_ylim(0, ymax)
         mm = metrics[m][outcome][scheme]
         ax.set_title(f"{MODEL_LABELS[m]}\nR²={mm['r2']:.3f}  RMSE={mm['rmse']:.1f}")
         ax.set_xlabel("Realized count"); ax.grid(alpha=0.3)

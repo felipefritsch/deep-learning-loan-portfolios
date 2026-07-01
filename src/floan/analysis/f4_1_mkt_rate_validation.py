@@ -50,7 +50,7 @@ def figure(df: pl.DataFrame):
     ax.plot(x, df["pmms30"], color="tab:blue", lw=1.3, label="PMMS 30-yr (FRED MORTGAGE30US)")
     ax.plot(x, df["mkt_rate"], color="tab:orange", lw=1.1, label="mkt_rate proxy (avg origination rate)")
     ax.set_ylabel("rate (%)")
-    ax.set_title("F4.1  Market-rate proxy vs PMMS 30-yr", fontsize=12, loc="left")
+    # No in-figure title — the LaTeX caption supplies it.
     ax.legend(fontsize=9, loc="upper right")
     ax.grid(True, alpha=0.25)
     axg.axhline(0, color="grey", lw=0.8)

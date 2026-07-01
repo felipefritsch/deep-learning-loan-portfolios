@@ -74,8 +74,7 @@ def figure(out, edges):
     ax.axvline(0.0, color="grey", ls="--", lw=0.8)
     ax.set_xlabel("rate incentive = current rate − PMMS30  (percentage points)")
     ax.set_ylabel("prepayment rate (% / month)")
-    ax.set_title("F3.5  Prepayment vs incentive, by FICO tercile — burnout / credit constraint",
-                 fontsize=11, loc="left")
+    # No in-figure title — the LaTeX caption supplies it.
     ax.grid(True, alpha=0.25)
     ax.legend(fontsize=9, loc="upper left", title="origination FICO")
     fig.tight_layout()

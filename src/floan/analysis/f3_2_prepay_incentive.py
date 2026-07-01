@@ -56,8 +56,7 @@ def figure(curve: pl.DataFrame):
     ax.axvline(0.0, color="grey", ls="--", lw=0.8)
     ax.set_xlabel("rate incentive = current rate − PMMS30  (percentage points)")
     ax.set_ylabel("prepayment rate (% / month)")
-    ax.set_title("F3.2  Prepayment vs rate incentive — the refinancing S-curve",
-                 fontsize=12, loc="left")
+    # No in-figure title — the LaTeX caption supplies it.
     ax.grid(True, alpha=0.25)
     ax.legend(fontsize=9, loc="upper left")
     fig.tight_layout()

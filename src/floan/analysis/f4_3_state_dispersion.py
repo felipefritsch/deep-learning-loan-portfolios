@@ -77,7 +77,7 @@ def figure(real: pl.DataFrame, nat: dict):
     axes[1].legend(fontsize=8)
     axes[1].grid(True, alpha=0.25, axis="y")
 
-    fig.suptitle("F4.3  Cross-state dispersion: crisis (2009) vs calm (2019)", fontsize=12)
+    # No in-figure title — the LaTeX caption supplies it.
     fig.tight_layout()
     return fig
 

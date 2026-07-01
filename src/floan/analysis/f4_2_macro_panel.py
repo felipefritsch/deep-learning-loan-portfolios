@@ -73,30 +73,31 @@ def figure(df: pl.DataFrame):
         for a, b in recessions:
             ax.axvspan(a, b, color="grey", alpha=0.12, lw=0)
         ax.grid(True, alpha=0.25)
+        ax.tick_params(labelsize=12)
 
     ax = axes[0, 0]
     ax.plot(x, df["pmms30"], color="tab:blue", lw=1.1)
-    ax.set_title("30-yr mortgage rate — PMMS (%)", fontsize=10, loc="left")
+    ax.set_title("30-yr mortgage rate — PMMS (%)", fontsize=14, fontweight="bold", loc="left")
 
     ax = axes[0, 1]
     ax.plot(x, df["dgs10"], color="tab:purple", lw=1.1)
-    ax.set_title("10-yr Treasury — DGS10 (%)", fontsize=10, loc="left")
+    ax.set_title("10-yr Treasury — DGS10 (%)", fontsize=14, fontweight="bold", loc="left")
 
     ax = axes[1, 0]
     ax.fill_between(x, df["unr_p25"], df["unr_p75"], color="tab:orange", alpha=0.25,
                     lw=0, label="state IQR")
     ax.plot(x, df["unrate_nat"], color="tab:red", lw=1.1, label="national")
-    ax.set_title("Unemployment — national + state IQR (%)", fontsize=10, loc="left")
-    ax.legend(fontsize=8, loc="upper right")
+    ax.set_title("Unemployment — national + state IQR (%)", fontsize=14, fontweight="bold", loc="left")
+    ax.legend(fontsize=13, loc="upper right")
 
     ax = axes[1, 1]
     ax.fill_between(x, df["hpi_p10"], df["hpi_p90"], color="tab:green", alpha=0.22,
                     lw=0, label="state p10–p90")
     ax.plot(x, df["hpi_nat_idx"], color="tab:green", lw=1.3, label="national")
-    ax.set_title("FMHPI, 2000-01 = 100 — national + state dispersion", fontsize=10, loc="left")
-    ax.legend(fontsize=8, loc="upper left")
+    ax.set_title("FMHPI, 2000-01 = 100 — national + state dispersion", fontsize=14, fontweight="bold", loc="left")
+    ax.legend(fontsize=13, loc="upper left")
 
-    fig.suptitle("F4.2  Macro context, 2000–2025", fontsize=12)
+    # No in-figure title — the LaTeX caption supplies it.
     fig.tight_layout()
     return fig
 

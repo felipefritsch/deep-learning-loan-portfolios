@@ -97,8 +97,7 @@ def figure(wide: pl.DataFrame):
     ax.annotate("CARES-Act\nforbearance onset", xy=(_d(2020, 5), 1.0),
                 xytext=(_d(2020, 8), 3.2), fontsize=8,
                 arrowprops=dict(arrowstyle="->", color="steelblue"))
-    ax.set_title("F2.3  Delinquency-status mix, 2019-06 → 2022-06 "
-                 "(share of active loans, status ≥ 1)", fontsize=11, loc="left")
+    # No in-figure title — the LaTeX caption supplies it.
     ax.set_ylabel("% of active loan-months")
     ax.set_xlabel("calendar month")
     ax.legend(ncol=4, fontsize=8, loc="upper right")

@@ -82,8 +82,7 @@ def figure(long: pl.DataFrame):
     handles = [plt.Rectangle((0, 0), 1, 1, color=DEST_COLOR[d]) for d in DEST]
     fig.legend(handles, DEST, ncol=7, loc="lower center", fontsize=8,
                bbox_to_anchor=(0.5, -0.02))
-    fig.suptitle("F2.4  Destination mix by origin state, 2000–2025 (cure / roll areas)",
-                 fontsize=12)
+    # No in-figure title — the LaTeX caption supplies it.
     fig.tight_layout(rect=(0, 0.03, 1, 1))
     return fig
 

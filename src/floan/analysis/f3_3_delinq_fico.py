@@ -50,7 +50,7 @@ def figure(curve: pl.DataFrame):
     ax.plot(x, rate, color="tab:orange", lw=1.4, marker="o", ms=3, label="current → dpd_30")
     ax.set_xlabel("origination FICO")
     ax.set_ylabel("fresh-delinquency rate (% / month)")
-    ax.set_title("F3.3  Delinquency onset vs FICO — convex decay", fontsize=12, loc="left")
+    # No in-figure title — the LaTeX caption supplies it.
     ax.grid(True, alpha=0.25)
     ax.legend(fontsize=9, loc="upper right")
     fig.tight_layout()
