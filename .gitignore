@@ -75,6 +75,8 @@ writeup/latex/figs/*.png
 # Local writeup working notes (review punchlists; not part of the dissertation)
 writeup/EDITORIAL_PUNCHLIST.md
 writeup/TONE_REVIEW.md
+# Handoff bundle for the claude.ai project (local working aid; not part of the dissertation)
+writeup/handoff_claude_chat/
 
 
 # Local SSD backup mirror (small irreplaceable artifacts; not for git)
