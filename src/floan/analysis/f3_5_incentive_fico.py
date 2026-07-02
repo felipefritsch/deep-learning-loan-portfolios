@@ -62,21 +62,31 @@ def curves(fine: pl.DataFrame):
     return out, edges
 
 
+# Legibility: this panel renders two-up at ~0.48\textwidth (down-scaled ~0.47x on
+# the page), so fonts are sized large on a compact canvas to stay readable. The x-axis
+# label abbreviates "percentage points"→"pp" (as the body text and captions already do)
+# so it does not overflow the compact canvas at this font size.
+PANEL_FIGSIZE = (6.8, 4.4)
+LABEL_FS, TICK_FS, LEG_FS, LEG_TITLE_FS = 16, 15, 13, 14
+
+
 def figure(out, edges):
     colors = ["tab:red", "tab:purple", "tab:blue"]
     fico_lab = [f"≤{edges[0]:.0f}", f"{edges[0]:.0f}–{edges[1]:.0f}", f"≥{edges[1]:.0f}"]
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=PANEL_FIGSIZE)
     for t, curve in out.items():
         x = curve["value"].to_list()
         rate = [v * 100 for v in curve["rate"].to_list()]
-        ax.plot(x, rate, color=colors[t], lw=1.5, marker="o", ms=3,
+        ax.plot(x, rate, color=colors[t], lw=2.2, marker="o", ms=5,
                 label=f"{TERCILES[t]} ({fico_lab[t]})")
-    ax.axvline(0.0, color="grey", ls="--", lw=0.8)
-    ax.set_xlabel("rate incentive = current rate − PMMS30  (percentage points)")
-    ax.set_ylabel("prepayment rate (% / month)")
+    ax.axvline(0.0, color="grey", ls="--", lw=1.2)
+    ax.set_xlabel("rate incentive = current rate − PMMS30 (pp)", fontsize=LABEL_FS)
+    ax.set_ylabel("prepayment rate (% / month)", fontsize=LABEL_FS)
+    ax.tick_params(labelsize=TICK_FS)
     # No in-figure title — the LaTeX caption supplies it.
     ax.grid(True, alpha=0.25)
-    ax.legend(fontsize=9, loc="upper left", title="origination FICO")
+    ax.legend(fontsize=LEG_FS, loc="upper left", title="origination FICO",
+              title_fontsize=LEG_TITLE_FS)
     fig.tight_layout()
     return fig
 

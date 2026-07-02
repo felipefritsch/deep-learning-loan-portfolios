@@ -47,19 +47,28 @@ def build(con) -> pl.DataFrame:
     )
 
 
+# Legibility: this panel renders two-up at ~0.48\textwidth (down-scaled ~0.47x on
+# the page), so fonts are sized large on a compact canvas to stay readable. The y-axis
+# label is kept short (the 12–36-mo window lives in the LaTeX caption) so it does not
+# overflow the compact canvas at this font size.
+PANEL_FIGSIZE = (7.2, 4.6)
+LABEL_FS, TICK_FS = 18, 16
+
+
 def figure(df: pl.DataFrame):
     x = df["orig_year"].to_list()
     rate = [v * 100 for v in df["rate"].to_list()]
     yerr = [[(r - l) * 100 for r, l in zip(df["rate"], df["lo"])],
             [(h - r) * 100 for h, r in zip(df["hi"], df["rate"])]]
-    fig, ax = plt.subplots(figsize=(9, 5))
-    bars = ax.bar(x, rate, color="tab:red", alpha=0.8, yerr=yerr, capsize=2,
-                  ecolor="grey", error_kw={"lw": 0.8})
+    fig, ax = plt.subplots(figsize=PANEL_FIGSIZE)
+    bars = ax.bar(x, rate, color="tab:red", alpha=0.8, yerr=yerr, capsize=3,
+                  ecolor="grey", error_kw={"lw": 1.0})
     for yr in (2006, 2007):
         if yr in x:
             bars[x.index(yr)].set_color("darkred")
-    ax.set_xlabel("origination year")
-    ax.set_ylabel(f"fresh-delinquency rate at age {AGE_LO}–{AGE_HI} mo (% / month)")
+    ax.set_xlabel("origination year", fontsize=LABEL_FS)
+    ax.set_ylabel("fresh-delinquency rate (% / month)", fontsize=LABEL_FS)
+    ax.tick_params(labelsize=TICK_FS)
     # No in-figure title — the LaTeX caption supplies it.
     ax.grid(True, axis="y", alpha=0.25)
     fig.tight_layout()

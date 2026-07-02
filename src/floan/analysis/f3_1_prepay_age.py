@@ -42,19 +42,27 @@ def build(con) -> pl.DataFrame:
     return eda.hazard_curve(fine, "age", "num", "den", N_BUCKETS)
 
 
+# Legibility: this panel renders two-up at ~0.48\textwidth, so it is down-scaled to
+# ~0.47x on the page. Fonts are sized large on a compact canvas to stay readable
+# after that scaling (see f3_3/f3_5/f3_6 for the matching panel style).
+PANEL_FIGSIZE = (6.4, 4.4)
+LABEL_FS, TICK_FS, LEG_FS = 19, 16, 15
+
+
 def figure(curve: pl.DataFrame):
     x = curve["value"].to_list()
     rate = [v * 100 for v in curve["rate"].to_list()]
     lo = [v * 100 for v in curve["lo"].to_list()]
     hi = [v * 100 for v in curve["hi"].to_list()]
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=PANEL_FIGSIZE)
     ax.fill_between(x, lo, hi, color="tab:green", alpha=0.20, lw=0, label="95% CI")
-    ax.plot(x, rate, color="tab:green", lw=1.4, marker="o", ms=3, label="current → prepaid")
-    ax.set_xlabel("loan age (months)")
-    ax.set_ylabel("prepayment rate (% / month)")
+    ax.plot(x, rate, color="tab:green", lw=2.0, marker="o", ms=5, label="current → prepaid")
+    ax.set_xlabel("loan age (months)", fontsize=LABEL_FS)
+    ax.set_ylabel("prepayment rate (% / month)", fontsize=LABEL_FS)
+    ax.tick_params(labelsize=TICK_FS)
     # No in-figure title — the LaTeX caption supplies it.
     ax.grid(True, alpha=0.25)
-    ax.legend(fontsize=9, loc="upper right")
+    ax.legend(fontsize=LEG_FS, loc="upper right")
     fig.tight_layout()
     return fig
 
