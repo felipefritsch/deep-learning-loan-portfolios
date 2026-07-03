@@ -56,7 +56,11 @@ def figure(curve: pl.DataFrame):
     ax.fill_between(x, lo, hi, color="tab:orange", alpha=0.20, lw=0, label="95% CI")
     ax.plot(x, rate, color="tab:orange", lw=2.0, marker="o", ms=5, label="current → dpd_30")
     ax.set_xlabel("origination FICO", fontsize=LABEL_FS)
-    ax.set_ylabel("fresh-delinquency rate (% / month)", fontsize=LABEL_FS)
+    # Shorter than "fresh-delinquency rate (% / month)", which overflows the
+    # 4.4 in canvas at 19 pt when rotated and gets clipped in the tight export.
+    # y=0.45 slides the label down the axis: centred (y=0.5) its top still
+    # clips, because the axes centre sits above the canvas centre.
+    ax.set_ylabel("30 DPD entry rate (% / month)", fontsize=LABEL_FS, y=0.45)
     ax.tick_params(labelsize=TICK_FS)
     # No in-figure title — the LaTeX caption supplies it.
     ax.grid(True, alpha=0.25)
