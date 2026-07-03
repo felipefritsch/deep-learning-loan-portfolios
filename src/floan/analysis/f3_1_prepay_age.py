@@ -58,7 +58,9 @@ def figure(curve: pl.DataFrame):
     ax.fill_between(x, lo, hi, color="tab:green", alpha=0.20, lw=0, label="95% CI")
     ax.plot(x, rate, color="tab:green", lw=2.0, marker="o", ms=5, label="current → prepaid")
     ax.set_xlabel("loan age (months)", fontsize=LABEL_FS)
-    ax.set_ylabel("prepayment rate (% / month)", fontsize=LABEL_FS)
+    # y=0.47 slides the label down the axis: centred (y=0.5) its top clips in
+    # the tight export, because the axes centre sits above the canvas centre.
+    ax.set_ylabel("prepayment rate (% / month)", fontsize=LABEL_FS, y=0.47)
     ax.tick_params(labelsize=TICK_FS)
     # No in-figure title — the LaTeX caption supplies it.
     ax.grid(True, alpha=0.25)

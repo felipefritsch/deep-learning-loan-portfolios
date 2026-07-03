@@ -48,9 +48,8 @@ def build(con) -> pl.DataFrame:
 
 
 # Legibility: this panel renders two-up at ~0.48\textwidth (down-scaled ~0.47x on
-# the page), so fonts are sized large on a compact canvas to stay readable. The y-axis
-# label is kept short (the 12–36-mo window lives in the LaTeX caption) so it does not
-# overflow the compact canvas at this font size.
+# the page), so fonts are sized large on a compact canvas to stay readable. The
+# 12–36-mo window lives in the LaTeX caption, not the y-axis label.
 PANEL_FIGSIZE = (7.2, 4.6)
 LABEL_FS, TICK_FS = 18, 16
 
@@ -67,7 +66,9 @@ def figure(df: pl.DataFrame):
         if yr in x:
             bars[x.index(yr)].set_color("darkred")
     ax.set_xlabel("origination year", fontsize=LABEL_FS)
-    ax.set_ylabel("fresh-delinquency rate (% / month)", fontsize=LABEL_FS)
+    # y=0.43 slides the label down the axis: centred (y=0.5) its top clips in
+    # the tight export, because the axes centre sits above the canvas centre.
+    ax.set_ylabel("fresh-delinquency rate (% / month)", fontsize=LABEL_FS, y=0.43)
     ax.tick_params(labelsize=TICK_FS)
     # No in-figure title — the LaTeX caption supplies it.
     ax.grid(True, axis="y", alpha=0.25)
