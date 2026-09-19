@@ -31,7 +31,7 @@ REPO=/workspace/repo
 PY=/workspace/.venv/bin/python
 OUTPUTS=/workspace/dissertation/outputs
 BRANCH=w3b-seq-pricing
-MC="$REPO/src/floan/model/m27b_mc"            # per-anchor artifacts (sequence + comparator)
+MC="$REPO/artifacts/results/m27b_mc"            # per-anchor artifacts (sequence + comparator)
 ANCHORS="2015 2019 2020 2023 2025"            # all five key anchors (comparator order is COVID-first inside the loop)
 
 export TMPDIR="${TMPDIR:-$OUTPUTS/tmp}"

@@ -1,13 +1,13 @@
 """F5.4 / T5.3 — the value of memory in dollars (W3b matched pricing comparison).
 
 Reproducible from the committed repo alone: reads the matched per-anchor pricing
-tables in ``src/floan/model/m27b_mc/k{k}_matched.parquet`` (mean |price error| per
+tables in ``artifacts/results/m27b_mc/k{k}_matched.parquet`` (mean |price error| per
 100 face by model x horizon, on the identical 150k subsample) and emits
 
-  * ``writeup/latex/figs/F5.4_value_of_memory.pdf`` — the error-by-horizon
+  * ``artifacts/generated/F5.4_value_of_memory.pdf`` — the error-by-horizon
     small-multiple across the five regime anchors, drawing the memory ladder
     (memoryless ensemble -> engineered ff_hist -> learned GRU/transformer); and
-  * ``writeup/latex/figs/table_w3b_matched.tex`` — the COVID (Dec2019) anchor
+  * ``artifacts/generated/table_w3b_matched.tex`` — the COVID (Dec2019) anchor
     table, the full seven-model ladder x four horizons.
 
 Run: ``python -m floan.analysis.f5_4_value_of_memory`` (no SSD/GPU needed).
@@ -22,8 +22,8 @@ import matplotlib.pyplot as plt
 import polars as pl
 
 ROOT = Path(__file__).resolve().parents[3]
-SRC = ROOT / "src" / "floan" / "model" / "m27b_mc"
-FIGS = ROOT / "writeup" / "latex" / "figs"
+SRC = ROOT / "artifacts" / "results" / "m27b_mc"
+FIGS = ROOT / "artifacts" / "generated"
 
 ANCHORS = [2015, 2019, 2020, 2023, 2025]
 ANCHOR_LABEL = {2015: "Dec 2014", 2019: "Dec 2018", 2020: "Dec 2019\n(COVID)",
@@ -60,6 +60,7 @@ GRID = [[2015, 2019, None],
 
 
 def make_figure() -> None:
+    FIGS.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update({"font.family": "serif", "font.size": 9,
                          "axes.titlesize": 9, "mathtext.fontset": "cm"})
     fig, axes = plt.subplots(2, 3, figsize=(9.0, 5.2), sharey=True)
@@ -104,6 +105,7 @@ def _cell(mae: float, bias: float) -> str:
 
 
 def make_table() -> None:
+    FIGS.mkdir(parents=True, exist_ok=True)
     df = _load(COVID)
     wide = {(r["model"], r["h"]): (r["mae_price"], r["bias_price"])
             for r in df.iter_rows(named=True)}

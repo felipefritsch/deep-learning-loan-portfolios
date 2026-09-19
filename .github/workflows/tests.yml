@@ -2,7 +2,7 @@ name: tests
 
 # Run the hermetic unit suite (tests/test_*.py) on every push and PR. The suite is
 # synthetic-data only — no external SSD, no GPU, no network — so it runs entirely on a
-# standard GitHub-hosted runner. See writeup/memos/test_coverage_review.md for scope.
+# standard GitHub-hosted runner.
 # Gate every PR, and keep the default branch green. Restricting the push trigger to
 # main (rather than all branches) avoids running CI twice on a same-repo PR branch;
 # feature branches still get CI via their pull request.
@@ -44,8 +44,7 @@ jobs:
         # pyarrow, tqdm, numpy, pandas, matplotlib, scikit-learn, lightgbm) and makes the
         # floan.* package importable, so tests use real package paths.
         run: |
-          pip install -e .
-          pip install pytest
+          pip install -e ".[test]"
 
       - name: Run unit suite
         run: python -m pytest   # config in pyproject.toml (testpaths = tests)

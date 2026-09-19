@@ -170,7 +170,7 @@ your key result. You can start reading it before the rest finish.
 
 > **Optional speed-up (only if you want it):** windows run one-at-a-time here. A 64 GB box could run
 > ~4 concurrently — but that needs `backtest.py` confirmed safe to run as parallel processes (shared
-> summary file / DuckDB connections). Don't hand-roll it; if you want the ~3× speed, ask Claude Code
+> summary file / DuckDB connections). Don't hand-roll it; if you want the ~3× speed, ask Codex
 > first: *"Is backtest.py safe to run as N concurrent single-window processes, or does it share
 > mutable state (summary file, caches, DB connections)? If safe, give me a bounded-concurrency
 > launcher; if not, leave it sequential."* Sequential finishes well before Friday regardless.
@@ -212,10 +212,10 @@ git push origin main
 
 ---
 
-## PART 5 — Finish locally with Claude Code: M18, then M19
+## PART 5 — Finish locally with Codex: M18, then M19
 
 Everything below runs on the Mac (local CPU), one task per turn, stop at each gate — same discipline
-as M16/M17. Paste each prompt into Claude Code in order.
+as M16/M17. Paste each prompt into Codex in order.
 
 ### → M18 — GBT into the loan-level exhibits + calibration decision
 
@@ -299,7 +299,7 @@ Push to `main`; refresh the brief's GBT column from the full sweep.
 | 2 | Pod | clone+checkout, symlink ROOT, env, **smoke** | smoke clean; `GBT_SELECTED`=msh=1000 |
 | 3 | Pod | launch 9-window sweep (regime-first) | k2020 lands ~1–2 h in |
 | 4 | Mac | rsync back, verify 11, mirror, **tear down** | 11 windows on SSD; pod stopped |
-| 5 | Mac/Claude Code | M18 (exhibits+calibration) → M19 (pool+memo) | GBT-baseline gate passes |
+| 5 | Mac/Codex | M18 (exhibits+calibration) → M19 (pool+memo) | GBT-baseline gate passes |
 
 ## Things that bite if skipped
 - **Didn't push `main` in PART 0** → pod fits the old `msh=100` and the 9 windows are

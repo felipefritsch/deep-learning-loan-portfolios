@@ -1,6 +1,6 @@
 # 01 — Schema, Dtypes & Modelling Target
 
-> Single source of truth for the column layout, types, categorical code maps, date parsing, and the Sirignano seven-state target. Claude Code must translate this into `src/floan/pipeline/schema.py`.
+> Single source of truth for the column layout, types, categorical code maps, date parsing, and the Sirignano seven-state target. Codex must translate this into `src/floan/pipeline/schema.py`.
 
 ---
 
@@ -9,7 +9,7 @@
 - The CSVs have **no header**. Column identity is **positional** — the order below *is* the contract.
 - Measured field count: **113** (split on `|`). Field 0 is `Reference Pool ID` and is usually blank; many trailing fields are blank by design.
 - Fannie Mae periodically adds columns. Acquisition quarters run to ~2025 with reporting periods to `2025-12`, so the newest 113-field layout applies (payment-deferral, alternative-delinquency-resolution, and the Dec-2025 Classic FICO fields).
-- **Verification done.** Reconciled position-for-position against the official Fannie Mae *"Single-Family Loan Performance Dataset and Credit Risk Transfer — Glossary and File Layout"* (`docs/crt-file-layout-and-glossary.pdf`, 113 fields). All names confirmed (positions 110–112 = the Classic FICO trio; position 78 = `Special Eligibility Program`). Stage 1 still asserts `measured_field_count == 113` per file and quarantines any file whose count differs rather than guessing.
+- **Verification done.** Reconciled position-for-position against the official Fannie Mae [*Single-Family Loan Performance Dataset and Credit Risk Transfer — Glossary and File Layout*](https://capitalmarkets.fanniemae.com/sites/g/files/koqyhd216/files/2024-07/crt-file-layout-and-glossary.pdf) (113 fields). All names confirmed (positions 110–112 = the Classic FICO trio; position 78 = `Special Eligibility Program`). Stage 1 still asserts `measured_field_count == 113` per file and quarantines any file whose count differs rather than guessing.
 
 ## 0a. Data model — vintage vs reporting period vs release (read this first)
 
@@ -143,7 +143,7 @@ The list below is the canonical ordered layout. Use it to build `COLUMNS = [...]
 | 111 | Issuance Classic FICO | i16 | glossary fld 112; populated Dec 2025+ |
 | 112 | Current Classic FICO | i16 | glossary fld 113; populated Dec 2025+ |
 
-> **Reconciled against the official glossary (`docs/crt-file-layout-and-glossary.pdf`, 113 fields).** Positions 110–112 are **confirmed** as the new Classic FICO trio (glossary fields 111–113), not reserved — they carry origination/issuance/current Classic FICO scores that begin populating with the **December 2025** activity period. Position 78 is **`Special Eligibility Program`** (glossary fld 79), which replaced the legacy HomeReady Indicator in the Jan 2023 release. The assertion `len(COLUMNS) == 113` holds and the layout matches the glossary position-for-position.
+> **Reconciled against the official [Fannie Mae glossary](https://capitalmarkets.fanniemae.com/sites/g/files/koqyhd216/files/2024-07/crt-file-layout-and-glossary.pdf) (113 fields).** Positions 110–112 are **confirmed** as the new Classic FICO trio (glossary fields 111–113), not reserved — they carry origination/issuance/current Classic FICO scores that begin populating with the **December 2025** activity period. Position 78 is **`Special Eligibility Program`** (glossary fld 79), which replaced the legacy HomeReady Indicator in the Jan 2023 release. The assertion `len(COLUMNS) == 113` holds and the layout matches the glossary position-for-position.
 
 > **FICO field migration (important).** The legacy `Borrower/Co-Borrower Credit Score at Origination` (cols 23/24) **stop populating from the March 2026 activity period**, while `Origination Classic FICO` (col 110) **starts from December 2025**. Because this dataset's reporting horizon reaches `2025-12`, it straddles the switch. Stage 3 must therefore derive `fico_orig = coalesce(Borrower Credit Score at Origination, Origination Classic FICO)` (both sentinel-scrubbed) so origination FICO stays populated across the transition — see `schema.fico_orig_expr()`. `Issuance`/`Current Classic FICO` remain available in the full perf lake for an optional dynamic-FICO feature later.
 

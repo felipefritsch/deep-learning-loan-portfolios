@@ -1,6 +1,6 @@
 # Fannie Mae Loan Performance — Data Pipeline Master Plan
 
-> **Purpose of this folder.** These four documents are a specification you feed to Claude Code so it can build a memory-safe ingestion → cleaning → analysis pipeline for the Fannie Mae Single-Family Loan Performance dataset. Read order: this file → `01_SCHEMA.md` → `02_PIPELINE_STAGES.md` → `03_CLAUDE_CODE_TASKS.md`. The `CLAUDE.md` file in this folder is auto-loaded by Claude Code and pins the hard rules. `HOWTO_RUN.md` is the operator's guide — how to launch Claude Code against this plan, plus model-selection and rate-limit tips.
+> **Purpose of this folder.** These four documents are a specification you feed to Codex so it can build a memory-safe ingestion → cleaning → analysis pipeline for the Fannie Mae Single-Family Loan Performance dataset. Read order: this file → `01_SCHEMA.md` → `02_PIPELINE_STAGES.md` → `03_CODEX_TASKS.md`. The repository-root `AGENTS.md` and the pipeline-specific `src/floan/pipeline/AGENTS.md` pin the hard rules. `CODEX_WORKFLOW.md` is the operator's guide — how to launch Codex against this plan, plus model-selection and rate-limit tips.
 
 ---
 
@@ -65,7 +65,7 @@ processed/samples/  →  models/   (fit in RAM; hand off to model training)
 - **Polars** `scan_*` is lazy and streaming, so transforms execute in bounded memory and parallelise across cores.
 - **PyArrow** provides the chunked CSV reader used in Stage 2 so even a 25 GB file is read block-by-block.
 
-**The single hard rule that makes this work:** *never read a full quarter into memory.* Every stage operates on bounded chunks (row groups / `batch_size`) or pushes the work down into DuckDB. This rule is restated in `CLAUDE.md`.
+**The single hard rule that makes this work:** *never read a full quarter into memory.* Every stage operates on bounded chunks (row groups / `batch_size`) or pushes the work down into DuckDB. This rule is restated in `AGENTS.md`.
 
 ## 5. Storage & disk strategy (external SSD)
 
@@ -83,9 +83,9 @@ Everything lives under `/Volumes/SSD Felipe/dissertation/`, so there is plenty o
 ```
 <repo root>/
 ├── pyproject.toml            # installable package — `pip install -e .`
-├── specs/pipeline/           # these spec docs (input to Claude Code)
-├── src/floan/pipeline/       # the code Claude Code writes
-│   ├── CLAUDE.md             # the binding conventions file
+├── specs/pipeline/           # these spec docs (input to Codex)
+├── src/floan/pipeline/       # the code Codex writes
+│   ├── AGENTS.md             # the binding conventions file
 │   ├── config.py             # single ROOT + named subpaths, memory/chunk knobs, require_drive()
 │   ├── schema.py             # the 113-col layout, dtypes, code maps (from 01_SCHEMA.md)
 │   ├── s1_inventory.py       # Stage 1: manifest + integrity audit
@@ -109,16 +109,16 @@ Everything lives under `/Volumes/SSD Felipe/dissertation/`, so there is plenty o
 
 > The only path to confirm in `config.py` is `RAW_DIR = ROOT / "raw" / "Performance_All"` (adjust the `Performance_All` folder name if you renamed it). Everything else derives from `ROOT`.
 
-## 7. How to use these docs with Claude Code
+## 7. How to use these docs with Codex
 
 0. **Connect the `SSD Felipe` drive first** and confirm it is mounted at `/Volumes/SSD Felipe/`. Every stage should fail fast with a clear message if the drive is absent.
-1. Open Claude Code in the `dissertation/` root so it picks up `src/floan/pipeline/CLAUDE.md`.
-2. Point it at this plan: *"Read `specs/pipeline/00_OVERVIEW.md` through `03_CLAUDE_CODE_TASKS.md`, then execute the tasks in order."*
-3. Work **one task at a time** from `03_CLAUDE_CODE_TASKS.md`; each task has explicit acceptance criteria. Do not let it skip Stage 1.
+1. Open Codex in the repository root so it picks up the root `AGENTS.md`; the kickoff prompt below explicitly loads `src/floan/pipeline/AGENTS.md`.
+2. Point it at this plan: *"Read `specs/pipeline/00_OVERVIEW.md` through `03_CODEX_TASKS.md`, then execute the tasks in order."*
+3. Work **one task at a time** from `03_CODEX_TASKS.md`; each task has explicit acceptance criteria. Do not let it skip Stage 1.
 4. Stages are idempotent and per-quarter, so a crash mid-run is recoverable — re-running skips quarters already converted.
 
 ---
 
 ### Recap
 
-The dataset is a ~800 GB pipe-delimited, header-less loan-month panel with 113 columns, spanning the **complete 2000–2025 acquisition-vintage set** (~100 files, one per vintage, no loan-level overlap). Stage 1 still audits field counts, a uniform release cut-off, and any truncated files up front. It lives on the external SSD `SSD Felipe` (`/Volumes/SSD Felipe/`), which must be connected before any run; the Parquet lake lives on that same drive. The plan converts it — one quarter at a time, never fully in RAM — into a zstd-compressed partitioned Parquet lake (~120–200 GB full, less when column-projected) queried out-of-core by DuckDB and Polars, then derives the Sirignano seven-state monthly transition panel as the modelling target. `01_SCHEMA.md` pins the column layout and target mapping; `02_PIPELINE_STAGES.md` specifies each of the six stages with code patterns and memory rules; `03_CLAUDE_CODE_TASKS.md` is the sequenced, acceptance-tested build order; `CLAUDE.md` enforces the no-full-load rule.
+The dataset is a ~800 GB pipe-delimited, header-less loan-month panel with 113 columns, spanning the **complete 2000–2025 acquisition-vintage set** (~100 files, one per vintage, no loan-level overlap). Stage 1 still audits field counts, a uniform release cut-off, and any truncated files up front. It lives on the external SSD `SSD Felipe` (`/Volumes/SSD Felipe/`), which must be connected before any run; the Parquet lake lives on that same drive. The plan converts it — one quarter at a time, never fully in RAM — into a zstd-compressed partitioned Parquet lake (~120–200 GB full, less when column-projected) queried out-of-core by DuckDB and Polars, then derives the Sirignano seven-state monthly transition panel as the modelling target. `01_SCHEMA.md` pins the column layout and target mapping; `02_PIPELINE_STAGES.md` specifies each of the six stages with code patterns and memory rules; `03_CODEX_TASKS.md` is the sequenced, acceptance-tested build order; `AGENTS.md` enforces the no-full-load rule.

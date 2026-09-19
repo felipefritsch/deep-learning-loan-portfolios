@@ -37,12 +37,12 @@ the model we report). This is the cost the 10M choice buys; it is the expensive 
 
 ---
 
-## Part A — Code (Mac Claude Code, hermetic; commit *before* the pod run)
+## Part A — Code (Mac Codex, hermetic; commit *before* the pod run)
 
-This is non-GPU, synthetic-testable code. Paste the prompt below into Claude Code on the Mac, review
+This is non-GPU, synthetic-testable code. Paste the prompt below into Codex on the Mac, review
 the diff, run `python -m pytest`, commit. **It must land first** — the pod pulls and runs it.
 
-> **Prompt for Claude Code (Mac):**
+> **Prompt for Codex (Mac):**
 >
 > Read `src/floan/model/seq_pricing.py`, `src/floan/model/seq_predict.py`,
 > `src/floan/model/smm_paths.py`, `src/floan/model/economics.py`, `tests/test_seq_pricing.py`, and
@@ -120,7 +120,7 @@ the diff, run `python -m pytest`, commit. **It must land first** — the pod pul
    → write the anchor JSON → **commit + push that anchor before starting the next** (a crash then
    never loses a completed anchor). The H=1 identity + convergence guards gate each anchor.
 
-**Output:** `src/floan/model/m27b_mc/k{k}_{gru,xf}_h.json` per anchor (econ at H∈{1,3,6,12}, the
+**Output:** `artifacts/results/m27b_mc/k{k}_{gru,xf}_h.json` per anchor (econ at H∈{1,3,6,12}, the
 chosen `N`, guard receipts).
 
 ---

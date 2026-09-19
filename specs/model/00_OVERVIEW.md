@@ -1,6 +1,10 @@
 # Modelling Master Plan — Transition Models on the Fannie Mae Panel
 
-> **Purpose of this folder.** The data pipeline (`src/floan/pipeline/`) is built: the SSD holds a cleaned loan-month panel with the seven-state target (`state`, `state_next`, `censored`), leakage-safe calendar columns (`period_ym`, `orig_ym`), a loan-keyed `shard` for minibatch randomization, and train-only scaler discipline. This folder specifies the **analysis and modelling** that sits on top of it, a lot of it based on replicating Sirignano, Sadhwani & Giesecke (*Deep Learning for Mortgage Risk*, JFEC 2021) on this dataset. Read order: this file → `01_EDA.md` → `02_LOAN_LEVEL.md` → `03_POOL_LEVEL.md` → `04_TASKS.md` (sequenced tasks with acceptance criteria). The invariants in the root `CLAUDE.md` and `src/floan/pipeline/CLAUDE.md` continue to bind.
+> **Public-repository note.** This is the historical execution specification. References to
+> `writeup/` point to private drafting material that has been intentionally removed; the final
+> dissertation and compact result artifacts are retained under `artifacts/`.
+
+> **Purpose of this folder.** The data pipeline (`src/floan/pipeline/`) is built: the SSD holds a cleaned loan-month panel with the seven-state target (`state`, `state_next`, `censored`), leakage-safe calendar columns (`period_ym`, `orig_ym`), a loan-keyed `shard` for minibatch randomization, and train-only scaler discipline. This folder specifies the **analysis and modelling** that sits on top of it, a lot of it based on replicating Sirignano, Sadhwani & Giesecke (*Deep Learning for Mortgage Risk*, JFEC 2021) on this dataset. Read order: this file → `01_EDA.md` → `02_LOAN_LEVEL.md` → `03_POOL_LEVEL.md` → `04_TASKS.md` (sequenced tasks with acceptance criteria). The invariants in the root `AGENTS.md` and `src/floan/pipeline/AGENTS.md` continue to bind.
 
 ---
 

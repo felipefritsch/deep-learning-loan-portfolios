@@ -77,7 +77,8 @@ those are just build provenance).
 | `seq_pricing_merge` (`m27b_merge.py`) | merges the sequence-model H=1 pricing column into the rolling pricing exhibits |
 
 ### Committed result artifacts
-- `m27a_results/`, `m27a_results_10m/` — the per-window, per-seed result JSONs (test NLL, AUC) and
+- `artifacts/results/m27a_results/`, `artifacts/results/m27a_results_10m/` — the per-window,
+  per-seed result JSONs (test NLL, AUC) and
   summary tables for the **sequence-model rolling comparison** at the 1.5M and 10M training-sample
   scales. See those folders' README for the schema.
 

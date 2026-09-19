@@ -1,6 +1,6 @@
 # 04 — Sequenced Tasks (execute one at a time, verify Accept before advancing)
 
-> Same contract as `specs/pipeline/03_CLAUDE_CODE_TASKS.md`: each task is small, has explicit acceptance criteria, and is committed before the next begins. Specs: `01_EDA.md` (M-tasks 1–3), `02_LOAN_LEVEL.md` (4–12), `03_POOL_LEVEL.md` (13–15), `06_GBT_BASELINE.md` (16–19), `ECONOMIC_ENGINE.md` + `ADR-001-economic-engine-seam.md` (20–27, the post-supervision priority — see `writeup/memos/post_supervision_roadmap.md`).
+> Same contract as `specs/pipeline/03_CODEX_TASKS.md`: each task is small, has explicit acceptance criteria, and is committed before the next begins. Specs: `01_EDA.md` (M-tasks 1–3), `02_LOAN_LEVEL.md` (4–12), `03_POOL_LEVEL.md` (13–15), `06_GBT_BASELINE.md` (16–19), `ECONOMIC_ENGINE.md` + `ADR-001-economic-engine-seam.md` (20–27, the post-supervision priority — see `writeup/memos/post_supervision_roadmap.md`).
 
 ---
 

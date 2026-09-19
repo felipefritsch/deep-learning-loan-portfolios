@@ -1,6 +1,6 @@
 # 05 — Macro Data: Sources, Download & Integration Spec (standalone)
 
-> **How to use this file.** Self-contained and executable: hand it to Claude Code with *"Read `specs/model/05_MACRO_DATA.md` and execute its tasks MD1–MD4 in order."* It does not require reading the rest of the plan. §1–§2 are for Felipe (where the data comes from, what to click/run); §3–§6 are the build/join/QA contract for Claude Code.
+> **How to use this file.** Self-contained and executable: hand it to Codex with *"Read `specs/model/05_MACRO_DATA.md` and execute its tasks MD1–MD4 in order."* It does not require reading the rest of the plan. §1–§2 are for Felipe (where the data comes from, what to click/run); §3–§6 are the build/join/QA contract for Codex.
 >
 > **Design (from `00_OVERVIEW §3.4`):** macro enters as two tiny time-keyed Parquet tables joined at **export time** — the 800 GB lakes and the pipeline stages are never touched or re-run.
 
@@ -29,9 +29,9 @@ Create a dated snapshot directory on the SSD first: `/Volumes/SSD Felipe/dissert
 
 1. **FRED series** (PMMS, DGS10, DGS2, UNRATE, 51 state UR series) — keyless CSV endpoint, one URL per series:
    `https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US` (etc.)
-   Don't click 55 links — task MD1 gives Claude Code a polite loop. If you prefer manual: each series page on fred.stlouisfed.org → *Download → CSV*.
+   Don't click 55 links — task MD1 gives Codex a polite loop. If you prefer manual: each series page on fred.stlouisfed.org → *Download → CSV*.
 2. **FMHPI** — https://www.freddiemac.com/research/indices/house-price-index → download the **master file** CSV (one file: US + all states + MSAs, monthly, NSA & SA columns). Save into the snapshot folder. (Site occasionally requires a browser download — that's why this one is listed as manual.)
-3. That's all. Everything else is Claude Code's job (MD1–MD4).
+3. That's all. Everything else is Codex's job (MD1–MD4).
 
 ## 3. Build spec — two output tables
 
@@ -67,7 +67,7 @@ Rules: store values **by observation month** (lags are applied at join time, not
 - **Derived features** (computed in `features.py`, need loan columns): `incentive = current_rate − pmms30`; `ltv_mtm = (current_upb / orig_upb) × orig_ltv × hpi_state(orig_ym) / hpi_state(period_ym)` (HPI at both ends from the same lagged join convention; if orig_ym predates the HPI series, fall back to `hpi_nat` at both ends); `hpi_chg_12m = hpi_state(t)/hpi_state(t−12) − 1`.
 - `feature_spec` additions: `pmms30, dgs10, slope_10y2y, unrate_nat, unrate_state, incentive, ltv_mtm, hpi_chg_12m` → `continuous_standardize`; `unrate_fallback, hpi_fallback` → `binary`. HPI levels → role `intermediate` (never a feature).
 
-## 5. Tasks for Claude Code (execute in order)
+## 5. Tasks for Codex (execute in order)
 
 ### MD1 — Fetch script + snapshot
 `src/floan/model/fetch_macro.py`: loop the FRED CSV endpoint over `[MORTGAGE30US, DGS10, DGS2, UNRATE] + [f"{p}UR" for p in 50 states + DC]` with a ~1 s sleep, writing raw CSVs to `raw/macro/<today>/fred/`; verify the FMHPI master file is already present in the snapshot (manual step — fail with a clear message if absent). Record a `snapshot_manifest.json` (file list, sizes, sha256, fetch date).

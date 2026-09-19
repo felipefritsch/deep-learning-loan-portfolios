@@ -38,7 +38,7 @@ per-origin / per-cell predictions.** If you only need an overall NLL, read it.
 - **Outputs:** `experiments/gbt_regime_read/forensics_calib_results.json`,
   `F_gbt_regime_calibration.{png,pdf}`, the M19 fix split
   `experiments/gbt_regime_read/impossible_cell_fix_spec.json`, and the memo
-  `writeup/memos/gbt_regime_preliminary.md`.
+  the final dissertation in `artifacts/1101489_dissertation.pdf`.
 - **Identity contract:** scores GBT on exactly the frozen rows the other models used — proven by
   (row count == committed) + (test_key_hash == evaluate_summary) + (reproduces GBT `metrics.json`
   test_nll & impossible mass to ≤1e-9).

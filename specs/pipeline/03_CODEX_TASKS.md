@@ -1,7 +1,7 @@
-# 03 — Claude Code Build Order (sequenced tasks)
+# 03 — Codex Build Order (sequenced tasks)
 
-> Copy-paste these prompts into Claude Code **one at a time, in order**. Each has acceptance criteria — do not advance until they pass. All code goes in `src/floan/pipeline/`. Read `00_OVERVIEW.md`, `01_SCHEMA.md`, `02_PIPELINE_STAGES.md` first.
-> Execute every task per the Karpathy guidelines in `../pipeline/CLAUDE.md` (think before coding, simplicity first, surgical changes, verify against each task's **Accept** criteria).
+> Copy-paste these prompts into Codex **one at a time, in order**. Each has acceptance criteria — do not advance until they pass. All code goes in `src/floan/pipeline/`. Read `00_OVERVIEW.md`, `01_SCHEMA.md`, `02_PIPELINE_STAGES.md` first.
+> Execute every task per the Karpathy guidelines in `../pipeline/AGENTS.md` (think before coding, simplicity first, surgical changes, verify against each task's **Accept** criteria).
 
 ---
 
@@ -68,7 +68,7 @@
 
 ---
 
-## Guardrails to repeat to Claude Code
+## Guardrails to repeat to Codex
 
 - **Never** `pd.read_csv` a raw file, never `.collect()`/`fetchall()` a full quarter. Streaming only.
 - **Always** verify field count == 113 and reconcile against the official Fannie Mae glossary before trusting names for positions 110–112.
@@ -83,4 +83,4 @@
 
 ### Recap
 
-Nine sequential tasks take Claude Code from scaffold → schema module (incl. `feature_spec` + shard/calendar constants) → inventory (run and reviewed before proceeding) → streaming Parquet conversion (smoke-tested on `2017Q2` first, since `2014Q1` is quarantined) → cleaning (+ `period_ym`/`orig_ym` + missingness indicators) → transition panel (+ derived-cut-off `censored` and `shard`, sorted by `(shard, loan, period)`) → QA reconciliation (+ scale stats, shard/calendar sanity) → stratified sampling & training helpers (shard iterator, leakage-safe mask, train-only scaler) → orchestrator. Each task carries explicit acceptance criteria, and standing guardrails enforce the no-full-load rule, schema verification, deletion safety, quarantine handling, idempotency, no-lake-standardization/no-leakage, and the loan-keyed shard convention.
+Nine sequential tasks take Codex from scaffold → schema module (incl. `feature_spec` + shard/calendar constants) → inventory (run and reviewed before proceeding) → streaming Parquet conversion (smoke-tested on `2017Q2` first, since `2014Q1` is quarantined) → cleaning (+ `period_ym`/`orig_ym` + missingness indicators) → transition panel (+ derived-cut-off `censored` and `shard`, sorted by `(shard, loan, period)`) → QA reconciliation (+ scale stats, shard/calendar sanity) → stratified sampling & training helpers (shard iterator, leakage-safe mask, train-only scaler) → orchestrator. Each task carries explicit acceptance criteria, and standing guardrails enforce the no-full-load rule, schema verification, deletion safety, quarantine handling, idempotency, no-lake-standardization/no-leakage, and the loan-keyed shard convention.

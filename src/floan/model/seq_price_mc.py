@@ -81,7 +81,7 @@ PRICE_TOL = 0.05                                    # per 100 face — "pool pri
 H1_TOL_MEAN = 1e-2
 H1_TOL_MAX = 0.15
 
-MC_OUT = Path(__file__).resolve().parent / "m27b_mc"   # per-anchor artifacts (committed to the run branch)
+MC_OUT = config.REPO_ROOT / "artifacts" / "results" / "m27b_mc"
 # The W3b weights are retrained at the 10M sample — a DIFFERENT sample from M27b's 1.5M H=1 weights in
 # seq_predict.WEIGHTS_ROOT (m27b_gpu_runs/) — so they land in their own SSD dir, leaving M27b untouched.
 MC_WEIGHTS_ROOT = config.OUTPUTS / "m27b_mc"           # 10M GRU/transformer weights (k{k}[_xf]_s{seed}.pt)

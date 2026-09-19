@@ -28,7 +28,8 @@ from floan.model import config
 GATE = 1e-3
 BROWN = "#a05a2c"   # raw flagged mass (old mask)
 TEAL = "#1a5f6e"    # after permitting the 4 legal cells (corrected mask)
-OUT = Path("writeup/latex/figs/F_impossible_threshold")
+OUT = Path("artifacts/generated/F_impossible_threshold")
+OUT.parent.mkdir(parents=True, exist_ok=True)
 
 config.require_drive()
 

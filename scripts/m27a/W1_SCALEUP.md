@@ -29,7 +29,7 @@ before launching `S` = full.
 
 ## Preserve the banked 1.5M result (do this first)
 
-The banked numbers of record are **committed** in `src/floan/model/m27a_results/` (per-window JSON)
+The banked numbers of record are **committed** in `artifacts/results/m27a_results/` (per-window JSON)
 and summarised in `M27a_NOTES.md` — re-running at `S` does **not** touch them. The pod scratch dirs
 **are** overwritten, and the trainers are resumable (skip if artifacts exist), so clear scratch before
 the `S` run or it will reuse stale 1.5M outputs:

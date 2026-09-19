@@ -17,16 +17,16 @@ brings the three pod windows home so all five can be read against the baselines 
 |------|------|-------|
 | 1 | wave 1 (k2020/k2023/k2025) all banked | pod — confirm |
 | 2 | immediately after | **Mac terminal** — partial rsync |
-| 3 | after rsync verifies 5 | **Claude Code on Mac** (fresh chat) — regime read |
+| 3 | after rsync verifies 5 | **Codex on Mac** (fresh chat) — regime read |
 | 4 | all 9 pod windows banked (later tonight) | pod — verify-only |
 | 5 | after step 4 | **Mac terminal** — full rsync + mirror + **tear down pod** |
-| 6 | after full sync | **Claude Code on Mac** — full M18 + M19 |
+| 6 | after full sync | **Codex on Mac** — full M18 + M19 |
 
 ---
 
 ## STEP 1 — Confirm wave 1 is complete  *(pod, informational)*
 
-Claude Code's event watcher fires on "all wave-1 banked." To check yourself, in the **pod terminal**:
+Codex's event watcher fires on "all wave-1 banked." To check yourself, in the **pod terminal**:
 
 ```bash
 ls /workspace/dissertation/models/gbt/full/   # expect: k2020  k2023  k2025  (+ any fillers started)
@@ -63,7 +63,7 @@ safe to re-run; pulling the full set later in Step 5 re-pulls these identically 
 
 ---
 
-## STEP 3 — Regime-only read  *(Claude Code on the Mac — open a FRESH chat in the repo)*
+## STEP 3 — Regime-only read  *(Codex on the Mac — open a FRESH chat in the repo)*
 
 Paste this. It's M18 restricted to the 5 regime windows: the per-window GBT-vs-net-vs-logit
 comparison, the COVID headline, the §7 lean, and the fit-maturity check — enough to write the
@@ -171,7 +171,7 @@ git push origin main
 
 ---
 
-## STEP 6 — Full M18 + M19  *(Claude Code on the Mac)*
+## STEP 6 — Full M18 + M19  *(Codex on the Mac)*
 
 Now run the complete versions from the original run guide's **PART 5** — they're the authoritative
 finish:

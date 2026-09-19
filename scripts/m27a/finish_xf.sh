@@ -23,7 +23,7 @@ PY=/workspace/.venv/bin/python
 export PYTHONPATH=/workspace/repo/scripts/m27a${PYTHONPATH:+:$PYTHONPATH}
 OUTDIR=/workspace/dissertation/outputs                 # mc.OUTPUTS via /Volumes/SSD Felipe symlink
 RESULTS="$OUTDIR/m27a_gpu_runs"                         # where run_one writes k*_xf_s*
-TRACKED=src/floan/model/m27a_results_10m               # tracked-in-repo metrics dir
+TRACKED=artifacts/results/m27a_results_10m               # tracked-in-repo metrics dir
 DONE="$OUTDIR/XF_DONE.txt"
 mkdir -p "$OUTDIR"
 

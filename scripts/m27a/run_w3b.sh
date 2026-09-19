@@ -24,7 +24,7 @@ REPO=/workspace/repo
 PY=/workspace/.venv/bin/python
 OUTPUTS=/workspace/dissertation/outputs
 BRANCH=w3b-seq-pricing
-MC="$REPO/src/floan/model/m27b_mc"          # committed per-anchor artifacts (json + parquets)
+MC="$REPO/artifacts/results/m27b_mc"          # committed per-anchor artifacts (json + parquets)
 NFILE="$MC/chosen_n.txt"                     # persisted convergence N (resume skips the sweep)
 
 # Keep ALL scratch on /workspace (the large network volume), NOT the small overlay root /.

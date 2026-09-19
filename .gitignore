@@ -68,15 +68,10 @@ reports/
 *.synctex.gz
 *.toc
 
-# Built PDF (regenerate with latexmk; not tracked, to avoid binary churn in history)
-writeup/latex/main.pdf
-# Figure preview PNGs (generators emit .png next to the tracked .pdf; figs is PDF-only)
-writeup/latex/figs/*.png
-# Local writeup working notes (review punchlists; not part of the dissertation)
-writeup/EDITORIAL_PUNCHLIST.md
-writeup/TONE_REVIEW.md
-# Handoff bundle for the claude.ai project (local working aid; not part of the dissertation)
-writeup/handoff_claude_chat/
+# Private research material and generated presentation outputs
+docs/
+writeup/
+artifacts/generated/
 
 
 # Local SSD backup mirror (small irreplaceable artifacts; not for git)
@@ -85,18 +80,13 @@ ssd_mirror/
 # Miscellaneous
 misc/
 
-# External reference material (copyrighted textbooks/papers; keep local only — never in git)
-docs/bib_refs/
-
 # Scratch/temp files
 *.tmp
 
 # Throwaway run drivers / sidecars (the kept, reproducible versions live in scripts/m27a/).
 scratch_*
 
-# Claude-created scratch notes (plans, audits, changelogs, state) — local only.
-# Files moved here from the repo root/writeup on 2026-06-16; they remain in git
-# history but are untracked going forward. Binding specs (specs/) and the
-# writeup/memos deliverables are intentionally NOT ignored.
+# Assistant-created scratch notes (plans, audits, changelogs, state) — local only.
+# Files moved here from the repo root on 2026-06-16; they remain in git history
+# but are untracked going forward. Binding specifications remain under `specs/`.
 notes/
-

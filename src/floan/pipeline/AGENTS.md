@@ -1,9 +1,9 @@
-# CLAUDE.md — Fannie Mae Loan Performance Pipeline
+# AGENTS.md — Fannie Mae Loan Performance Pipeline
 
 You are building a memory-safe ingestion/cleaning/analysis pipeline for the Fannie Mae
 Single-Family Loan Performance dataset. **Read the full spec before coding:**
-`specs/pipeline/00_OVERVIEW.md`, `01_SCHEMA.md`, `02_PIPELINE_STAGES.md`, `03_CLAUDE_CODE_TASKS.md`.
-Execute the tasks in `03_CLAUDE_CODE_TASKS.md` in order, one at a time.
+`specs/pipeline/00_OVERVIEW.md`, `01_SCHEMA.md`, `02_PIPELINE_STAGES.md`, `03_CODEX_TASKS.md`.
+Execute the tasks in `03_CODEX_TASKS.md` in order, one at a time.
 
 ## Part 1: Project-specific key instructions (crucial)
 
@@ -130,7 +130,7 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
-**Goal-driven execution** — each task's **Accept** criteria in `03_CLAUDE_CODE_TASKS.md` are the success criteria; verify before advancing.
+**Goal-driven execution** — each task's **Accept** criteria in `03_CODEX_TASKS.md` are the success criteria; verify before advancing.
 
 ---
 
