@@ -163,9 +163,9 @@ python -m pytest
 GitHub Actions runs it on every push to `main` and every PR. PyTorch-dependent tests skip cleanly
 if `torch` is absent.
 
-## Codex-assisted development
+## Codex and Claude-assisted development
 
-I used Codex extensively to implement and review this research codebase. The workflow was
+I used Codex extensively to implement and review this research codebase, as well as Claude Code in a smaller capacity. The workflow was
 specification-driven: I defined the statistical design, data invariants, and acceptance criteria;
 Codex worked on bounded tasks; and I reviewed the diffs and validated them with synthetic tests,
 reconciliation checks, frozen out-of-sample keys, and model/run manifests. The repository is set up
