@@ -1,6 +1,6 @@
 # GBT Baseline — Session Handoff / Chat Context
 
-> **Purpose:** drop-in context for a fresh Claude Code chat continuing the LightGBM
+> **Purpose:** drop-in context for a fresh Codex chat continuing the LightGBM
 > gradient-boosted-tree (GBT) baseline. Self-contained snapshot of the prior session
 > (M16 done, M17 partial). Pair with the binding spec `specs/model/06_GBT_BASELINE.md`
 > and the task list `specs/model/04_TASKS.md` (M16–M19). Live resume details:
@@ -24,7 +24,7 @@ M19 are not started.**
 
 ---
 
-## 1. Project frame (inherited from CLAUDE.md)
+## 1. Project frame (inherited from AGENTS.md)
 
 Oxford MCF dissertation modelling US mortgage default risk on the Fannie Mae Single-Family
 Loan Performance dataset (~800 GB, ~100 vintage CSVs, 2000–2025). Sirignano-style **seven-state

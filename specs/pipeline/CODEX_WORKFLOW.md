@@ -1,17 +1,20 @@
-# HOWTO — Running this plan with Claude Code
+# Codex workflow for the data pipeline
 
-Everything Claude Code needs is in `specs/pipeline/` (these specs) and `src/floan/pipeline/` (the code). The workflow is: open it in the project, give it the kickoff prompt, then work through `03_CLAUDE_CODE_TASKS.md` one task at a time.
+Everything Codex needs is in `specs/pipeline/` (the specifications),
+`src/floan/pipeline/` (the implementation), and the layered `AGENTS.md` files. Work through
+`03_CODEX_TASKS.md` one bounded task at a time.
 
 ---
 
-## 1. Open Claude Code in the project
+## 1. Open Codex at the repository root
 
 ```bash
-cd "/Users/felipefritsch/Documents/Masters MCF Oxford/Dissertation/Dissertation - Asset Loans Default Risk"
-claude
+codex
 ```
 
-Launch from the project root so Claude Code sees both `specs/pipeline/` (specs) and `src/floan/pipeline/CLAUDE.md` (conventions). It auto-loads a `CLAUDE.md` from the working directory; since yours is in `src/floan/pipeline/`, either `cd src/floan/pipeline` before launching or just reference it in the kickoff prompt — both work.
+Launch from the project root so Codex automatically reads the root `AGENTS.md`. The kickoff prompt
+below explicitly loads `src/floan/pipeline/AGENTS.md`; alternatively, launch Codex with that
+directory as the working directory to have the nested instructions loaded automatically.
 
 ## 2. Connect the SSD first
 
@@ -21,15 +24,15 @@ Make sure `SSD Felipe` is mounted at `/Volumes/SSD Felipe/dissertation/` before 
 
 ```
 Read these files in full before doing anything:
-- src/floan/pipeline/CLAUDE.md   (the hard rules — follow them exactly)
+- src/floan/pipeline/AGENTS.md   (the hard rules — follow them exactly)
 - specs/pipeline/00_OVERVIEW.md
 - specs/pipeline/01_SCHEMA.md
 - specs/pipeline/02_PIPELINE_STAGES.md
-- specs/pipeline/03_CLAUDE_CODE_TASKS.md
+- specs/pipeline/03_CODEX_TASKS.md
 
 Then summarise the plan back to me in ~8 bullets and confirm you understand
 the no-full-load rule and the immutable-raw layout. Do NOT write any code yet.
-We'll work through 03_CLAUDE_CODE_TASKS.md one task at a time, and I'll approve
+We'll work through 03_CODEX_TASKS.md one task at a time, and I'll approve
 each before you move on. Start by proposing Task 0 only.
 ```
 
@@ -42,13 +45,13 @@ One task at a time, in order. After each, check the acceptance criteria in `03` 
 
 ---
 
-## 5. Model selection & rate limits  ⚠️
+## 5. Model selection and context management
 
 A build this long burns through usage fast if every step runs on the most capable (most expensive) model. Most of this pipeline is mechanical and does **not** need a frontier model. Match the model to the task and you'll go further before hitting limits.
 
-**Switch models with the `/model` command** inside Claude Code (it sets the model for the session; run it again any time to change). Rough mapping:
+Use `/model` in Codex to match reasoning effort to the task:
 
-| Use a **cheaper/faster** model (e.g. Haiku/Sonnet) for | Use the **most capable** model only for |
+| Use a **faster/lower-cost** option for | Use the **most capable** option for |
 |---|---|
 | Task 0 scaffold, `requirements.txt`, boilerplate | Task 1 schema reconciliation against the official glossary (positions 110–112) |
 | Stage 2 streaming conversion code (mechanical) | Task 5 seven-state target logic + window/censoring edge cases |
@@ -59,8 +62,8 @@ Default to the cheaper model and **escalate only when a task is genuinely subtle
 
 **Watching rate limits:**
 
-- Tell Claude Code up front: *"Prefer the cheapest model that can do each task; only ask me to switch up for the schema-mapping and target-logic steps."*
-- Keep context lean — run **`/clear`** between stages so it isn't re-carrying earlier conversation; have it re-read the relevant spec section instead.
+- Tell Codex up front: *"Prefer the cheapest model that can do each task; only ask me to switch up for the schema-mapping and target-logic steps."*
+- Keep context lean by starting a fresh task between stages and pointing it to the relevant spec section.
 - Don't paste large data samples into chat (a few rows is plenty); let the code stream files, not the conversation.
 - The heavy ~800 GB conversion is **compute on your machine, not model tokens** — once Stage 2 code is approved, running it costs no model usage, so kick off `--all` and step away.
 - If you hit a limit mid-build, the stages are idempotent and per-quarter, so you can resume later exactly where you left off.
@@ -69,4 +72,7 @@ Default to the cheaper model and **escalate only when a task is genuinely subtle
 
 ### Recap
 
-Open Claude Code in the project root, mount the SSD, paste the kickoff prompt, and approve tasks one at a time — pausing at the inventory and the `2014Q1` smoke test. To stay inside rate limits, run the mechanical steps on a cheaper model via `/model` and reserve the capable model for the schema reconciliation, the seven-state target logic, and real debugging; use `/clear` between stages and let code (not chat) handle the data.
+Open Codex in the project root, mount the SSD, paste the kickoff prompt, and approve tasks one at a
+time—pausing at inventory and the first conversion smoke test. Use `/model` to reserve the most
+capable option for schema reconciliation, target logic, and non-obvious debugging. Let the code
+stream the data; do not paste large samples into the conversation.

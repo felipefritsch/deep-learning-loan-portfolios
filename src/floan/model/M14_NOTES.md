@@ -93,7 +93,7 @@ Characteristic-bucket **prepaid** R² (the interpretable cross-pool metric):
   the broad refi wave is best tracked by the flat historical average. This is the headline
   caveat for the M15 memo, not a bug. (Fuller two-regime / shock-type framing — forbearance
   shock 2020 vs rate/prepay-incentive shock 2022–24 — and the §4.3 write-up feed:
-  `writeup/memos/02c_robustness_caveats.md §4`.)
+  the regime caveats reported in the final dissertation.)
 - **60+ dpd** counts are harder for all models (smaller event base); the ensemble is the only
   model with a positive characteristic-bucket R² at Dec2022 (0.635) and Dec2024 (0.261).
 

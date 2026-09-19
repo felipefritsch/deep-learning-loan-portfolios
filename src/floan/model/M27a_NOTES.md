@@ -39,7 +39,7 @@ All three arms share, per window:
 
 Pooled = Σ(NLL_w · n_w) / Σ n_w over the 11 disjoint test years. Ordering `ff_base > ff_hist > gru`
 (lower = better) holds pooled and in every individual window. Per-window detail (val NLL, per-transition
-AUC, n, timings) is in [`m27a_results/`](m27a_results/) — `k{k}_s0.json` (GRU), `k{k}_ff_base.json`,
+AUC, n, timings) is in [`artifacts/results/m27a_results/`](../../../artifacts/results/m27a_results/) — `k{k}_s0.json` (GRU), `k{k}_ff_base.json`,
 `k{k}_ff_hist.json`; key-window GRU seeds 1/2 in `k{k}_s{1,2}.json`.
 
 ## Finding 1 — sequence memory beats Markov current-state, everywhere

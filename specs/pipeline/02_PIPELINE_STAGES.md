@@ -1,6 +1,6 @@
 # 02 — Pipeline Stages (specification + code patterns)
 
-> Six stages. Each is **per-quarter** and **idempotent**: re-running skips work already done. Every stage obeys the one hard rule — *never load a full quarter into memory*. Code patterns below are reference implementations, not the final code; Claude Code adapts them.
+> Six stages. Each is **per-quarter** and **idempotent**: re-running skips work already done. Every stage obeys the one hard rule — *never load a full quarter into memory*. Code patterns below are reference implementations, not the final code; Codex adapts them.
 
 Environment (install once):
 ```bash

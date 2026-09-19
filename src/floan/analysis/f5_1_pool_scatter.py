@@ -1,9 +1,9 @@
 """F5.1 — predicted vs realised pool prepayment counts, random pools (M14 §4).
 
 Reproducible from the committed repo alone: reads the per-pool count table
-``src/floan/model/m14_pools/pools_random_k{k}.parquet`` (500 random pools of
+``artifacts/results/m14_pools/pools_random_k{k}.parquet`` (500 random pools of
 1,000 loans at the Dec2024 anchor, k=2025; produced by ``floan.model.pools``)
-and emits ``writeup/latex/figs/F4.1_scatter_random_prepaid.pdf`` — the
+and emits ``artifacts/generated/F4.1_scatter_random_prepaid.pdf`` — the
 predicted-vs-realised twelve-month prepayment-count scatter for the three
 headline models (memoryless empirical -> logit -> ensemble).
 
@@ -26,8 +26,8 @@ import numpy as np
 import polars as pl
 
 ROOT = Path(__file__).resolve().parents[3]
-SRC = ROOT / "src" / "floan" / "model" / "m14_pools"
-FIGS = ROOT / "writeup" / "latex" / "figs"
+SRC = ROOT / "artifacts" / "results" / "m14_pools"
+FIGS = ROOT / "artifacts" / "generated"
 
 K = 2025                       # Dec2024 anchor
 OUTCOME = "prepaid"
@@ -46,6 +46,7 @@ def _r2_rmse(pred: np.ndarray, realized: np.ndarray) -> tuple[float, float]:
 
 
 def make_figure() -> None:
+    FIGS.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update({"font.family": "serif", "font.size": 10,
                          "mathtext.fontset": "cm"})
     df = pl.read_parquet(SRC / f"pools_random_k{K}.parquet")

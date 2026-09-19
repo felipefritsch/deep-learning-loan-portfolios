@@ -25,6 +25,7 @@ from floan.pipeline import config as pipeline_config
 
 # Re-exported pipeline single-source-of-truth handles.
 ROOT = pipeline_config.ROOT
+REPO_ROOT = pipeline_config.REPO_ROOT
 PROCESSED = pipeline_config.PROCESSED
 MODELS = pipeline_config.MODELS
 OUTPUTS = pipeline_config.OUTPUTS

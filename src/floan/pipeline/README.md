@@ -4,17 +4,17 @@ Memory-safe ingestion → cleaning → modelling-target pipeline for the Fannie 
 Single-Family Loan Performance dataset. Converts ~865 GB of raw pipe-delimited
 CSVs into a compressed, columnar, queryable lake and derives the Sirignano
 seven-state monthly-transition target — **never loading more than a bounded
-chunk into memory** (hard rule; see `CLAUDE.md`).
+chunk into memory** (hard rule; see `AGENTS.md`).
 
 Specs live in `specs/pipeline/` (`00_OVERVIEW` → `01_SCHEMA` → `02_PIPELINE_STAGES`
-→ `03_CLAUDE_CODE_TASKS`). This README is the operator guide.
+→ `03_CODEX_TASKS`). This README is the operator guide.
 
 ## Current state (certified)
 
 | | |
 |---|---|
 | Vintages | **104**, contiguous `2000Q1 → 2025Q4`, one release cut-off (`2025-12`) |
-| Loan-months | **3,312,456,883** (53.7 M loans) |
+| Loan-months | **3,312,456,883** (57.6 M loans) |
 | Lake sizes | raw ~865 GB → perf ~22 GB → clean ~19 GB → panel ~21 GB |
 | QA | row reconciliation, `(loan,period)` uniqueness, uniform schema, shard balance — **all PASS** (`outputs/qa_report.md`) |
 

@@ -39,7 +39,7 @@ def main():
             return
         # A different sample size was requested: clear the stale cache and rebuild cleanly
         # (avoids mixing shards from a previous train_n). Banked numbers live in committed
-        # src/floan/model/m27a_results/, so overwriting pod scratch is safe.
+        # artifacts/results/m27a_results/, so overwriting pod scratch is safe.
         print(f"[k{k}] REBUILD — existing cache train_n={existing:,} != requested {TRAIN_N:,}; "
               f"clearing {out}", flush=True)
         shutil.rmtree(out, ignore_errors=True)

@@ -13,7 +13,7 @@ M24 source: ``outputs/tables/pool_level/m24/t_m24_horizon_regime.json`` (regime 
 ``.../m24/t_m24_econ_errors.json`` (full grid); M14/M15b read ``.../pool_level/t_m1{4,5}_*.json``.
 
 All are tabular-only (caption/label in the chapter .tex), Unicode-free, booktabs — matching the
-loan-level ``table_b.tex`` convention. Writes into ``writeup/latex/figs/`` (the LaTeX figs dir).
+loan-level ``table_b.tex`` convention. Writes into ``artifacts/generated/``.
 
 Run:  .venv/bin/python -m floan.model.make_pool_tex
 """
@@ -26,7 +26,7 @@ from floan.pipeline.config import REPO_ROOT
 
 ANCHORS = ["Dec2014", "Dec2018", "Dec2019", "Dec2022", "Dec2024"]   # the 5 ensemble-bearing anchors
 HEAD = ["empirical", "logit", "ensemble"]
-FIGS = REPO_ROOT / "writeup" / "latex" / "figs"
+FIGS = REPO_ROOT / "artifacts" / "generated"
 SRC = config.OUTPUTS / "tables" / "pool_level"
 M24 = SRC / "m24"                                                  # M24 horizon/full-grid econ-error tables
 ANCHORS_FULL = [f"Dec{y}" for y in range(2014, 2025)]             # all 11 backtest anchors (k = 2015 … 2025)

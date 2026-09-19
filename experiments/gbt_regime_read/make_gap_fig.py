@@ -37,7 +37,8 @@ REGIME = {
 }
 TEAL = "#1a5f6e"   # net ahead (gap > 0)
 BROWN = "#a05a2c"  # tree ahead (gap < 0)
-OUT = Path("writeup/latex/figs/F_gbt_regime_gap")
+OUT = Path("artifacts/generated/F_gbt_regime_gap")
+OUT.parent.mkdir(parents=True, exist_ok=True)
 
 config.require_drive()
 

@@ -1,4 +1,4 @@
-# Copy-Paste Prompts for Claude Code (one task per conversation)
+# Copy-Paste Prompts for Codex (one task per conversation)
 
 > Usage: `/clear` (fresh conversation) → paste the next prompt → review its evidence → confirm the commit happened → move on. After the gate tasks (M3, M12, M15) and every GPU session, **you** run `scripts/backup_ssd.sh` and `git push`.
 
@@ -73,7 +73,7 @@ Read specs/model/04_TASKS.md and specs/model/02_LOAN_LEVEL.md. Tasks through M7 
 > **Result (RTX 4090, AMP):** k=2015 dev fit, best epoch 20 of 26 (early-stopped). **val NLL 0.097671 < logit 0.100081** (Δ +0.00241, beats) — test NLL 0.104845 < logit 0.109430. No OOM (≤0.6 GB / 24 GB). Throughput **~1.55 M train rows/s, ~2.0 s train / 2.3 s per epoch** over the 3.15 M-row k=2015 train slice → M10 sizing: a 100 M-row train slice ≈ 1.1 min/epoch, ≈ 27 min per single-net window fit. Surfaced + fixed a cuda-only resume bug (`map_location` moved the CPU RNG state to GPU); resume now reproduces the uninterrupted trajectory bit-for-bit on GPU.
 
 ```
-Read specs/model/04_TASKS.md and specs/model/02_LOAN_LEVEL.md. M8a (build + CPU smoke test) is complete and committed — do NOT rebuild or rerun the smoke test. The GPU box is running and the M4 dev export is uploaded; this environment IS the GPU box [adjust if running Claude Code locally instead: "I will run commands on the box and paste outputs"]. Execute the deferred GPU portion of M8 only: fit the 5-layer net on the dev export (tuning window k=2015, early stopping on its val slice). Verify the remaining M8 Accept criteria with evidence: no OOM, val NLL improves on the M7 logit (paste both numbers), complete run folder, resumable from checkpoint. Record per-epoch wall-clock throughput (rows/sec and min/epoch) — it sets the M10 full-export size. Commit as "M8b: dev-scale GPU fit". Do not start M9.
+Read specs/model/04_TASKS.md and specs/model/02_LOAN_LEVEL.md. M8a (build + CPU smoke test) is complete and committed — do NOT rebuild or rerun the smoke test. The GPU box is running and the M4 dev export is uploaded; this environment IS the GPU box [adjust if running Codex locally instead: "I will run commands on the box and paste outputs"]. Execute the deferred GPU portion of M8 only: fit the 5-layer net on the dev export (tuning window k=2015, early stopping on its val slice). Verify the remaining M8 Accept criteria with evidence: no OOM, val NLL improves on the M7 logit (paste both numbers), complete run folder, resumable from checkpoint. Record per-epoch wall-clock throughput (rows/sec and min/epoch) — it sets the M10 full-export size. Commit as "M8b: dev-scale GPU fit". Do not start M9.
 ```
 
 **→ You: after the GPU session, sync checkpoints back to `models/`, run `backup_ssd.sh`, note the per-epoch throughput.** ✅

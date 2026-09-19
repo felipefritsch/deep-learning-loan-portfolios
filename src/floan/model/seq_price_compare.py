@@ -72,7 +72,7 @@ from floan.model import train as T                   # _git_commit (provenance)
 VARIANT = "full"
 ANCHORS = list(EC.ANCHORS)                           # [2015, 2019, 2020, 2023, 2025]
 HORIZONS = tuple(config.HORIZONS)                    # (1, 3, 6, 12)
-MC_OUT = MX.MC_OUT                                   # src/floan/model/m27b_mc — next to the GRU/xf artifacts
+MC_OUT = MX.MC_OUT                                   # artifacts/results/m27b_mc — next to the GRU/xf artifacts
 
 # Composable comparators, headline-first. ``empirical`` is checkpoint-free (panel-derived); ``logit``
 # / ``nn`` (the FF current-state net) / ``ensemble`` load frozen window-k checkpoints via the SAME

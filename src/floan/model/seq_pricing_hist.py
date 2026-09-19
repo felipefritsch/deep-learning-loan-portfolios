@@ -66,7 +66,7 @@ from floan.model import train as T                  # _git_commit (provenance)
 VARIANT = "full"
 ANCHORS = list(MX.ANCHORS)                          # [2015, 2019, 2020, 2023, 2025]
 HORIZONS = tuple(config.HORIZONS)                   # (1, 3, 6, 12)
-MC_OUT = MX.MC_OUT                                  # src/floan/model/m27b_mc — next to the gru/xf artifacts
+MC_OUT = MX.MC_OUT                                  # artifacts/results/m27b_mc — next to the gru/xf artifacts
 MC_WEIGHTS_ROOT = MX.MC_WEIGHTS_ROOT               # OUTPUTS/m27b_mc — 10M weights live beside gru/xf
 TRAIN_N = 10_000_000                                # match the seq caches' train_n (meta.json): the matched sample
 FF_BATCH, SCORE_BATCH, MAX_EPOCHS = 4096, 16384, 40

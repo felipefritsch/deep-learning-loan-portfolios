@@ -27,6 +27,9 @@ dependencies = [
     "lightgbm==4.6.0",
 ]
 
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
