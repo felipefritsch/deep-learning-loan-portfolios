@@ -79,6 +79,9 @@ ssd_mirror/
 
 # Miscellaneous
 misc/
+!misc/
+misc/*
+!misc/CODEX_CASE_STUDY.md
 
 # Scratch/temp files
 *.tmp

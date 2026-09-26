@@ -84,7 +84,8 @@ per-file detail.
 .
 ├── pyproject.toml              # package metadata, dependencies, pytest config
 ├── AGENTS.md                   # repository-wide instructions and research invariants for Codex
-├── CODEX_CASE_STUDY.md         # one real agent-assisted optimization, reconstructed and evidenced
+├── misc/
+│   └── CODEX_CASE_STUDY.md     # one real agent-assisted optimization, reconstructed and evidenced
 ├── LICENSE                     # source-available, non-commercial research-use terms
 ├── src/floan/
 │   ├── pipeline/               # data pipeline: inventory → parquet → clean → panel → sample → QA
@@ -181,7 +182,7 @@ for the same workflow today:
 
 This framing is intentional: Codex accelerated implementation and verification, while the research
 questions, modelling decisions, interpretation, and final dissertation remain my responsibility.
-See the [Codex case study](CODEX_CASE_STUDY.md) for a concrete, evidenced example.
+See the [Codex case study](misc/CODEX_CASE_STUDY.md) for a concrete, evidenced example.
 
 ## Planned extension
 
